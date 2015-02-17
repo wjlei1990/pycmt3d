@@ -5,6 +5,8 @@ from window import Window
 import os
 import numpy as np
 from source import CMTSource
+from obspy import read
+import math
 
 class cmt3d(object):
 
@@ -33,6 +35,7 @@ class cmt3d(object):
                     win_time[iwin, 1] = right
                 self.window.append(Window(sta, nw, loc, comp, win_time,
                                           obsd_fn=obsd_fn, synt_fn=synt_fn))
+        self.num_file = len(self.window)
 
     def setup_weight(self):
         """
@@ -138,20 +141,75 @@ class cmt3d(object):
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par = new_par * self.config.scale_par
 
+    def get_f_df(self):
+        pass
+
+    def gaussian_elimination(self):
+        pass
+
     def variance_reduction(self):
         """
         Calculate variance recduction after source apdated
         :return:
         """
+        fh = open("cmt3d_flexwin.out", "w")
+        fh.write("%d\n" %self.num_file)
 
+        nwint = 0
+        var_all = 0.0
+        var_all_new = 0.0
+        for window in self.window:
+            obsd_fn = window.obsd_fn
+            synt_fn = window.synt_fn
 
+            obsd = read(obsd_fn)[0]
+            synt = read(synt_fn)[0]
+            new_synt = self.compute_new_syn(obsd, synt, synt_fn, dm)
+            for win_time in window.win_time:
+                nwint += 1
+                tstart = win_time[0]
+                tend = win_time[1]
+                idx_start = max(math.floor(tstart/obsd.stats.delta),1)
+                idx_end = min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts)
 
+                if self.config.station_correction:
+                    self.calculate_criteria()
+                    self.calculate_criteria()
+                else:
+                    istart_d = idx_start
+                    istart = idx_start
+                    iend_d = idx_end
+                    iend = idx_end
+                    istart_dn = idx_start
+                    istart_n = idx_start
+                    iend_dn = idx_end
+                    iend_n = idx_end
 
+                taper = self.construct_hanning_taper(istart, iend)
+                v1 = np.sum()
+                v2 = np.sum()
+                d1 = np.sum()
+                d2 = np.sum()
+                var_all += 0.5*v1*window.weight*obsd.stats.delta
+                var_all_new += 0.5*v2*window.weight*obsd.stats.delta
 
+                # write out
+                fh.write("")
+                fh.write("")
+                fh.write("")
 
+        # close output fh
+        fh.close()
 
+    def compute_new_syn(self, obsd, synt, synt_fn, dm):
+        pass
 
+    def calculate_criteria(self):
+        pass
 
+    @staticmethod
+    def construct_hanning_taper(istart, iend):
+        pass
 
     def calculate_variance_reduction(self):
         pass
@@ -164,7 +222,3 @@ class cmt3d(object):
         # calculate new cmt solution
         self.invert_cmt()
         self.calculate_variance_reduction()
-
-
-
-
