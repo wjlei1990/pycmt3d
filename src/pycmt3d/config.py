@@ -4,8 +4,15 @@
 """
 Configuration object for pycmt3d
 """
-import numpy as np
-import const
+
+try:
+    import numpy as np
+except:
+    msg = ("No module named numpy. "
+           "Please install numpy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
+import cosnt
 
 class Config(object):
 
