@@ -167,10 +167,8 @@ class cmt3d(object):
                 b1i = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
                         dsyn[typei][istart_s:iend_s])
 
-
-
-
     def invert_cmt(self):
+
         npar = self.config.npar
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
@@ -194,6 +192,7 @@ class cmt3d(object):
         trace = np.matrix.trace(A)
         damp_matrix = np.zeros([npar, npar])
         np.fill_diagonal(damp_matrix, trace*self.config.lamda_damping)
+        A = A + damp_matrix
 
         # setup new matrix based on constraints
         AA = np.zeros([na, na])
@@ -207,6 +206,7 @@ class cmt3d(object):
                 bb[na-1] = - np.sum(old_par[0:3])
                 AA[0:6, na-1] = np.array([1, 1, 1, 0, 0, 0])
                 AA[na-1, 0:6] = np.array([1, 1, 1, 0, 0, 0])
+                AA[na-1, na-1] = 0.0
             # use linear solver
             try:
                 dm = np.linalg.solve(AA, bb)
@@ -226,10 +226,10 @@ class cmt3d(object):
 
             # nolinear solver. Maybe there are already exist code.
             # check later
-            for iter in range(NMAX_NL_ITER):
+            for iter in range(const.NMAX_NL_ITER):
                 self.get_f_df()
                 bb = - bb
-                xout = self.gaussian_elimination()
+                xout = np.linalg.solve(AA, bb)
                 m1 = m1 + xout
                 lam = lam + xout[npar:na]
             dm = m1 - mstart
@@ -238,11 +238,47 @@ class cmt3d(object):
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par = new_par * self.config.scale_par
 
-    def get_f_df(self):
-        pass
+    def get_f_df(self, A, b, m, lam, mstart, fij, f0):
 
-    def gaussian_elimination(self):
-        pass
+        npar = self.config.npar
+        NM = const.NM
+        # U_j
+        dc1_dm = np.array([1,1,1,0,0,0])
+
+        # V_j
+        dc2_dm = np.zeros(6)
+        dc2_dm[0] = m[1] * m[2] - m[5]**2
+        dc2_dm[1] = m[0] * m[2] - m[4]**2
+        dc2_dm[2] = m[0] * m[1] - m[3]**2
+        dc2_dm[3] = 2 * m[4] * m[5] - 2 * m[2] * m[3]
+        dc2_dm[4] = 2 * m[3] * m[5] - 2 * m[1] * m[4]
+        dc2_dm[5] = 2 * m[3] * m[4] - 2 * m[0] * m[5]
+
+        # f(x^i) = H_jk (m_k^i -m_k^0) - b_j + lam_1 * U_j + lam_2 * V_j (A11)
+        f0[0:npar] = np.dot(A[0:npar, 0:npar], m[0:npar]-mstart[0:npar]) - b[0:npar]
+        f0[0:const.NM] += lam[0] * dc1_dm[0:const.NM] + lam[1] * dc2_dm[0:const.NM]
+        # f_(n+1) and f_(n+2)
+        f0[npar] = m[0] + m[1] + m[2]
+        moment_tensor = np.array([[m[0], m[3], m[4]],[m[3],m[1],m[5]],[m[4],m[5],m[2]]])
+        f0[npar] = np.linalg.det(moment_tensor)
+
+        # Y_jk
+        dc2_dmi_dmj = np.zeros([6,6])
+        dc2_dmi_dmj[0,:] = np.arrays([     0.0,    m[2],     m[1],      0.0,         0.0,    -2*m[5]   ])
+        dc2_dmi_dmj[1,:] = np.arrays([    m[2],    0.0,      m[0],      0.0,      -2.0*m[4],   0.0     ])
+        dc2_dmi_dmj[2,:] = np.arrays([    m[1],    m[0],      0.0,   -2.0*m[3],    0.0,        0.0     ])
+        dc2_dmi_dmj[3,:] = np.arrays([     0.0,     0.0,  -2.0*m[3], -2.0*m[2],    2*m[5],    2*m[4]   ])
+        dc2_dmi_dmj[4,:] = np.arrays([     0.0, -2.0*m[4],    0.0,    2.0*m[5], -2.0*m[1],    2*m[3]   ])
+        dc2_dmi_dmj[5,:] = np.arrays([ -2.0*m[5],   0.0,      0.0,    2.0*m[4],    2.0*m[3],  -2.0*m[0]])
+
+        # ! f_jk = H_jk + lam_2 * Y_jk
+        fij.fill(0)
+        fij[0:npar, 0:npar] = A[0:npar, 0:npar]
+        fij[0:NM, 0:NM] = fij[0:NM, 0:NM] + lam[1] * dc2_dmi_dmj[0:NM, 0:NM]
+        fij[0:NM, npar] = dc1_dm
+        fij[0:NM, npar+1] = dc2_dm
+        fij[npar, 0:NM] = dc1_dm
+        fij[npar+1, 0:NM] = dc2_dm
 
     def variance_reduction(self):
         """

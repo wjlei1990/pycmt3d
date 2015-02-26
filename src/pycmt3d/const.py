@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 '''
@@ -38,8 +38,8 @@ NM = 6
 NML = 9
 
 # Small numbers
-EPS2 = 1.0d-2
-EPS5 = 1.0d-5
+EPS2 = 1.0e-2
+EPS5 = 1.0e-5
 
 # Number of regions for azimuthal weighting
 NREGIONS = 10
@@ -49,3 +49,6 @@ REF_DIST = 100.0
 
 # Earth's radius for depth scaling
 R_EARTH=6371  # km
+
+# Max step in non-linear solvoer
+NMAX_NL_ITER = 20
