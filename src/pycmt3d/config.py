@@ -4,8 +4,15 @@
 """
 Configuration object for pycmt3d
 """
-import numpy as np
-import const
+
+try:
+    import numpy as np
+except:
+    msg = ("No module named numpy. "
+           "Please install numpy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
+import cosnt
 
 class Config(object):
 
@@ -16,14 +23,13 @@ class Config(object):
                  double_couple=True, lamda_damping=0.0):
         self.npar = npar
         if (not self.npar in [6, 7, 9, 10, 11]):
-            print '''Error: the current npar (number of parameters) is ''', self.npar,'''
-            The npar (number of parameters) must be 6, 7, 9, 10 or 11"
-            When npar is 6: moment tensor
-            When npar is 7: moment tensor + depth
-            When npar is 9: moment tensor + depth + location(e.g. latitude and longitude)
-            When npar is 10: moment tensor + depth + location + time
-            When npar is 11: moment tensor + depth + location + time + half duration
-            '''
+            print ('Error: the current npar (number of parameters) is ', self.npar)
+            print ('The npar (number of parameters) must be 6, 7, 9, 10 or 11')
+            print ('When npar is 6: moment tensor')
+            print ('When npar is 7: moment tensor + depth')
+            print ('When npar is 9: moment tensor + depth + location(e.g. latitude and longitude)')
+            print ('When npar is 10: moment tensor + depth + location + time')
+            print ('When npar is 11: moment tensor + depth + location + time + half duration')
             return None
         self.dlocation = dlocation
         self.ddepth = ddepth

@@ -1,14 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from window import Window
-import os
-import numpy as np
-from source import CMTSource
-from obspy import read
+try:
+    import numpy as np
+except:
+    msg = ("No module named numpy. "
+           "Please install numpy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
+try:
+    from obspy import read
+except:
+    msg = ("No module named obspy. "
+           "Please install obspy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
 import math
+import os
+from source import CMTSource
 from obspy.core.util.geodetics import gps2DistAzimuth
 import const
+from window import Window
 
 class cmt3d(object):
 

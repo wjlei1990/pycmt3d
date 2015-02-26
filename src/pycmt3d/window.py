@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
+try:
+    import numpy as np
+except:
+    msg = ("No module named numpy. "
+           "Please install numpy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
 
 class Window(object):
 

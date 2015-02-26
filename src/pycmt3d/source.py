@@ -14,16 +14,34 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import collections
-import numpy as np
-import obspy
+
+try:
+    import numpy as np
+except:
+    msg = ("No module named numpy. "
+           "Please install numpy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
+try:
+    import obspy
+except:
+    msg = ("No module named obspy. "
+           "Please install obspy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
+try:
+    from scipy import interp
+except:
+    msg = ("No module named scipy. "
+           "Please install scipy first, it is needed before using pycmt3d.")
+    raise ImportError(msg)
+
 from obspy.core.util.geodetics import FlinnEngdahl
 from obspy.signal.filter import lowpass
+from obspy import readEvents
 import obspy.xseed
 import os
-from scipy import interp
 import warnings
-from obspy import readEvents
-
 
 DEFAULT_MU = 32e9
 
