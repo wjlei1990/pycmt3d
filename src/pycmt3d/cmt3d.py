@@ -19,6 +19,7 @@ import math
 import os
 from source import CMTSource
 from obspy.core.util.geodetics import gps2DistAzimuth
+from obspy.signal.cross_correlation import xcorr
 import const
 from window import Window
 
@@ -318,7 +319,7 @@ class cmt3d(object):
                     iend_dn = idx_end
                     iend_n = idx_end
 
-                taper = self.construct_hanning_taper(istart, iend)
+                taper = self.construct_hanning_taper(iend-istart+1)
                 v1 = np.sum()
                 v2 = np.sum()
                 d1 = np.sum()
@@ -334,19 +335,49 @@ class cmt3d(object):
         # close output fh
         fh.close()
 
-    def compute_new_syn(self, obsd, synt, synt_fn, dm):
-        pass
+    def compute_new_syn(self, datalist, dm):
+        # get a dummy copy to keep meta data information
+        new_synt = datalist['synt'].copy()
+
+        npar = self.config.npar
+        npts = datalist['synt'].stats.npts
+        dt = datalist['synt'].stats.delta
+        dsyn = np.zeros_like([npts, npar])
+        par_list = self.config.par_name
+        dcmt_par = self.config.dcmt_par
+
+        for i in range(npar):
+            if i < const.NM:
+                dsyn[:, i] = datalist[par_list[i].data] / dcmt_par[i]
+            elif i < const.NML:
+                dsyn[:, i] = ( datalist[par_list[i]].data - datalist['synt'].data) / dcmt_par[i]
+            elif i == const.NML:
+                dsyn[0:(npts-1), i] = -(datalist['synt'].data[1:npts] - datalist[0:(npts-1)]) / (dt*dcmt_par[i])
+                dsyn[npts-1, i] = dsyn[npts-2,i]
+            elif i == (const.NML + 1):
+                # what the hell here....
+                pass
+
+            new_synt.data = datalist['synt'].data + np.dot(dsyn, dm)
 
     @staticmethod
-    def calculate_criteria(obsd, synt, istart, iend, nshift, cc, dlna):
-        pass
+    def calculate_criteria(obsd, synt, istart, iend, nshift, cc_max, dlnA):
+        # cross-correlation measurement
+        len = istart - iend
+        zero_padding = np.zeros(len)
+        trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
+        trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
+        nshift, max_cc = xcorr(trace1, trace2, len)
+        # amplitude anomaly
+        dlnA = math.sqrt( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
+
+        return nshift, max_cc, dlnA
 
     @staticmethod
-    def construct_hanning_taper(istart, iend):
-        pass
-
-    def calculate_variance_reduction(self):
-        pass
+    def construct_hanning_taper(npts):
+        taper = np.zeros(npts)
+        for i in range(npts):
+            taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (i / (npts-1))))
 
     def source_inversion(self):
         self.load_winfile()

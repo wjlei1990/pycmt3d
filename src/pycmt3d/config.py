@@ -12,7 +12,7 @@ except:
            "Please install numpy first, it is needed before using pycmt3d.")
     raise ImportError(msg)
 
-import cosnt
+import const
 
 class Config(object):
 
