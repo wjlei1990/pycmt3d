@@ -84,11 +84,20 @@ class cmt3d(object):
             for idx, window in enumerate(self.window):
                 kcmpnm = window.component
                 [dist_in_km, azimuth] = self.get_station_loc_info(self.data[idx])
-                weight = self.config.weight_function(kcmpnm, azimuth, dist_in_km)
+                weight = self.config.weight_function(kcmpnm, azimuth, dist_in_km, num_file=self.num_file, nwins=len(self.window))
                 self.window[idx].weight = weight
         else:
             for idx in range(len(self.window)):
                 self.window[idx].weight = 1.0
+
+        # normalization of data weights
+        # Attention: the code here might be tedious but I just do not know how to make it bette without changing previous codes
+        win_tmp=np.zeros(len(self.window))
+        for i in range(len(self.window)):
+            win_tmp[i] = self.window[idx].weight
+        max_data_weight = np.amax[win_tmp]
+        for i in range(len(self.window)):
+            self.window[idx].weight /= max_data_weight
 
     def get_station_info(self, datalist):
         # this might be related to datafile type(sac, mseed or asdf)
