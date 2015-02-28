@@ -12,7 +12,7 @@ except:
            "Please install numpy first, it is needed before using pycmt3d.")
     raise ImportError(msg)
 
-import cosnt
+import const
 
 class Config(object):
 
@@ -51,3 +51,45 @@ class Config(object):
         self.dcmt_par = np.array([self.dmoment, self.dmoment, self.dmoment, self.dmoment,
                                   self.dmoment, self.dmoment, self.ddepth, self.ddelta,
                                   self.ddelta, 1.0, 1.0])/self.scale_par
+
+    # The function weight_function is to calculate the weight for different component and azimuths
+    # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
+    def weight_function(kcmpnm, azimuth, dist_in_km, window_index=0,nwins=1,
+                        comp_z_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.0,
+                        az_exp_weight=0.5, pnl_dist_weight=1.15, rayleigh_dist_weight=0.55
+                        love_dist_weight=0.78):
+        daz = 360.0 / const.NREGIONS
+        naz = np.zeros(const.NREGIONS+1)  # start with water level of 0
+
+        # component weight
+        comp_direct = kcmpnm[2]
+        if (comp_direct == 'Z'):
+            cmp_weight = comp_z_weight
+        elif (comp_direct == 'R'):
+            cmp_weight = comp_r_weight
+        elif (comp_direct == 'T'):
+            cmp_weight = comp_t_weight
+        else:
+            raise ValueError('The direction of component of seismic data has to be 'Z', 'R', or 'T'')
+
+        # distance weights
+        # for global seismograms, this obviously has to be changed
+        if (comp_direct == 'T'):
+            dist_exp_weight = love_dist_weight
+        else:
+            if (nwins>1 and window_index==0):
+                dist_exp_weight = pnl_dist_weight
+            else:
+                dist_exp_weigth = rayleigh_dist_weight
+
+
+        # azimuth counts
+        k = floor(azimuth / daz) 
+        if ( k<0 or k>const.NREGIONS):
+            raise ValueError ('Error bining azimuth')
+        naz[k] += 1
+
+        # assemble data weights
+        data_weight = cmp_weight * (dist_in_km/const.REF_DIST) ** dist_exp_weight / naz ** az_exp_weight
+
+        return data_weight
