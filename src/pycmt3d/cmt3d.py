@@ -209,7 +209,7 @@ class cmt3d(object):
         bb = np.zeros([na, 1])
         if linear_inversion:
             # if invert for moment tensor with zero-trace constraints
-            print "Linear Inversion"
+            print ("Linear Inversion")
             AA[0:npar, 0:npar] = A
             bb[0:npar, 1] = b
             if self.config.zero_trace:
@@ -221,7 +221,7 @@ class cmt3d(object):
             try:
                 dm = np.linalg.solve(AA, bb)
             except:
-                print "Matrix is singular...LinearAlgError"
+                print ('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
             new_par = old_par[0:npar] + dm[0:npar]
 
@@ -229,7 +229,7 @@ class cmt3d(object):
             # if invert for moment tensor with double couple constraints
             # setup starting solution, solve directly for moment instead
             # of dm, exact implementation of (A16)
-            print "No-linear Inversion"
+            print ('No-linear Inversion')
             mstart = np.copy(old_par)
             m1 = np.copy(mstart)
             lam = np.zeros(2)
