@@ -153,6 +153,7 @@ class cmt3d(object):
                 iend_s = iend
 
             dsyn = {}
+            dsyn = np.zeros(npts,dtype={'names':par_list, 'formats':['f4']*len(par_list))
             for itype in range(self.config.npar):
                 type = par_list[itype]
                 if itype < const.NML:
@@ -168,14 +169,18 @@ class cmt3d(object):
                     dsyn[type].append(dsyn[type].data[npts-2])
             # hanning taper
             taper = self.construct_hanning_taper(istart_s, iend_s)
+            A1 = np.zeros((npar, npar))
             # compute A and b by taking into account data weights
             for i in range(npar):
                 typei = par_list[i]
                 for j in range(npar):
                     typej = par_list[j]
-                    A1ij = window.weight * np.sum(taper * dsyn[typei][istart_s:iend_s] * dsyn[typej][istart_s:iend_s]) * dt
+                    A1[i][j] = window.weight * np.sum(taper * dsyn[typei][istart_s:iend_s] * dsyn[typej][istart_s:iend_s]) * dt
                 b1i = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
                         dsyn[typei][istart_s:iend_s])
+
+            b1 = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+                                         dsyn[:][istart_s:iend_s])
 
     def invert_cmt(self):
 
