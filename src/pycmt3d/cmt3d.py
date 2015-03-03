@@ -25,13 +25,15 @@ from window import Window
 
 class cmt3d(object):
 
-    def __init__(self, cmtsource, flexwin_file, config):
+    def __init__(self, cmtsource, flexwin_file, config, bootstrap=False, bootstrap_repeat=100):
         self.config = config
         self.cmtsource = cmtsource
         self.flexwin_file = flexwin_file
         self.data = []
         self.window = []
         self.num_file = 0
+        self.bootstrap = bootstrap
+        self.bootstrap_repeat = bootstrap_repeat
 
     def load_winfile(self):
         self.window = []
@@ -112,7 +114,7 @@ class cmt3d(object):
 
     # Setup the matrix A and b
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
-    def setup_matrix(self, bootstrap=False, repeat_time=100):
+    def setup_matrix(self):
         self.A = np.zeros((self.config.npar, self.config.npar))
         self.b = np.zeros((self.config.npar, 1))
         A1_all = []
@@ -123,16 +125,16 @@ class cmt3d(object):
             [A1, b1] = self.compute_A_b(window, data)
             A1_all.append(A1)
             b1_all.append(b1)
-        if (bootstrap == True):
-            A_bootstrap = []
-            b_bootstrap = []
-            for i in range(0, repeat_time):
+        if (self.bootstrap == True):
+            self.A_bootstrap = []
+            self.b_bootstrap = []
+            for i in range(0, self.bootstrap_repeat):
                 random_array = np.random.randint(2, size=(self.config.npar, 1, 1))
                 self.A = np.sum(random_array * A1_all, axis=0)
                 self.b = np.sum(random_array * b1_all, axis=0)
-                A_bootstrap.append(self.A)
-                b_bootstrap.append(self.b)
-        elif (bootstrap == True):
+                self.A_bootstrap.append(self.A)
+                self.b_bootstrap.append(self.b)
+        elif (self.bootstrap == True):
             self.A = np.sum(A1_all, axis=0)
             self.b = np.sum(b1_all, axis=0)
 
@@ -203,15 +205,15 @@ class cmt3d(object):
             b1 = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
                                          dsyn[:][istart_s:iend_s])
 
-    def invert_cmt(self):
+    def invert_cmt(self, A, b):
 
         npar = self.config.npar
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
         # scale the A and b matrix
-        max_row = np.amax(self.A, axis=1)
-        A = self.A/max_row
-        b = self.b/max_row
+        max_row = np.amax(A, axis=1)
+        A = A/max_row
+        b = b/max_row
 
         # setup inversion schema
         if self.config.double_couple:
@@ -250,6 +252,7 @@ class cmt3d(object):
                 print ('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
             new_par = old_par[0:npar] + dm[0:npar]
+            return new_par
 
         else:
             # if invert for moment tensor with double couple constraints
@@ -273,6 +276,19 @@ class cmt3d(object):
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par = new_par * self.config.scale_par
+        return new_cmt_par
+
+    # The function invert_bootstrap
+    # It is used to evaluate the mean, standard deviation,
+    # and variance of new parameters
+    def invert_bootstrap(self):
+        new_par_array = np.zeros((self.bootstrap_repeat, self.npar))
+        for i in range (0, self.bootstrap_repeat):
+            new_par = self.invert_cmt(self.A_bootstrap[i], self.b_bootstrap[i])
+            new_par_array[i] = new_par
+        self.par_mean = np.mean(new_par_array, axis=0)
+        self.par_std = np.std(new_par_array, axis=0)
+        self.par_var = np.var(new_par_array, axis=0)
 
     def get_f_df(self, A, b, m, lam, mstart, fij, f0):
 
@@ -420,5 +436,8 @@ class cmt3d(object):
         # setup matrix based on misfit
         self.setup_matrix()
         # calculate new cmt solution
-        self.invert_cmt()
-        self.calculate_variance_reduction()
+        if (self.bootstrap=False):
+            self.invert_cmt(self.A, self.b)
+            self.calculate_variance_reduction()
+        elif (self.bootstrap=True):
+            self.invert_bootstrap()
