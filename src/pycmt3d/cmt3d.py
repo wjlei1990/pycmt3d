@@ -112,23 +112,29 @@ class cmt3d(object):
 
     # Setup the matrix A and b
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
-    def setup_matrix(self, bootstrap=False):
-        self.A = np.zeros(self.config.npar, self.config.npar)
-        self.b = np.zeros(self.config.npar, 1)
+    def setup_matrix(self, bootstrap=False, repeat_time=100):
+        self.A = np.zeros((self.config.npar, self.config.npar))
+        self.b = np.zeros((self.config.npar, 1))
+        A1_all = []
+        b1_all = []
+        random_array = []
         for idx, window in enumerate(self.window):
-            if (bootstrap == True):
-                if ( np.random.rand(1) < 0.5):
-                    data = self.data[idx]
-                    [A1, b1] = self.compute_A_b(window, data)
-                    self.A += A1
-                    self.b += b1
-                else:
-                    pass
-            elif (bootstrap == False):
-                data = self.data[idx]
-                [A1, b1] = self.compute_A_b(window, data)
-                self.A += A1
-                self.b += b1
+            data = self.data[idx]
+            [A1, b1] = self.compute_A_b(window, data)
+            A1_all.append(A1)
+            b1_all.append(b1)
+        if (bootstrap == True):
+            A_bootstrap = []
+            b_bootstrap = []
+            for i in range(0, repeat_time):
+                random_array = np.random.randint(2, size=(self.config.npar, 1, 1))
+                self.A = np.sum(random_array * A1_all, axis=0)
+                self.b = np.sum(random_array * b1_all, axis=0)
+                A_bootstrap.append(self.A)
+                b_bootstrap.append(self.b)
+        elif (bootstrap == True):
+            self.A = np.sum(A1_all, axis=0)
+            self.b = np.sum(b1_all, axis=0)
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -183,6 +189,7 @@ class cmt3d(object):
             # hanning taper
             taper = self.construct_hanning_taper(istart_s, iend_s)
             A1 = np.zeros((npar, npar))
+            b1 = np.zeros((npar, 1))
             # compute A and b by taking into account data weights
             # for i in range(npar):
             #     typei = par_list[i]
