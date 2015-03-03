@@ -110,14 +110,25 @@ class cmt3d(object):
         dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
         return [dist_in_m/1000.0, az]
 
-    def setup_matrix(self):
+    # Setup the matrix A and b
+    # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
+    def setup_matrix(self, bootstrap=False):
         self.A = np.zeros(self.config.npar, self.config.npar)
         self.b = np.zeros(self.config.npar, 1)
         for idx, window in enumerate(self.window):
-            data = self.data[idx]
-            [A1, b1] = self.compute_A_b(window, data)
-            self.A += A1
-            self.b += b1
+            if (bootstrap == True):
+                if ( np.random.rand(1) < 0.5):
+                    data = self.data[idx]
+                    [A1, b1] = self.compute_A_b(window, data)
+                    self.A += A1
+                    self.b += b1
+                else:
+                    pass
+            elif (bootstrap == False):
+                data = self.data[idx]
+                [A1, b1] = self.compute_A_b(window, data)
+                self.A += A1
+                self.b += b1
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -152,33 +163,36 @@ class cmt3d(object):
                 istart_s = istart
                 iend_s = iend
 
-            dsyn = {}
-            dsyn = np.zeros(npts,dtype={'names':par_list, 'formats':['f4']*len(par_list))
+            #dsyn = {}
+            dsyn = np.zeros((npar, npar))
+            #dsyn = np.zeros(npts,dtype={'names':par_list, 'formats':['f4']*len(par_list))
             for itype in range(self.config.npar):
-                type = par_list[itype]
+                type_name = par_list[itype]
                 if itype < const.NML:
                     # check file
                     # check dt, npts
                     dt = datalist['synt'].stats.delta
                 if itype < const.NM: # moment tensor
-                    dsyn[type] = datalist[type].data[1:npts]/dcmt_par[itype]
+                    dsyn[itype][0:npts] = datalist[type_name].data[1:npts]/dcmt_par[itype]
                 elif itype < const.NML:  # location
-                    dsyn[type] = (datalist[type].data[1:npts]-datalist['synt'].data[1:npts])/dcmt_par[itype]
+                    dsyn[itype][0:npts] = (datalist[type_name].data[1:npts]-datalist['synt'].data[1:npts])/dcmt_par[itype]
                 elif itype == const.NML:  # time shift
-                    dsyn[type] = (datalist['synt'].data[2:npts]-datalist['synt'].data[1:(npts-1)])/(dt*dcmt_par[itype])
-                    dsyn[type].append(dsyn[type].data[npts-2])
+                    dsyn[itype][0:npts] = (datalist['synt'].data[2:npts]-datalist['synt'].data[1:(npts-1)])/(dt*dcmt_par[itype])
+                    dsyn[itype][npts-1] = dsyn[itype][npts-2]
+                    #dsyn[itype].append(dsyn[type_name].data[npts-2])
             # hanning taper
             taper = self.construct_hanning_taper(istart_s, iend_s)
             A1 = np.zeros((npar, npar))
             # compute A and b by taking into account data weights
+            # for i in range(npar):
+            #     typei = par_list[i]
+            #     for j in range(npar):
+            #         typej = par_list[j]
+            #         A1[i][j] = window.weight * np.sum(taper * dsyn[typei][istart_s:iend_s] * dsyn[typej][istart_s:iend_s]) * dt
+            #     b1i = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+            #             dsyn[typei][istart_s:iend_s])
             for i in range(npar):
-                typei = par_list[i]
-                for j in range(npar):
-                    typej = par_list[j]
-                    A1[i][j] = window.weight * np.sum(taper * dsyn[typei][istart_s:iend_s] * dsyn[typej][istart_s:iend_s]) * dt
-                b1i = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
-                        dsyn[typei][istart_s:iend_s])
-
+                A1[i] = window.weigt * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt
             b1 = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
                                          dsyn[:][istart_s:iend_s])
 
