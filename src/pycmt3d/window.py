@@ -11,7 +11,8 @@ except:
 class Window(object):
 
     def __init__(self, station, network, location, component,
-                 win_time, weight=0.0, obsd_fn=None, synt_fn=None):
+                 win_time, weight=0.0, obsd_fn=None, synt_fn=None,
+                 datalist=None):
 
         self.station = station
         self.network = network
@@ -21,3 +22,4 @@ class Window(object):
         self.weight = weight
         self.obsd_fn = obsd_fn
         self.synt_fn = synt_fn
+        self.datalist = datalist

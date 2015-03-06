@@ -29,13 +29,16 @@ class cmt3d(object):
         self.config = config
         self.cmtsource = cmtsource
         self.flexwin_file = flexwin_file
-        self.data = []
         self.window = []
         self.num_file = 0
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
 
     def load_winfile(self):
+        """
+        old way of loading flexwin inputfile
+        :return:
+        """
         self.window = []
         with open(self.flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
@@ -50,13 +53,15 @@ class cmt3d(object):
                 num_win = int(f.readline().strip())
                 win_time = np.zeros((num_win,2))
                 for iwin in range(num_win):
-                    [left, right] = f.readline().strip()
-                    win_time[iwin, 0] = left
-                    win_time[iwin, 1] = right
-                    win_obj = Window(sta, nw, loc, comp, win_time,
-                                     obsd=obsd_fn, synt=synt_fn)
+                    [left, right] = f.readline().strip().split()
+                    win_time[iwin, 0] = float(left)
+                    win_time[iwin, 1] = float(right)
+                win_obj = Window(sta, nw, loc, comp, win_time,
+                                  obsd=obsd_fn, synt=synt_fn)
+                # load all data, observed and synthetics into the object
+                self.load_data(win_obj)
                 self.window.append(win_obj)
-                self.data.append(self.load_data(win_obj))
+
         self.num_file = len(self.window)
 
     def load_data(self, win_obj):
@@ -76,7 +81,7 @@ class cmt3d(object):
             synt_dev_fn = synt_fn + "." + par_list[i]
             datalist[par_list[i]] = read(synt_dev_fn)[0]
 
-        return datalist
+        win_obj.datalist = datalist
 
     def setup_weight(self):
         """
@@ -86,7 +91,7 @@ class cmt3d(object):
         if self.config.weight_data:
             for idx, window in enumerate(self.window):
                 kcmpnm = window.component
-                [dist_in_km, azimuth] = self.get_station_loc_info(self.data[idx])
+                [dist_in_km, azimuth] = self.get_station_loc_info(window.datalist)
                 weight = self.config.weight_function(kcmpnm, azimuth, dist_in_km, num_file=self.num_file, nwins=len(self.window))
                 self.window[idx].weight = weight
         else:
@@ -107,8 +112,8 @@ class cmt3d(object):
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
         # station location from synthetic file
-        sta_lat = self.datalist['synt'].stats.sac['stla']
-        sta_lon = self.datalist['synt'].stats.sac['stlo']
+        sta_lat = datalist['synt'].stats.sac['stla']
+        sta_lon = datalist['synt'].stats.sac['stlo']
         dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
         return [dist_in_m/1000.0, az]
 
@@ -121,11 +126,10 @@ class cmt3d(object):
         b1_all = []
         random_array = []
         for idx, window in enumerate(self.window):
-            data = self.data[idx]
-            [A1, b1] = self.compute_A_b(window, data)
+            [A1, b1] = self.compute_A_b(window)
             A1_all.append(A1)
             b1_all.append(b1)
-        if (self.bootstrap == True):
+        if self.bootstrap == True:
             self.A_bootstrap = []
             self.b_bootstrap = []
             for i in range(0, self.bootstrap_repeat):
@@ -134,9 +138,10 @@ class cmt3d(object):
                 self.b = np.sum(random_array * b1_all, axis=0)
                 self.A_bootstrap.append(self.A)
                 self.b_bootstrap.append(self.b)
-        elif (self.bootstrap == True):
-            self.A = np.sum(A1_all, axis=0)
-            self.b = np.sum(b1_all, axis=0)
+        # Xin, do you have a type error here?
+        elif self.bootstrap == False:
+            self.A += A1_all
+            self.b += b1_all
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -144,11 +149,12 @@ class cmt3d(object):
                                cmt.m_rp, cmt.depth_in_m/1000.0, cmt.longitude,
                                cmt.latitude, cmt.time_shift, cmt.half_duration])
 
-    def compute_A_b(self, window, datalist):
+    def compute_A_b(self, window):
 
         par_list = self.config.par_name
         npar = self.config.npar
         dcmt_par = self.config.dcmt_par
+        datalist = window.datalist
         obsd = datalist['obsd']
         synt = datalist['synt']
         npts = min(obsd.npts, synt.npts)
@@ -343,13 +349,11 @@ class cmt3d(object):
         nwint = 0
         var_all = 0.0
         var_all_new = 0.0
-        for window in self.window:
-            obsd_fn = window.obsd_fn
-            synt_fn = window.synt_fn
-
-            obsd = read(obsd_fn)[0]
-            synt = read(synt_fn)[0]
-            new_synt = self.compute_new_syn(obsd, synt, synt_fn, dm)
+        for _idx, window in self.window:
+            new_synt = self.compute_new_syn(window.datalist, dm)
+            obsd = window.datalist['obsd']
+            synt = window.datalist['synt']
+            npts = min(obsd.npts, synt.npts)
             for win_time in window.win_time:
                 nwint += 1
                 tstart = win_time[0]
@@ -358,8 +362,16 @@ class cmt3d(object):
                 idx_end = min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts)
 
                 if self.config.station_correction:
-                    self.calculate_criteria()
-                    self.calculate_criteria()
+                    [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
+                    [nshift_new, cc_new, dlnA_new] = self.calculate_criteria(obsd, new_synt, idx_start, idx_end,)
+                    istart_d = max(1, idx_start+nshift)
+                    iend_d = min(npts, idx_start+nshift)
+                    istart_dn = max(1, idx_start+nshift_new)
+                    iend_dn = min(npts, idx_end+nshift_new)
+                    istart = istart_d - nshift
+                    iend = iend_d - nshift
+                    istart_n = istart_dn - nshift_new
+                    iend_n = iend_dn - nshift - nshift_new
                 else:
                     istart_d = idx_start
                     istart = idx_start
@@ -371,20 +383,21 @@ class cmt3d(object):
                     iend_n = idx_end
 
                 taper = self.construct_hanning_taper(iend-istart+1)
-                v1 = np.sum()
-                v2 = np.sum()
-                d1 = np.sum()
-                d2 = np.sum()
-                var_all += 0.5*v1*window.weight*obsd.stats.delta
-                var_all_new += 0.5*v2*window.weight*obsd.stats.delta
+                v1 = np.sum(taper * (synt.data[istart:iend]-obsd.data[istart_d:iend_d])**2)
+                v2 = np.sum(taper * (new_synt.data[istart_n:iend_n]-obsd.data[istart_dn:iend_dn])**2)
+                d1 = np.sum(taper * obsd.data[istart_d:iend_d]**2)
+                d2 = np.sum(taper * obsd.data[istart_dn:iend_dn]**2)
+
+                self.var_all += 0.5*v1*window.weight*obsd.stats.delta
+                self.var_all_new += 0.5*v2*window.weight*obsd.stats.delta
 
                 # write out
-                fh.write("")
-                fh.write("")
-                fh.write("")
+                #fh.write("")
+                #fh.write("")
+                #fh.write("")
 
         # close output fh
-        fh.close()
+        #fh.close()
 
     def compute_new_syn(self, datalist, dm):
         # get a dummy copy to keep meta data information
@@ -412,7 +425,7 @@ class cmt3d(object):
             new_synt.data = datalist['synt'].data + np.dot(dsyn, dm)
 
     @staticmethod
-    def calculate_criteria(obsd, synt, istart, iend, nshift, cc_max, dlnA):
+    def calculate_criteria(obsd, synt, istart, iend):
         # cross-correlation measurement
         len = istart - iend
         zero_padding = np.zeros(len)
@@ -422,7 +435,7 @@ class cmt3d(object):
         # amplitude anomaly
         dlnA = math.sqrt( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
 
-        return nshift, max_cc, dlnA
+        return [nshift, max_cc, dlnA]
 
     @staticmethod
     def construct_hanning_taper(npts):
