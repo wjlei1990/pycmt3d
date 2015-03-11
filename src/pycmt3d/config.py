@@ -13,6 +13,7 @@ except:
     raise ImportError(msg)
 
 import const
+import math
 
 class Config(object):
 
@@ -20,7 +21,8 @@ class Config(object):
                  dmoment=const.SCALE_MOMENT, ddelta=const.SCALE_DELTA,
                  weight_data=True, weight_function=None,
                  station_correction=True, zero_trace=True,
-                 double_couple=True, lamda_damping=0.0):
+                 double_couple=True, lamda_damping=0.0,
+                 bootstrap=False, bootstrap_repeat=100):
         self.npar = npar
         if (not self.npar in [6, 7, 9, 10, 11]):
             print ('Error: the current npar (number of parameters) is ', self.npar)
@@ -51,12 +53,15 @@ class Config(object):
         self.dcmt_par = np.array([self.dmoment, self.dmoment, self.dmoment, self.dmoment,
                                   self.dmoment, self.dmoment, self.ddepth, self.ddelta,
                                   self.ddelta, 1.0, 1.0])/self.scale_par
+        self.bootstrap = bootstrap
+        self.bootstrap_repeat = bootstrap_repeat
 
     # The function weight_function is to calculate the weight for different component and azimuths
     # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
-    def weight_function(kcmpnm, azimuth, dist_in_km, window_index=0,nwins=1,
-                        comp_z_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.0,
-                        az_exp_weight=0.5, pnl_dist_weight=1.15, rayleigh_dist_weight=0.55
+    @staticmethod
+    def weight_function(kcmpnm, azimuth, dist_in_km, naz, nwins,
+                        comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.0,
+                        az_exp_weight=0.5, pnl_dist_weight=1.15, rayleigh_dist_weight=0.55,
                         love_dist_weight=0.78):
         daz = 360.0 / const.NREGIONS
         naz = np.zeros(const.NREGIONS+1)  # start with water level of 0
@@ -70,26 +75,24 @@ class Config(object):
         elif (comp_direct == 'T'):
             cmp_weight = comp_t_weight
         else:
-            raise ValueError('The direction of component of seismic data has to be 'Z', 'R', or 'T'')
+            raise ValueError('The direction of component of seismic data has to be Z, R or T')
 
         # distance weights
         # for global seismograms, this obviously has to be changed
-        if (comp_direct == 'T'):
-            dist_exp_weight = love_dist_weight
-        else:
-            if (nwins>1 and window_index==0):
-                dist_exp_weight = pnl_dist_weight
+        for i in range(nwins):
+            if (comp_direct == 'T'):
+                dist_exp_weight = love_dist_weight
             else:
-                dist_exp_weigth = rayleigh_dist_weight
-
+                if (nwins>1 and window_index==0):
+                    dist_exp_weight = pnl_dist_weight
+                else:
+                    dist_exp_weight = rayleigh_dist_weight
 
         # azimuth counts
-        k = floor(azimuth / daz) 
+        k = math.floor(azimuth / daz)
         if ( k<0 or k>const.NREGIONS):
             raise ValueError ('Error bining azimuth')
         naz[k] += 1
-
         # assemble data weights
         data_weight = cmp_weight * (dist_in_km/const.REF_DIST) ** dist_exp_weight / naz ** az_exp_weight
-
         return data_weight
