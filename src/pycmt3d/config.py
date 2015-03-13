@@ -15,13 +15,46 @@ except:
 import const
 import math
 
+def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
+                    comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.5,
+                    az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
+                    love_dist_weight=0.55):
+
+    data_weight = np.zeros(nwins)
+    # component weight
+    comp_direct = kcmpnm[2]
+    if (comp_direct == 'Z'):
+        cmp_weight = comp_z_weight
+    elif (comp_direct == 'R'):
+        cmp_weight = comp_r_weight
+    elif (comp_direct == 'T'):
+        cmp_weight = comp_t_weight
+    else:
+        raise ValueError('The direction of component of seismic data has to be Z, R or T')
+
+    # distance weights
+    # for global seismograms, this obviously has to be changed
+    for win_idx in range(nwins):
+        if (comp_direct == 'T'):
+            dist_exp_weight = love_dist_weight
+        else:
+            if (nwins>1 and win_idx==0):
+                dist_exp_weight = pnl_dist_weight
+            else:
+                dist_exp_weight = rayleigh_dist_weight
+
+        # assemble data weights
+        data_weight[win_idx] = cmp_weight * ((dist_in_km/const.REF_DIST) ** dist_exp_weight) / (azi_count ** az_exp_weight)
+
+    return data_weight
+
+
 class Config(object):
 
-    def __init__(self, npar, dlocation=const.SCALE_LOCATION, ddepth=const.SCALE_DEPTH,
-                 dmoment=const.SCALE_MOMENT, ddelta=const.SCALE_DELTA,
+    def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0, ddelta=0.0,
                  weight_data=True, weight_function=None,
                  station_correction=True, zero_trace=True,
-                 double_couple=True, lamda_damping=0.0,
+                 double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
         self.npar = npar
         if (not self.npar in [6, 7, 9, 10, 11]):
@@ -35,10 +68,14 @@ class Config(object):
             return None
         self.dlocation = dlocation
         self.ddepth = ddepth
-        self.dmomoent = dmoment
+        self.dmoment = dmoment
         self.ddelta = ddelta
         self.weight_data = weight_data
-        self.weight_function = weight_function
+        if weight_function is not None:
+            self.weight_function = weight_function
+        else:
+            print "None..assign"
+            self.weight_function = default_weight_function
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple
@@ -58,41 +95,4 @@ class Config(object):
 
     # The function weight_function is to calculate the weight for different component and azimuths
     # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
-    @staticmethod
-    def weight_function(kcmpnm, azimuth, dist_in_km, naz, nwins,
-                        comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.0,
-                        az_exp_weight=0.5, pnl_dist_weight=1.15, rayleigh_dist_weight=0.55,
-                        love_dist_weight=0.78):
-        daz = 360.0 / const.NREGIONS
-        naz = np.zeros(const.NREGIONS+1)  # start with water level of 0
 
-        # component weight
-        comp_direct = kcmpnm[2]
-        if (comp_direct == 'Z'):
-            cmp_weight = comp_z_weight
-        elif (comp_direct == 'R'):
-            cmp_weight = comp_r_weight
-        elif (comp_direct == 'T'):
-            cmp_weight = comp_t_weight
-        else:
-            raise ValueError('The direction of component of seismic data has to be Z, R or T')
-
-        # distance weights
-        # for global seismograms, this obviously has to be changed
-        for i in range(nwins):
-            if (comp_direct == 'T'):
-                dist_exp_weight = love_dist_weight
-            else:
-                if (nwins>1 and window_index==0):
-                    dist_exp_weight = pnl_dist_weight
-                else:
-                    dist_exp_weight = rayleigh_dist_weight
-
-        # azimuth counts
-        k = math.floor(azimuth / daz)
-        if ( k<0 or k>const.NREGIONS):
-            raise ValueError ('Error bining azimuth')
-        naz[k] += 1
-        # assemble data weights
-        data_weight = cmp_weight * (dist_in_km/const.REF_DIST) ** dist_exp_weight / naz ** az_exp_weight
-        return data_weight

@@ -23,8 +23,9 @@ from obspy.core.util.geodetics import gps2DistAzimuth
 from obspy.signal.cross_correlation import xcorr
 import const
 from window import Window
+from __init__ import logger
 
-class cmt3d(object):
+class Cmt3D(object):
 
     def __init__(self, cmtsource, flexwin_file, config):
         self.config = config
@@ -37,6 +38,7 @@ class cmt3d(object):
         old way of loading flexwin inputfile
         :return:
         """
+        logger.warning('Import window file')
         self.window = []
         with open(self.flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
@@ -55,8 +57,9 @@ class cmt3d(object):
                     win_time[iwin, 0] = float(left)
                     win_time[iwin, 1] = float(right)
                 win_obj = Window(sta, nw, loc, comp, num_wins = num_wins, win_time = win_time,
-                                  obsd=obsd_fn, synt=synt_fn)
+                                  obsd_fn=obsd_fn, synt_fn=synt_fn)
                 # load all data, observed and synthetics into the object
+                logger.debug("Import data...%s" %sta_info)
                 self.load_data(win_obj)
                 self.window.append(win_obj)
 
@@ -99,7 +102,9 @@ class cmt3d(object):
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
                 naz = naz_list[idx_naz]
-                window.weight = self.config.weight_function(window, naz)
+                print "num win:", window.num_wins, window.dist_in_km, window.component, naz
+                #window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
+                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette without changing previous codes
             self.normalize_weight()
@@ -120,14 +125,14 @@ class cmt3d(object):
             sta_lon = window.datalist['synt'].stats.sac['stlo']
             dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
             window.dist_in_km = dist_in_m/1000.0
-            window.az = az
+            window.azimuth = az
 
     @staticmethod
     def get_azimuth_bin_number(azimuth):
         # the azimth ranges from [0,360]
         # so a little modification here
         daz = 360.0 / const.NREGIONS
-        k = math.floor(azimuth / daz)
+        k = int(math.floor(azimuth / daz))
         if ( k<0 or k>const.NREGIONS):
             if abs(azimuth-360.0) < 0.0001:
                 k = const.NREGIONS - 1
@@ -139,18 +144,21 @@ class cmt3d(object):
         naz_list = np.zeros(const.NREGIONS)
         for window in self.window:
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
+            print window.azimuth, bin_idx
             naz_list[bin_idx] += window.num_wins
         return naz_list
 
     def normalize_weight(self):
         max_weight = 0.0
-        for window in self.windows:
+        for window in self.window:
             max_temp = np.max(window.weight)
             if max_temp > max_weight:
                 max_weight = max_temp
 
         for window in self.window:
+            print "window.weight, max_weight", window.weight, max_weight, window.component
             window.weight /= max_weight
+            print "updated window.weight, max_weight", window.weight, max_weight, window.component
 
     def get_station_info(self, datalist):
         # this might be related to datafile type(sac, mseed or asdf)
@@ -166,12 +174,12 @@ class cmt3d(object):
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
         self.A = np.zeros((self.config.npar, self.config.npar))
-        self.b = np.zeros((self.config.npar, 1))
+        self.b = np.zeros(self.config.npar)
         A1_all = []
         b1_all = []
-        random_array = []
-        for window in enumerate(self.window):
+        for window in self.window:
             # loop over pair of data
+            print "test:", window.num_wins
             for win_idx in range(window.num_wins):
                 # loop over each window
                 [A1, b1] = self.compute_A_b(window, win_idx)
@@ -207,11 +215,11 @@ class cmt3d(object):
         datalist = window.datalist
         obsd = datalist['obsd']
         synt = datalist['synt']
-        npts = min(obsd.npts, synt.npts)
+        npts = min(obsd.stats.npts, synt.stats.npts)
         win = [window.win_time[win_idx,0], window.win_time[win_idx,1]]
 
-        istart = max(math.floor(win[0]/obsd.stats.delta),1)
-        iend = max(math.ceiling(win[1]/obsd.stats.delta),npts)
+        istart = int(max(math.floor(win[0]/obsd.stats.delta),1))
+        iend = int(min(math.ceil(win[1]/obsd.stats.delta),npts))
         if istart > iend:
             raise ValueError("Check window for %s.%s.%s.%s" %(window.station,
                             window.network, window.location, window.component))
@@ -227,45 +235,47 @@ class cmt3d(object):
             iend_d = iend
             istart_s = istart
             iend_s = iend
+        print "debug, shift", istart, iend, istart_s, iend_s, nshift
 
-        #dsyn = {}
-        dsyn = np.zeros((npar, npar))
-        #dsyn = np.zeros(npts,dtype={'names':par_list, 'formats':['f4']*len(par_list))
-        for itype in range(self.config.npar):
+        dsyn = np.zeros((npar, npts))
+        for itype in range(npar):
             type_name = par_list[itype]
             if itype < const.NML:
-                # check file
-                # check dt, npts
+                # check file: check dt, npts
                 dt_synt = datalist['synt'].stats.delta
                 dt_obsd = datalist['obsd'].stats.delta
                 if abs(dt_synt - dt_obsd) > 0.0001:
                     raise ValueError("Delta in synthetic and observed no the same")
                 dt = dt_synt
             if itype < const.NM: # moment tensor
-                dsyn[itype][0:npts] = datalist[type_name].data[1:npts]/dcmt_par[itype]
+                dsyn[itype, 0:npts] = datalist[type_name].data[0:npts]/dcmt_par[itype]
             elif itype < const.NML:  # location
-                dsyn[itype][0:npts] = (datalist[type_name].data[1:npts]-datalist['synt'].data[1:npts])/dcmt_par[itype]
+                dsyn[itype, 0:npts] = (datalist[type_name].data[0:npts]-datalist['synt'].data[0:npts])/dcmt_par[itype]
             elif itype == const.NML:  # time shift
-                dsyn[itype][0:npts] = (datalist['synt'].data[2:npts]-datalist['synt'].data[1:(npts-1)])/(dt*dcmt_par[itype])
-                dsyn[itype][npts-1] = dsyn[itype][npts-2]
-                #dsyn[itype].append(dsyn[type_name].data[npts-2])
+                dsyn[itype, 0:npts-1] = (datalist['synt'].data[1:npts]-datalist['synt'].data[0:(npts-1)])/(dt*dcmt_par[itype])
+                dsyn[itype, npts-1] = dsyn[itype, npts-2]
+            elif itype == const.NML + 1: # half duration
+                dsyn[itype, 0:npts-1] = -0.5 * self.cmt_par[itype] * (dsyn[const.NML,1:npts]-dsyn[const.NML,0:npts-1])/dt
+                dsyn[itype, npts-1] = dsyn[itype, npts-2]
 
         # hanning taper
         taper = self.construct_hanning_taper(iend_s-istart_s)
         A1 = np.zeros((npar, npar))
-        b1 = np.zeros((npar, 1))
+        b1 = np.zeros(npar)
         # compute A and b by taking into account data weights
-        # for i in range(npar):
-        #     typei = par_list[i]
-        #     for j in range(npar):
-        #         typej = par_list[j]
-        #         A1[i][j] = window.weight * np.sum(taper * dsyn[typei][istart_s:iend_s] * dsyn[typej][istart_s:iend_s]) * dt
-        #     b1i = window.weight * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
-        #             dsyn[typei][istart_s:iend_s])
         for i in range(npar):
-            A1[i] = window.weight[win_idx] * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt
-            b1 = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
-                                         dsyn[:][istart_s:iend_s])
+             for j in range(npar):
+                 #print "debug:", istart_s, iend_s
+                 #print "debug:", window.weight[win_idx], dt #, np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s])
+                 #print "debug, sum:", taper.shape, taper
+                 #print "debug, dsyn:", dsyn[i, istart_s:iend_s].shape, dsyn[i, istart_s:iend_s]
+                 A1[i][j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
+             b1[i] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+                     dsyn[i, istart_s:iend_s])
+        #for i in range(npar):
+        #    A1[i] = window.weight[win_idx] * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt
+        #    b1 = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+        #                                 dsyn[:][istart_s:iend_s])
         return [A1, b1]
 
     def invert_cmt(self, A, b):
@@ -297,12 +307,12 @@ class cmt3d(object):
 
         # setup new matrix based on constraints
         AA = np.zeros([na, na])
-        bb = np.zeros([na, 1])
+        bb = np.zeros(na)
         if linear_inversion:
             # if invert for moment tensor with zero-trace constraints or no constraint
-            print ("Linear Inversion")
+            logger.debug("Linear Inversion")
             AA[0:npar, 0:npar] = A
-            bb[0:npar, 1] = b
+            bb[0:npar] = b
             if self.config.zero_trace:
                 bb[na-1] = - np.sum(old_par[0:3])
                 AA[0:6, na-1] = np.array([1, 1, 1, 0, 0, 0])
@@ -314,6 +324,9 @@ class cmt3d(object):
             except:
                 print ('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
+            print "cmt_par", self.cmt_par
+            print "old_par:",old_par
+            print "dm:", dm
             new_par = old_par[0:npar] + dm[0:npar]
             return new_par
 
@@ -321,7 +334,7 @@ class cmt3d(object):
             # if invert for moment tensor with double couple constraints
             # setup starting solution, solve directly for moment instead
             # of dm, exact implementation of (A16)
-            print ('No-linear Inversion')
+            logger.debug('No-linear Inversion')
             mstart = np.copy(old_par)
             m1 = np.copy(mstart)
             lam = np.zeros(2)
@@ -479,7 +492,7 @@ class cmt3d(object):
     @staticmethod
     def calculate_criteria(obsd, synt, istart, iend):
         # cross-correlation measurement
-        len = istart - iend
+        len = iend - istart
         zero_padding = np.zeros(len)
         trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
         trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
@@ -493,7 +506,8 @@ class cmt3d(object):
     def construct_hanning_taper(npts):
         taper = np.zeros(npts)
         for i in range(npts):
-            taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (i / (npts-1))))
+            taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts-1))))
+        return taper
 
     def source_inversion(self):
         self.load_winfile()

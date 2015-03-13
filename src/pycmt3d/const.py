@@ -12,10 +12,10 @@ PI = scipy.pi
 
 # Scale of cmt parameters
 # (latitude, longtitude, depth and moment centroid time and half duration)
-SCALE_DELTA = 0.0025
-SCALE_LOCATION = 0.001      # degree
-SCALE_DEPTH = 1.0        # km
-SCALE_MOMENT = 1.0e+22   # dyns*cm
+SCALE_DELTA = 0.03
+SCALE_LOCATION = 0.03      # degree
+SCALE_DEPTH = 3.0        # km
+SCALE_MOMENT = 2.0e+23   # dyns*cm
 SCALE_CTIME = 1.0        # seconds
 SCALE_HDUR = 1.0         # seconds
 
