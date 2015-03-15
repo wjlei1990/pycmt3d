@@ -5,9 +5,11 @@ import logging
 # setup the logger
 logger = logging.getLogger("pycmt3d")
 logger.setLevel(logging.DEBUG)
+logger.propagate = 0
+
 ch = logging.StreamHandler()
 # Add formatter
-#FORMAT = "[%(asctime)s] - %(name)s - %(levelname)s: %(message)s"
-#formatter = logging.Formatter(FORMAT)
-#ch.setFormatter(formatter)
+FORMAT = "%(name)s - %(levelname)s: %(message)s"
+formatter = logging.Formatter(FORMAT)
+ch.setFormatter(formatter)
 logger.addHandler(ch)

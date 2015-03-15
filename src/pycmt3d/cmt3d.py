@@ -38,7 +38,7 @@ class Cmt3D(object):
         old way of loading flexwin inputfile
         :return:
         """
-        logger.warning('Import window file')
+        logger.info('Import window file')
         self.window = []
         with open(self.flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
@@ -94,15 +94,18 @@ class Cmt3D(object):
         """
         Use Window to setup weight
         """
+        logger.info("Start weighting...")
         if self.config.weight_data:
             # first calculate azimuth and distance for each data pair
             self.prepare_for_weighting()
             # then calculate azimuth weighting
             naz_list = self.calculate_azimuth_bin()
+            logger.debug("Azimuth bin: [%s]" %(', '.join(map(str, naz_list))))
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
                 naz = naz_list[idx_naz]
-                print "num win:", window.num_wins, window.dist_in_km, window.component, naz
+                logger.info("%s.%s.%s, num_win, dist, naz: %f, %d", window.station, window.network, window.component,
+                            window.dist_in_km, naz)
                 #window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
             # normalization of data weights
@@ -116,7 +119,6 @@ class Cmt3D(object):
     def prepare_for_weighting(self):
         """
         Calculate azimuth and distance and store it in the instance
-        :return:
         """
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
@@ -144,7 +146,6 @@ class Cmt3D(object):
         naz_list = np.zeros(const.NREGIONS)
         for window in self.window:
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
-            print window.azimuth, bin_idx
             naz_list[bin_idx] += window.num_wins
         return naz_list
 
@@ -155,10 +156,12 @@ class Cmt3D(object):
             if max_temp > max_weight:
                 max_weight = max_temp
 
+        logger.debug("Global Max Weight: %f" %(max_weight))
+
         for window in self.window:
-            print "window.weight, max_weight", window.weight, max_weight, window.component
+            logger.debug("%s.%s, weight: [%s]" %(window.network, window.station, ', '.join(map(str, window.weight))))
             window.weight /= max_weight
-            print "updated window.weight, max_weight", window.weight, max_weight, window.component
+            logger.debug("Updated, weight: [%s]" %(', '.join(map(str, window.weight))))
 
     def get_station_info(self, datalist):
         # this might be related to datafile type(sac, mseed or asdf)
@@ -179,7 +182,6 @@ class Cmt3D(object):
         b1_all = []
         for window in self.window:
             # loop over pair of data
-            print "test:", window.num_wins
             for win_idx in range(window.num_wins):
                 # loop over each window
                 [A1, b1] = self.compute_A_b(window, win_idx)
@@ -199,6 +201,10 @@ class Cmt3D(object):
         elif self.config.bootstrap == False:
             self.A = np.sum(A1_all, axis=0)
             self.b = np.sum(b1_all, axis=0)
+            logger.info("Inversion Matrix A is as follows:")
+            logger.info("\n%s" %('\n'.join(map(str, self.A))))
+            logger.info("RHS vector b is as follows:")
+            logger.info("[%s]" %(', '.join(map(str, self.b))))
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -235,7 +241,7 @@ class Cmt3D(object):
             iend_d = iend
             istart_s = istart
             iend_s = iend
-        print "debug, shift", istart, iend, istart_s, iend_s, nshift
+        #print "debug, shift", istart, iend, istart_s, iend_s, nshift
 
         dsyn = np.zeros((npar, npts))
         for itype in range(npar):
@@ -281,12 +287,15 @@ class Cmt3D(object):
     def invert_cmt(self, A, b):
 
         npar = self.config.npar
+        old_par = self.cmt_par[0:npar]
+        """
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
         # scale the A and b matrix
         max_row = np.amax(A, axis=1)
         A = A/max_row
         b = b/max_row
+        """
 
         # setup inversion schema
         if self.config.double_couple:
@@ -310,7 +319,7 @@ class Cmt3D(object):
         bb = np.zeros(na)
         if linear_inversion:
             # if invert for moment tensor with zero-trace constraints or no constraint
-            logger.debug("Linear Inversion")
+            logger.info("Linear Inversion")
             AA[0:npar, 0:npar] = A
             bb[0:npar] = b
             if self.config.zero_trace:
@@ -322,12 +331,15 @@ class Cmt3D(object):
             try:
                 dm = np.linalg.solve(AA, bb)
             except:
-                print ('Matrix is singular...LinearAlgError')
+                logger.error('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
-            print "cmt_par", self.cmt_par
-            print "old_par:",old_par
-            print "dm:", dm
+            # check here
+            print bb
+            print np.dot(AA, dm)
             new_par = old_par[0:npar] + dm[0:npar]
+            logger.debug("cmt_par: [%s]" %(', '.join(map(str, self.cmt_par[0:npar]))))
+            logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
+            logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
             return new_par
 
         else:
@@ -351,7 +363,7 @@ class Cmt3D(object):
             new_par = m1
 
         new_cmt_par = np.copy(self.cmt_par)
-        new_cmt_par = new_par * self.config.scale_par
+        new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
         return new_cmt_par
 
     # The function invert_bootstrap

@@ -130,12 +130,12 @@ class CMTSource(object):
             longitude = float(f.readline().strip().split()[-1])
             depth_in_m = float(f.readline().strip().split()[-1]) * 1e3
 
-            m_rr = float(f.readline().strip().split()[-1]) / 1e7
-            m_tt = float(f.readline().strip().split()[-1]) / 1e7
-            m_pp = float(f.readline().strip().split()[-1]) / 1e7
-            m_rt = float(f.readline().strip().split()[-1]) / 1e7
-            m_rp = float(f.readline().strip().split()[-1]) / 1e7
-            m_tp = float(f.readline().strip().split()[-1]) / 1e7
+            m_rr = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_tt = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_pp = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_rt = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_rp = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_tp = float(f.readline().strip().split()[-1]) #/ 1e7
 
         return self(origin_time=origin_time,
                     pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms, pde_depth_in_m=pde_depth_in_m,
@@ -176,12 +176,12 @@ class CMTSource(object):
             f.write('longitude:      %7.4f\n' % (self.longitude,))
             f.write('depth:          %7.4f\n' % (self.depth_in_m / 1e3,))
 
-            f.write('Mrr:            %7.4f\n' % (self.m_rr * 1e7,))
-            f.write('Mtt:            %7.4f\n' % (self.m_tt * 1e7,))
-            f.write('Mpp:            %7.4f\n' % (self.m_pp * 1e7,))
-            f.write('Mrt:            %7.4f\n' % (self.m_rt * 1e7,))
-            f.write('Mrp:            %7.4f\n' % (self.m_rp * 1e7,))
-            f.write('Mtp:            %7.4f\n' % (self.m_tp * 1e7,))
+            f.write('Mrr:            %7.4f\n' % (self.m_rr ))#* 1e7,))
+            f.write('Mtt:            %7.4f\n' % (self.m_tt ))#* 1e7,))
+            f.write('Mpp:            %7.4f\n' % (self.m_pp ))#* 1e7,))
+            f.write('Mrt:            %7.4f\n' % (self.m_rt ))#* 1e7,))
+            f.write('Mrp:            %7.4f\n' % (self.m_rp ))#* 1e7,))
+            f.write('Mtp:            %7.4f\n' % (self.m_tp ))#* 1e7,))
 
     @classmethod
     def from_quakeml_to_cmt(self, quakemlfile):

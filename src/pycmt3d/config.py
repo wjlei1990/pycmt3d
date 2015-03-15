@@ -14,6 +14,7 @@ except:
 
 import const
 import math
+from __init__ import logger
 
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
                     comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.5,
@@ -74,7 +75,7 @@ class Config(object):
         if weight_function is not None:
             self.weight_function = weight_function
         else:
-            print "None..assign"
+            logger.info("None weighting function specified..assign to default")
             self.weight_function = default_weight_function
         self.station_correction = station_correction
         self.zero_trace = zero_trace
