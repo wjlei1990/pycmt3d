@@ -89,8 +89,8 @@ class Config(object):
                                    const.SCALE_DEPTH, const.SCALE_DELTA, const.SCALE_DELTA,
                                    const.SCALE_CTIME, const.SCALE_HDUR])
         self.dcmt_par = np.array([self.dmoment, self.dmoment, self.dmoment, self.dmoment,
-                                  self.dmoment, self.dmoment, self.ddepth, self.ddelta,
-                                  self.ddelta, 1.0, 1.0])/self.scale_par
+                                  self.dmoment, self.dmoment, self.ddepth, self.dlocation,
+                                  self.dlocation, 1.0, 1.0])/self.scale_par
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
 

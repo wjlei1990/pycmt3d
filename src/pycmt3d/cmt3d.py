@@ -104,8 +104,8 @@ class Cmt3D(object):
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
                 naz = naz_list[idx_naz]
-                logger.info("%s.%s.%s, num_win, dist, naz: %f, %d", window.station, window.network, window.component,
-                            window.dist_in_km, naz)
+                logger.info("%s.%s.%s, num_win, dist, naz: %d, %f, %d", window.station, window.network, window.component,
+                            window.num_wins, window.dist_in_km, naz)
                 #window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
             # normalization of data weights
@@ -118,7 +118,7 @@ class Cmt3D(object):
 
     def prepare_for_weighting(self):
         """
-        Calculate azimuth and distance and store it in the instance
+        Calculate azimuth and distance and store it
         """
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
@@ -131,6 +131,11 @@ class Cmt3D(object):
 
     @staticmethod
     def get_azimuth_bin_number(azimuth):
+        """
+        Calculate the bin number of a give azimuth
+        :param azimuth:
+        :return:
+        """
         # the azimth ranges from [0,360]
         # so a little modification here
         daz = 360.0 / const.NREGIONS
@@ -143,10 +148,18 @@ class Cmt3D(object):
         return k
 
     def calculate_azimuth_bin(self):
+        """
+        Calculate the azimuth and sort them into bins
+        :return:
+        """
         naz_list = np.zeros(const.NREGIONS)
         for window in self.window:
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
-            naz_list[bin_idx] += window.num_wins
+            # 1) weight on window numbers
+            #naz_list[bin_idx] += window.num_wins
+            # 2) weigth on files
+            naz_list[bin_idx] += 1
+
         return naz_list
 
     def normalize_weight(self):
@@ -209,7 +222,7 @@ class Cmt3D(object):
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
         self.cmt_par = np.array([cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp, cmt.m_tp,
-                               cmt.m_rp, cmt.depth_in_m/1000.0, cmt.longitude,
+                               cmt.depth_in_m/1000.0, cmt.longitude,
                                cmt.latitude, cmt.time_shift, cmt.half_duration])
 
     def compute_A_b(self, window, win_idx):
@@ -287,15 +300,19 @@ class Cmt3D(object):
     def invert_cmt(self, A, b):
 
         npar = self.config.npar
-        old_par = self.cmt_par[0:npar]
-        """
+        #old_par = self.cmt_par[0:npar]
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
         # scale the A and b matrix
-        max_row = np.amax(A, axis=1)
-        A = A/max_row
-        b = b/max_row
-        """
+        print A
+        print b
+        max_row = np.amax(abs(A), axis=1)
+        print max_row
+        for i in range(len(b)):
+            A[i,:] /= max_row[i]
+            b[i] /= max_row[i]
+        print A
+        print b
 
         # setup inversion schema
         if self.config.double_couple:
@@ -334,13 +351,12 @@ class Cmt3D(object):
                 logger.error('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
             # check here
-            print bb
-            print np.dot(AA, dm)
+            print "Original bb:", bb
+            print "check:", np.dot(AA, dm) - bb
             new_par = old_par[0:npar] + dm[0:npar]
             logger.debug("cmt_par: [%s]" %(', '.join(map(str, self.cmt_par[0:npar]))))
             logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
             logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
-            return new_par
 
         else:
             # if invert for moment tensor with double couple constraints
@@ -364,6 +380,8 @@ class Cmt3D(object):
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
+        logger.debug("New CMT par: [%s]" %('. '.join(map(str, new_cmt_par[:]))))
+        logger.debug("Trace: %e" %(np.sum(new_cmt_par[0:3])))
         return new_cmt_par
 
     # The function invert_bootstrap
