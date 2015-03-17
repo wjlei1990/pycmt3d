@@ -58,7 +58,7 @@ class Config(object):
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
         self.npar = npar
-        if (not self.npar in [6, 7, 9, 10, 11]):
+        if self.npar not in [6, 7, 9, 10, 11]:
             print ('Error: the current npar (number of parameters) is ', self.npar)
             print ('The npar (number of parameters) must be 6, 7, 9, 10 or 11')
             print ('When npar is 6: moment tensor')
@@ -86,7 +86,7 @@ class Config(object):
                          "dep", "lon", "lat", "ctm", "hdr")
         self.scale_par = np.array([const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
                                    const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
-                                   const.SCALE_DEPTH, const.SCALE_DELTA, const.SCALE_DELTA,
+                                   const.SCALE_DEPTH, const.SCALE_LOCATION, const.SCALE_LOCATION,
                                    const.SCALE_CTIME, const.SCALE_HDUR])
         self.dcmt_par = np.array([self.dmoment, self.dmoment, self.dmoment, self.dmoment,
                                   self.dmoment, self.dmoment, self.ddepth, self.dlocation,

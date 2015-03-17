@@ -17,13 +17,13 @@ except:
 
 import math
 import os
-import logging
 from source import CMTSource
 from obspy.core.util.geodetics import gps2DistAzimuth
 from obspy.signal.cross_correlation import xcorr
 import const
 from window import Window
 from __init__ import logger
+import obspy
 
 class Cmt3D(object):
 
@@ -304,15 +304,15 @@ class Cmt3D(object):
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
         # scale the A and b matrix
-        print A
-        print b
+        print "before scale, A:", A
+        print "before scale, b:", b
         max_row = np.amax(abs(A), axis=1)
-        print max_row
         for i in range(len(b)):
             A[i,:] /= max_row[i]
             b[i] /= max_row[i]
-        print A
-        print b
+        print "max_row:", max_row
+        print "after scale, A:", A
+        print "after scale, b:", b
 
         # setup inversion schema
         if self.config.double_couple:
@@ -362,32 +362,64 @@ class Cmt3D(object):
             # if invert for moment tensor with double couple constraints
             # setup starting solution, solve directly for moment instead
             # of dm, exact implementation of (A16)
-            logger.debug('No-linear Inversion')
+            logger.info('No-linear Inversion')
             mstart = np.copy(old_par)
             m1 = np.copy(mstart)
             lam = np.zeros(2)
 
             # nolinear solver. Maybe there are already existing code.
             # check later
+            error = np.zeros([const.NMAX_NL_ITER, na])
             for iter in range(const.NMAX_NL_ITER):
                 self.get_f_df(A, b, m1, lam, mstart, AA, bb)
+                logger.info("Inversion Matrix AA is as follows:")
+                logger.info("\n%s" %('\n'.join(map(str, AA))))
+                logger.info("Inversion vector bb is as follows:")
+                logger.info("[%s]" %(', '.join(map(str, bb))))
                 bb = - bb
                 xout = np.linalg.solve(AA, bb)
-                m1 = m1 + xout
+                logger.debug("xout: [%s]" %(', '.join(map(str, xout))))
+                m1 = m1 + xout[0:npar]
                 lam = lam + xout[npar:na]
+                error[iter, :] = np.dot(AA, xout) - bb
             dm = m1 - mstart
             new_par = m1
+            logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
+            logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
+            print "error"
+            for iter in range(const.NMAX_NL_ITER):
+                print "iter", iter, error[iter, :]
+                print "sum abs error:", np.sum(abs(error[iter, :]))
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
+        self.new_cmt_par = new_cmt_par
         logger.debug("New CMT par: [%s]" %('. '.join(map(str, new_cmt_par[:]))))
         logger.debug("Trace: %e" %(np.sum(new_cmt_par[0:3])))
-        return new_cmt_par
+        self.convert_new_cmt_par()
 
-    # The function invert_bootstrap
-    # It is used to evaluate the mean, standard deviation,
-    # and variance of new parameters
+    def convert_new_cmt_par(self):
+        """
+        Convert self.new_cmt_par array to CMTSource
+        :return:
+        """
+        oldcmt = self.cmtsource
+        newcmt = self.new_cmt_par
+        time_shift = newcmt[9]
+        new_cmttime = oldcmt.origin_time + time_shift
+        # copy old one
+        self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
+            pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
+            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
+            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
+            cmt_time=new_cmttime,  half_duration=newcmt[10],
+            latitude=newcmt.latitude, longitude=newcmt.longitude, depth_in_m=newcmt[6],
+            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
+
     def invert_bootstrap(self):
+        """
+        It is used to evaluate the mean, standard deviation, and variance of new parameters
+        """
         new_par_array = np.zeros((self.config.bootstrap_repeat, self.npar))
         for i in range(self.config.bootstrap_repeat):
             new_par = self.invert_cmt(self.A_bootstrap[i], self.b_bootstrap[i])
@@ -414,22 +446,30 @@ class Cmt3D(object):
         dc2_dm[5] = 2 * m[3] * m[4] - 2 * m[0] * m[5]
 
         # f(x^i) = H_jk (m_k^i -m_k^0) - b_j + lam_1 * U_j + lam_2 * V_j (A11)
-        f0.fill(0)
+        f0.fill(0.)
+        print "f0, step0:", f0
         f0[0:npar] = np.dot(A[0:npar, 0:npar], m[0:npar]-mstart[0:npar]) - b[0:npar]
+        print "f0 step1:", f0
         f0[0:const.NM] += lam[0] * dc1_dm[0:const.NM] + lam[1] * dc2_dm[0:const.NM]
+        print "f0 step2:", f0
         # f_(n+1) and f_(n+2)
         f0[npar] = m[0] + m[1] + m[2]
         moment_tensor = np.array([[m[0], m[3], m[4]],[m[3],m[1],m[5]],[m[4],m[5],m[2]]])
         f0[npar+1] = np.linalg.det(moment_tensor)
+        print "det1:", f0[npar+1]
+        f0[npar+1] = m[0] * ( m[1] * m[2] - m[5] ** 2 ) \
+                - m[3] * ( m[3] * m[2] - m[5] * m[4] ) \
+                + m[4] * ( m[3] * m[5] - m[4] * m[1] )
+        print "det2:", f0[npar+1]
 
         # Y_jk
         dc2_dmi_dmj = np.zeros([6,6])
-        dc2_dmi_dmj[0,:] = np.arrays([     0.0,    m[2],     m[1],      0.0,         0.0,    -2.0*m[5]   ])
-        dc2_dmi_dmj[1,:] = np.arrays([    m[2],    0.0,      m[0],      0.0,      -2.0*m[4],   0.0     ])
-        dc2_dmi_dmj[2,:] = np.arrays([    m[1],    m[0],      0.0,   -2.0*m[3],    0.0,        0.0     ])
-        dc2_dmi_dmj[3,:] = np.arrays([     0.0,     0.0,  -2.0*m[3], -2.0*m[2],    2*m[5],    2*m[4]   ])
-        dc2_dmi_dmj[4,:] = np.arrays([     0.0, -2.0*m[4],    0.0,    2.0*m[5], -2.0*m[1],    2*m[3]   ])
-        dc2_dmi_dmj[5,:] = np.arrays([ -2.0*m[5],   0.0,      0.0,    2.0*m[4],    2.0*m[3],  -2.0*m[0]])
+        dc2_dmi_dmj[0,:] = np.array([     0.0,    m[2],     m[1],      0.0,         0.0,    -2.0*m[5]  ])
+        dc2_dmi_dmj[1,:] = np.array([    m[2],    0.0,      m[0],      0.0,      -2.0*m[4],   0.0      ])
+        dc2_dmi_dmj[2,:] = np.array([    m[1],    m[0],      0.0,   -2.0*m[3],    0.0,        0.0      ])
+        dc2_dmi_dmj[3,:] = np.array([     0.0,     0.0,  -2.0*m[3], -2.0*m[2],    2*m[5],    2*m[4]    ])
+        dc2_dmi_dmj[4,:] = np.array([     0.0, -2.0*m[4],    0.0,    2.0*m[5], -2.0*m[1],    2*m[3]    ])
+        dc2_dmi_dmj[5,:] = np.array([ -2.0*m[5],   0.0,      0.0,    2.0*m[4],    2.0*m[3],  -2.0*m[0] ])
 
         # ! f_jk = H_jk + lam_2 * Y_jk
         fij.fill(0)
@@ -445,8 +485,10 @@ class Cmt3D(object):
         Calculate variance reduction after source updated
         :return:
         """
-        fh = open("cmt3d_flexwin.out", "w")
-        fh.write("%d\n" %self.num_file)
+        #fh = open("cmt3d_flexwin.out", "w")
+        #fh.write("%d\n" %self.num_file)
+        npar = self.config.npar
+        dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
 
         nwint = 0
         var_all = 0.0
@@ -484,15 +526,17 @@ class Cmt3D(object):
                     iend_dn = idx_end
                     iend_n = idx_end
 
-                taper = self.construct_hanning_taper(iend-istart+1)
+                taper = self.construct_hanning_taper(iend-istart)
                 v1 = np.sum(taper * (synt.data[istart:iend]-obsd.data[istart_d:iend_d])**2)
                 v2 = np.sum(taper * (new_synt.data[istart_n:iend_n]-obsd.data[istart_dn:iend_dn])**2)
                 d1 = np.sum(taper * obsd.data[istart_d:iend_d]**2)
                 d2 = np.sum(taper * obsd.data[istart_dn:iend_dn]**2)
 
-                self.var_all += 0.5*v1*window.weight*obsd.stats.delta
-                self.var_all_new += 0.5*v2*window.weight*obsd.stats.delta
+                var_all += 0.5*v1*window.weight*obsd.stats.delta
+                var_all_new += 0.5*v2*window.weight*obsd.stats.delta
 
+        self.var_all = var_all
+        self.var_all_new = var_all_new
 
     def compute_new_syn(self, datalist, dm):
         # get a dummy copy to keep meta data information

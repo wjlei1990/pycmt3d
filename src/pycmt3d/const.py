@@ -12,10 +12,9 @@ PI = scipy.pi
 
 # Scale of cmt parameters
 # (latitude, longtitude, depth and moment centroid time and half duration)
-SCALE_DELTA = 0.01
-SCALE_LOCATION = 0.03      # degree
+SCALE_LOCATION = 0.01      # degree
 SCALE_DEPTH = 1.0        # km
-SCALE_MOMENT = 1.0e+22   # dyns*cm
+SCALE_MOMENT = 1.0e+23   # dyns*cm
 SCALE_CTIME = 1.0        # seconds
 SCALE_HDUR = 1.0         # seconds
 
@@ -51,4 +50,4 @@ REF_DIST = 100.0
 R_EARTH=6371  # km
 
 # Max step in non-linear solvoer
-NMAX_NL_ITER = 20
+NMAX_NL_ITER = 30
