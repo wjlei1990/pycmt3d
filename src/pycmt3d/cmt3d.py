@@ -304,15 +304,10 @@ class Cmt3D(object):
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
 
         # scale the A and b matrix
-        print "before scale, A:", A
-        print "before scale, b:", b
         max_row = np.amax(abs(A), axis=1)
         for i in range(len(b)):
             A[i,:] /= max_row[i]
             b[i] /= max_row[i]
-        print "max_row:", max_row
-        print "after scale, A:", A
-        print "after scale, b:", b
 
         # setup inversion schema
         if self.config.double_couple:
@@ -351,8 +346,6 @@ class Cmt3D(object):
                 logger.error('Matrix is singular...LinearAlgError')
                 raise ValueError("Check Matrix Singularity")
             # check here
-            print "Original bb:", bb
-            print "check:", np.dot(AA, dm) - bb
             new_par = old_par[0:npar] + dm[0:npar]
             logger.debug("cmt_par: [%s]" %(', '.join(map(str, self.cmt_par[0:npar]))))
             logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
@@ -372,24 +365,23 @@ class Cmt3D(object):
             error = np.zeros([const.NMAX_NL_ITER, na])
             for iter in range(const.NMAX_NL_ITER):
                 self.get_f_df(A, b, m1, lam, mstart, AA, bb)
-                logger.info("Inversion Matrix AA is as follows:")
-                logger.info("\n%s" %('\n'.join(map(str, AA))))
-                logger.info("Inversion vector bb is as follows:")
-                logger.info("[%s]" %(', '.join(map(str, bb))))
+                #logger.info("Inversion Matrix AA is as follows:")
+                #logger.info("\n%s" %('\n'.join(map(str, AA))))
+                #logger.info("Inversion vector bb is as follows:")
+                #logger.info("[%s]" %(', '.join(map(str, bb))))
                 bb = - bb
                 xout = np.linalg.solve(AA, bb)
-                logger.debug("xout: [%s]" %(', '.join(map(str, xout))))
+                #logger.debug("xout: [%s]" %(', '.join(map(str, xout))))
                 m1 = m1 + xout[0:npar]
                 lam = lam + xout[npar:na]
                 error[iter, :] = np.dot(AA, xout) - bb
             dm = m1 - mstart
             new_par = m1
-            logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
-            logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
-            print "error"
-            for iter in range(const.NMAX_NL_ITER):
-                print "iter", iter, error[iter, :]
-                print "sum abs error:", np.sum(abs(error[iter, :]))
+            #logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
+            #logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
+            #for iter in range(const.NMAX_NL_ITER):
+            #    print "iter", iter, error[iter, :]
+            #    print "sum abs error:", np.sum(abs(error[iter, :]))
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
@@ -449,20 +441,19 @@ class Cmt3D(object):
 
         # f(x^i) = H_jk (m_k^i -m_k^0) - b_j + lam_1 * U_j + lam_2 * V_j (A11)
         f0.fill(0.)
-        print "f0, step0:", f0
         f0[0:npar] = np.dot(A[0:npar, 0:npar], m[0:npar]-mstart[0:npar]) - b[0:npar]
-        print "f0 step1:", f0
+        #print "f0 step1:", f0
         f0[0:const.NM] += lam[0] * dc1_dm[0:const.NM] + lam[1] * dc2_dm[0:const.NM]
-        print "f0 step2:", f0
+        #print "f0 step2:", f0
         # f_(n+1) and f_(n+2)
         f0[npar] = m[0] + m[1] + m[2]
         moment_tensor = np.array([[m[0], m[3], m[4]],[m[3],m[1],m[5]],[m[4],m[5],m[2]]])
         f0[npar+1] = np.linalg.det(moment_tensor)
-        print "det1:", f0[npar+1]
+        #print "det1:", f0[npar+1]
         f0[npar+1] = m[0] * ( m[1] * m[2] - m[5] ** 2 ) \
                 - m[3] * ( m[3] * m[2] - m[5] * m[4] ) \
                 + m[4] * ( m[3] * m[5] - m[4] * m[1] )
-        print "det2:", f0[npar+1]
+        #print "det2:", f0[npar+1]
 
         # Y_jk
         dc2_dmi_dmj = np.zeros([6,6])
@@ -482,69 +473,6 @@ class Cmt3D(object):
         fij[npar, 0:NM] = dc1_dm
         fij[npar+1, 0:NM] = dc2_dm
 
-    """
-    def variance_reduction(self):
-        #fh = open("cmt3d_flexwin.out", "w")
-        #fh.write("%d\n" %self.num_file)
-        npar = self.config.npar
-        dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
-
-        nwint = 0
-        var_all = 0.0
-        var_all_new = 0.0
-        for _idx, window in self.window:
-
-            self.compute_new_syn(window.datalist, dm)
-            obsd = window.datalist['obsd']
-            synt = window.datalist['synt']
-            new_synt = window.datalist['new_synt']
-            npts = min(obsd.npts, synt.npts)
-
-            window.old_var = np.zeros(window.num_wins)
-            window.new_var = np.zeros(window)
-            for _win_idx, win_time in enumerate(window.win_time):
-                nwint += 1
-                tstart = win_time[0]
-                tend = win_time[1]
-                idx_start = max(math.floor(tstart/obsd.stats.delta),1)
-                idx_end = min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts)
-
-                if self.config.station_correction:
-                    [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
-                    [nshift_new, cc_new, dlnA_new] = self.calculate_criteria(obsd, new_synt, idx_start, idx_end,)
-                    istart_d = max(1, idx_start + nshift)
-                    iend_d = min(npts, idx_start + nshift)
-                    istart_dn = max(1, idx_start + nshift_new)
-                    iend_dn = min(npts, idx_end + nshift_new)
-                    istart = istart_d - nshift
-                    iend = iend_d - nshift
-                    istart_n = istart_dn - nshift_new
-                    iend_n = iend_dn - nshift_new
-                else:
-                    istart_d = idx_start
-                    istart = idx_start
-                    iend_d = idx_end
-                    iend = idx_end
-                    istart_dn = idx_start
-                    istart_n = idx_start
-                    iend_dn = idx_end
-                    iend_n = idx_end
-
-                taper = self.construct_hanning_taper(iend-istart)
-                v1 = np.sum(taper * (synt.data[istart:iend]-obsd.data[istart_d:iend_d])**2)
-                v2 = np.sum(taper * (new_synt.data[istart_n:iend_n]-obsd.data[istart_dn:iend_dn])**2)
-                d1 = np.sum(taper * obsd.data[istart_d:iend_d]**2)
-                d2 = np.sum(taper * obsd.data[istart_dn:iend_dn]**2)
-
-                window.old_var[_win_idx] = v1
-                window.new_var[_win_idx] = v2
-                var_all += 0.5*v1*window.weight*obsd.stats.delta
-                var_all_new += 0.5*v2*window.weight*obsd.stats.delta
-
-        self.var_all = var_all
-        self.var_all_new = var_all_new
-    """
-
     def calculate_var(self):
 
         npar = self.config.npar
@@ -561,9 +489,6 @@ class Cmt3D(object):
             [v1, d1] = self.calculate_var_reduction_one_trace(obsd, synt, window.win_time)
             # calculate new variance
             [v2, d2] = self.calculate_var_reduction_one_trace(obsd, new_synt, window.win_time)
-            print "v1", v1
-            print "v2", v2
-            print "window.weight:", window.weight
 
             var_all += np.sum(0.5*v1*window.weight*obsd.stats.delta)
             var_all_new += np.sum(0.5*v2*window.weight*obsd.stats.delta)
@@ -603,7 +528,7 @@ class Cmt3D(object):
             taper = self.construct_hanning_taper(iend-istart)
             v1[_win_idx] = np.sum(taper * (synt.data[istart:iend]-obsd.data[istart_d:iend_d])**2)
             d1[_win_idx] = np.sum(taper * obsd.data[istart_d:iend_d]**2)
-            print "v1, idx:", v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift
+            #print "v1, idx:", v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift
         return [v1, d1]
 
     def compute_new_syn(self, datalist, dm):

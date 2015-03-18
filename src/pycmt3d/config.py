@@ -97,3 +97,31 @@ class Config(object):
     # The function weight_function is to calculate the weight for different component and azimuths
     # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
 
+    def print_config(self):
+        """
+        Print function of configuration
+        :return:
+        """
+        npar = self.npar
+        logger.info("===========  Config Summary  ============")
+        logger.info("Number of Inversion Par: %d" %npar)
+        logger.info("   Par: [%s]" %(', '.join(self.par_name[0:npar])))
+        #logger.info("delta for deriv: [%8.5f(degree), %8.5f(km), %e(dyn/nm)]" %(self.dlocation, self.ddepth, self.dmoment))
+        logger.info("   Delta: [%s]" %(', '.join(map(str, self.dcmt_par[0:npar]*self.scale_par[0:npar]))))
+
+        logger.info("Weighting scheme")
+        if self.weight_data:
+            if self.weight_function == default_weight_function:
+                logger.info("   Weighting data ===> Using Default weighting function")
+            else:
+                logger.info("   Weighting data ===> Using user-defined weighting function")
+        else:
+            logger.info("   No weighting applied")
+        logger.info("Inversion Scheme")
+        if self.double_couple:
+            logger.info("   invert for double-couple source")
+        elif self.zero_trace:
+            logger.info("   invert for zero-trace source")
+        else:
+            logger.info("   No constraints applied")
+        logger.info("   inversion dampling lambda: %f" %self.lamda_damping)

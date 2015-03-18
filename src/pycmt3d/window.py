@@ -28,3 +28,4 @@ class Window(object):
         # for weighting
         self.azimuth = None
         self.dist_in_km = None
+         
