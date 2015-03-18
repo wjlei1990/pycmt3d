@@ -123,7 +123,7 @@ class CMTSource(object):
 
         return self(origin_time=origin_time,
                     pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms, pde_depth_in_m=pde_depth_in_m,
-                    region_tag=region_tag, eventname=eventname, time_shift=time_shift, half_duration=half_duration,
+                    region_tag=region_tag, eventname=eventname, cmt_time=cmt_time, half_duration=half_duration,
                     latitude=latitude, longitude=longitude, depth_in_m=depth_in_m,
                     m_rr=m_rr, m_tt=m_tt, m_pp=m_pp, m_rt=m_rt, m_rp=m_rp, m_tp=m_tp)
 

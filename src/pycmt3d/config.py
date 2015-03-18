@@ -86,7 +86,7 @@ class Config(object):
                          "dep", "lon", "lat", "ctm", "hdr")
         self.scale_par = np.array([const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
                                    const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
-                                   const.SCALE_DEPTH, const.SCALE_LOCATION, const.SCALE_LOCATION,
+                                   const.SCALE_DEPTH, const.SCALE_LONGITUDE, const.SCALE_LATTITUDE,
                                    const.SCALE_CTIME, const.SCALE_HDUR])
         self.dcmt_par = np.array([self.dmoment, self.dmoment, self.dmoment, self.dmoment,
                                   self.dmoment, self.dmoment, self.ddepth, self.dlocation,

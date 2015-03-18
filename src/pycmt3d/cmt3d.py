@@ -396,6 +396,8 @@ class Cmt3D(object):
         self.new_cmt_par = new_cmt_par
         logger.debug("New CMT par: [%s]" %('. '.join(map(str, new_cmt_par[:]))))
         logger.debug("Trace: %e" %(np.sum(new_cmt_par[0:3])))
+
+        # convert it to CMTSource instance
         self.convert_new_cmt_par()
 
     def convert_new_cmt_par(self):
@@ -406,14 +408,14 @@ class Cmt3D(object):
         oldcmt = self.cmtsource
         newcmt = self.new_cmt_par
         time_shift = newcmt[9]
-        new_cmttime = oldcmt.origin_time + time_shift
+        new_cmt_time = oldcmt.origin_time + time_shift
         # copy old one
         self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
             pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
             mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
             region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
-            cmt_time=new_cmttime,  half_duration=newcmt[10],
-            latitude=newcmt.latitude, longitude=newcmt.longitude, depth_in_m=newcmt[6],
+            cmt_time=new_cmt_time,  half_duration=newcmt[10],
+            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6],
             m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
 
     def invert_bootstrap(self):
@@ -480,11 +482,8 @@ class Cmt3D(object):
         fij[npar, 0:NM] = dc1_dm
         fij[npar+1, 0:NM] = dc2_dm
 
+    """
     def variance_reduction(self):
-        """
-        Calculate variance reduction after source updated
-        :return:
-        """
         #fh = open("cmt3d_flexwin.out", "w")
         #fh.write("%d\n" %self.num_file)
         npar = self.config.npar
@@ -494,11 +493,16 @@ class Cmt3D(object):
         var_all = 0.0
         var_all_new = 0.0
         for _idx, window in self.window:
-            new_synt = self.compute_new_syn(window.datalist, dm)
+
+            self.compute_new_syn(window.datalist, dm)
             obsd = window.datalist['obsd']
             synt = window.datalist['synt']
+            new_synt = window.datalist['new_synt']
             npts = min(obsd.npts, synt.npts)
-            for win_time in window.win_time:
+
+            window.old_var = np.zeros(window.num_wins)
+            window.new_var = np.zeros(window)
+            for _win_idx, win_time in enumerate(window.win_time):
                 nwint += 1
                 tstart = win_time[0]
                 tend = win_time[1]
@@ -508,14 +512,14 @@ class Cmt3D(object):
                 if self.config.station_correction:
                     [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
                     [nshift_new, cc_new, dlnA_new] = self.calculate_criteria(obsd, new_synt, idx_start, idx_end,)
-                    istart_d = max(1, idx_start+nshift)
-                    iend_d = min(npts, idx_start+nshift)
-                    istart_dn = max(1, idx_start+nshift_new)
-                    iend_dn = min(npts, idx_end+nshift_new)
+                    istart_d = max(1, idx_start + nshift)
+                    iend_d = min(npts, idx_start + nshift)
+                    istart_dn = max(1, idx_start + nshift_new)
+                    iend_dn = min(npts, idx_end + nshift_new)
                     istart = istart_d - nshift
                     iend = iend_d - nshift
                     istart_n = istart_dn - nshift_new
-                    iend_n = iend_dn - nshift - nshift_new
+                    iend_n = iend_dn - nshift_new
                 else:
                     istart_d = idx_start
                     istart = idx_start
@@ -532,26 +536,91 @@ class Cmt3D(object):
                 d1 = np.sum(taper * obsd.data[istart_d:iend_d]**2)
                 d2 = np.sum(taper * obsd.data[istart_dn:iend_dn]**2)
 
+                window.old_var[_win_idx] = v1
+                window.new_var[_win_idx] = v2
                 var_all += 0.5*v1*window.weight*obsd.stats.delta
                 var_all_new += 0.5*v2*window.weight*obsd.stats.delta
 
         self.var_all = var_all
         self.var_all_new = var_all_new
+    """
+
+    def calculate_var(self):
+
+        npar = self.config.npar
+        dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
+
+        var_all = 0.0
+        var_all_new = 0.0
+        for _idx, window in enumerate(self.window):
+            obsd = window.datalist['obsd']
+            synt = window.datalist['synt']
+            self.compute_new_syn(window.datalist, dm)
+            new_synt = window.datalist['new_synt']
+            # calculate old variance
+            [v1, d1] = self.calculate_var_reduction_one_trace(obsd, synt, window.win_time)
+            # calculate new variance
+            [v2, d2] = self.calculate_var_reduction_one_trace(obsd, new_synt, window.win_time)
+            print "v1", v1
+            print "v2", v2
+            print "window.weight:", window.weight
+
+            var_all += np.sum(0.5*v1*window.weight*obsd.stats.delta)
+            var_all_new += np.sum(0.5*v2*window.weight*obsd.stats.delta)
+
+        logger.info("Total Variance Reduced from %e to %e ===== %f %%"
+                    %(var_all, var_all_new, (var_all-var_all_new)/var_all*100))
+
+    def calculate_var_reduction_one_trace(self, obsd, synt, win_time):
+        """
+        Calculate the variance reduction on a pair of obsd and synt and windows
+        :param obsd:
+        :param synt:
+        :param win_time:
+        :return: variance v1 and energy d1
+        """
+        num_wins = win_time.shape[0]
+        v1 = np.zeros(num_wins)
+        d1 = np.zeros(num_wins)
+        npts = min(obsd.stats.npts, synt.stats.npts)
+        for _win_idx in range(win_time.shape[0]):
+            tstart = win_time[_win_idx, 0]
+            tend = win_time[_win_idx, 1]
+            idx_start = int(max(math.floor(tstart/obsd.stats.delta),1))
+            idx_end = int(min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts))
+            if self.config.station_correction:
+                [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
+                istart_d = max(1, idx_start + nshift)
+                iend_d = min(npts, idx_end + nshift)
+                istart = istart_d - nshift
+                iend = iend_d - nshift
+            else:
+                istart_d = idx_start
+                istart = idx_start
+                iend_d = idx_end
+                iend = idx_end
+
+            taper = self.construct_hanning_taper(iend-istart)
+            v1[_win_idx] = np.sum(taper * (synt.data[istart:iend]-obsd.data[istart_d:iend_d])**2)
+            d1[_win_idx] = np.sum(taper * obsd.data[istart_d:iend_d]**2)
+            print "v1, idx:", v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift
+        return [v1, d1]
 
     def compute_new_syn(self, datalist, dm):
         # get a dummy copy to keep meta data information
-        new_synt = datalist['synt'].copy()
+        datalist['new_synt'] = datalist['synt'].copy()
 
         npar = self.config.npar
         npts = datalist['synt'].stats.npts
         dt = datalist['synt'].stats.delta
-        dsyn = np.zeros_like([npts, npar])
+        dsyn = np.zeros([npts, npar])
         par_list = self.config.par_name
         dcmt_par = self.config.dcmt_par
+        dm_scaled = dm/self.config.scale_par[0:npar]
 
         for i in range(npar):
             if i < const.NM:
-                dsyn[:, i] = datalist[par_list[i].data] / dcmt_par[i]
+                dsyn[:, i] = datalist[par_list[i]].data / dcmt_par[i]
             elif i < const.NML:
                 dsyn[:, i] = ( datalist[par_list[i]].data - datalist['synt'].data) / dcmt_par[i]
             elif i == const.NML:
@@ -561,7 +630,7 @@ class Cmt3D(object):
                 # what the hell here....
                 pass
 
-            new_synt.data = datalist['synt'].data + np.dot(dsyn, dm)
+        datalist['new_synt'].data = datalist['synt'].data + np.dot(dsyn, dm_scaled)
 
     @staticmethod
     def calculate_criteria(obsd, synt, istart, iend):

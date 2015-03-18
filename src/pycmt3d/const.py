@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 All the constants used in pycmt3d
-'''
+"""
 
-import scipy
+import numpy as np
 
 # Mathmatical constants
-PI = scipy.pi
+PI = np.pi
 
 # Scale of cmt parameters
 # (latitude, longtitude, depth and moment centroid time and half duration)
-SCALE_LOCATION = 0.01      # degree
+SCALE_LONGITUDE = 0.01   # degree
+SCALE_LATTITUDE = 0.01   # degree
 SCALE_DEPTH = 1.0        # km
 SCALE_MOMENT = 1.0e+23   # dyns*cm
 SCALE_CTIME = 1.0        # seconds
