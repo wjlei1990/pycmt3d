@@ -27,68 +27,10 @@ import obspy
 
 class Cmt3D(object):
 
-    def __init__(self, cmtsource, flexwin_file, config):
+    def __init__(self, cmtsource, window, config):
         self.config = config
         self.cmtsource = cmtsource
-        self.flexwin_file = flexwin_file
-        self.window = []
-
-    def load_winfile(self):
-        """
-        old way of loading flexwin inputfile
-        :return:
-        """
-        logger.info('Import window file')
-        self.window = []
-        with open(self.flexwin_file, "r") as f:
-            num_file = int(f.readline().strip())
-            if num_file == 0:
-                return
-            for idx in range(num_file):
-                # keep the old format of cmt3d input
-                obsd_fn = f.readline().strip()
-                synt_fn = f.readline().strip()
-                sta_info = os.path.basename(obsd_fn)
-                [sta, nw, loc, comp, type] = sta_info.split(".")
-                num_wins = int(f.readline().strip())
-                win_time = np.zeros((num_wins,2))
-                for iwin in range(num_wins):
-                    [left, right] = f.readline().strip().split()
-                    win_time[iwin, 0] = float(left)
-                    win_time[iwin, 1] = float(right)
-                win_obj = Window(sta, nw, loc, comp, num_wins = num_wins, win_time = win_time,
-                                  obsd_fn=obsd_fn, synt_fn=synt_fn)
-                # load all data, observed and synthetics into the object
-                logger.debug("Import data...%s" %sta_info)
-                self.load_data(win_obj)
-                self.window.append(win_obj)
-
-        # count the total number of files and windows
-        self.nfiles = len(self.window)
-        nwins = 0
-        for window in self.window:
-            nwins += window.win_time.shape[0]
-        self.nwins = nwins
-
-    def load_data(self, win_obj):
-        """
-        Old way of loading obsd and synt data...
-        :param win_obj:
-        :return:
-        """
-        datalist = {}
-        obsd_fn = win_obj.obsd_fn
-        synt_fn = win_obj.synt_fn
-        npar = self.config.npar
-        par_list = self.config.par_name[:npar]
-        datalist['obsd'] = read(obsd_fn)[0]
-        datalist['synt'] = read(synt_fn)[0]
-        # other synt data will be referred as key value: Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, dep, lat, lon, ctm, hdr
-        for i in range(npar):
-            synt_dev_fn = synt_fn + "." + par_list[i]
-            datalist[par_list[i]] = read(synt_dev_fn)[0]
-
-        win_obj.datalist = datalist
+        self.window = window
 
     def setup_weight(self):
         """
@@ -113,7 +55,7 @@ class Cmt3D(object):
             self.normalize_weight()
         else:
             for idx, window in enumerate(self.window):
-                # set even weigting
+                # set even weighting
                 window.weight = np.ones(window.num_wins)
 
     def prepare_for_weighting(self):
