@@ -240,7 +240,7 @@ class CMTSource(object):
         """
         Moment magnitude M_w
         """
-        return 2.0 / 3.0 * np.log10(self.M0) - 6.0
+        return 2.0 / 3.0 * (np.log10(self.M0) - 7.0) - 6.0
 
     @property
     def time_shift(self):

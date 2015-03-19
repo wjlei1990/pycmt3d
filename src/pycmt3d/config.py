@@ -17,7 +17,7 @@ import math
 from __init__ import logger
 
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
-                    comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=1.5,
+                    comp_r_weight=2.0, comp_t_weight=1.5, comp_z_weight=2.0,
                     az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
                     love_dist_weight=0.55):
 
@@ -93,10 +93,12 @@ class Config(object):
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
 
+        self.print_summary()
+
     # The function weight_function is to calculate the weight for different component and azimuths
     # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
 
-    def print_config(self):
+    def print_summary(self):
         """
         Print function of configuration
         :return:

@@ -50,6 +50,7 @@ class DataContainer(object):
         self.par_list = par_list
         self.window = []
         self.load_winfile()
+        self.print_summary()
 
     def load_winfile(self):
         """
@@ -106,6 +107,30 @@ class DataContainer(object):
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
 
     def print_summary(self):
+        nfiles_R = 0
+        nfiles_T = 0
+        nfiles_Z = 0
+        nwins_R = 0
+        nwins_T = 0
+        nwins_Z = 0
+        for window in self.window:
+            if window.component[2:3] == "R":
+                nfiles_R += 1
+                nwins_R += window.num_wins
+            elif window.component[2:3] == "T":
+                nfiles_T += 1
+                nwins_T += window.num_wins
+            elif window.component[2:3] == "Z":
+                nfiles_Z += 1
+                nwins_Z += window.num_wins
+            else:
+                raise ValueError("Unrecognized compoent in windows: %s.%s.%s"
+                                 %(window.station, window.network, window.component))
+
         logger.info("="*10 + "  Data Summary  " + "="*10)
+        logger.info("Number of Deriv synt: %d" % len(self.par_list))
+        logger.info("   Par: [%s]" % (', '.join(self.par_list)))
         logger.info("Number of data pairs: %d" %self.nfiles)
-        logger.info("NUmber of windows: %d"%self.nwins)
+        logger.info("   [Z, R, T] = [%d, %d, %d]" %(nfiles_Z, nfiles_R, nfiles_T ))
+        logger.info("Number of windows: %d"%self.nwins)
+        logger.info("   [Z, R, T] = [%d, %d, %d]" %(nwins_Z, nwins_R, nwins_T))

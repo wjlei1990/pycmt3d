@@ -32,6 +32,8 @@ class Cmt3D(object):
         self.cmtsource = cmtsource
         self.window = window
 
+        self.print_source_summary()
+
     def setup_weight(self):
         """
         Use Window to setup weight
@@ -47,7 +49,7 @@ class Cmt3D(object):
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
                 naz = naz_list[idx_naz]
-                logger.debug("%s.%s.%s, num_win, dist, naz: %d, %f, %d", window.station, window.network, window.component,
+                logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
             # normalization of data weights
@@ -115,9 +117,10 @@ class Cmt3D(object):
         logger.debug("Global Max Weight: %f" %(max_weight))
 
         for window in self.window:
-            logger.debug("%s.%s, weight: [%s]" %(window.network, window.station, ', '.join(map(str, window.weight))))
+            logger.debug("%s.%s.%s, weight: [%s]" %(window.network, window.station, window.component,
+                                                    ', '.join(map(self.float_to_str, window.weight))))
             window.weight /= max_weight
-            logger.debug("Updated, weight: [%s]" %(', '.join(map(str, window.weight))))
+            logger.debug("Updated, weight: [%s]" %(', '.join(map(self.float_to_str, window.weight))))
 
     def get_station_info(self, datalist):
         # this might be related to datafile type(sac, mseed or asdf)
@@ -190,6 +193,7 @@ class Cmt3D(object):
 
         if self.config.station_correction:
             [nshift, cc, dlna] = self.calculate_criteria(obsd, synt, istart, iend)
+            print "shift:", nshift
             istart_d = max(1, istart + nshift)
             iend_d = min(npts, iend + nshift)
             istart_s = istart_d - nshift
@@ -466,7 +470,7 @@ class Cmt3D(object):
             idx_end = int(min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts))
             if self.config.station_correction:
                 [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
-                print "shift:", nshift
+                #print "shift:", nshift
                 istart_d = max(1, idx_start + nshift)
                 iend_d = min(npts, idx_end + nshift)
                 istart = istart_d - nshift
@@ -545,4 +549,12 @@ class Cmt3D(object):
         cmt = self.cmtsource
         logger.info("="*10 + "  Event Summary  " + "="*10)
         logger.info("Event name: %s" %cmt.eventname)
-        logger.info("Trace: %e" %((cmt.m_rr + cmt.m_tt + cmt.m_pp)/cmt.M0))
+        logger.info("   Latitude and longitude: %.2f, %.2f" %(cmt.latitude, cmt.longitude))
+        logger.info("   Depth: %.1f km" % (cmt.depth_in_m/1000.0))
+        logger.info("   Region tag: %s" %cmt.region_tag)
+        logger.info("   Trace: %.3e" %((cmt.m_rr + cmt.m_tt + cmt.m_pp)/cmt.M0))
+        logger.info("   Moment Magnitude: %.2f" %(cmt.moment_magnitude))
+
+    @staticmethod
+    def float_to_str(value):
+        return "%.5f" % value
