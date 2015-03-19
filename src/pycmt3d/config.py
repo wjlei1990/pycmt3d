@@ -75,7 +75,6 @@ class Config(object):
         if weight_function is not None:
             self.weight_function = weight_function
         else:
-            logger.info("None weighting function specified..assign to default")
             self.weight_function = default_weight_function
         self.station_correction = station_correction
         self.zero_trace = zero_trace
@@ -103,7 +102,7 @@ class Config(object):
         :return:
         """
         npar = self.npar
-        logger.info("===========  Config Summary  ============")
+        logger.info("="*10 + "  Config Summary  " + "="*10)
         logger.info("Number of Inversion Par: %d" %npar)
         logger.info("   Par: [%s]" %(', '.join(self.par_name[0:npar])))
         #logger.info("delta for deriv: [%8.5f(degree), %8.5f(km), %e(dyn/nm)]" %(self.dlocation, self.ddepth, self.dmoment))

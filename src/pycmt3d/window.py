@@ -104,3 +104,8 @@ class DataContainer(object):
         for deriv_par in self.par_list:
             synt_dev_fn = synt_fn + "." + deriv_par
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
+
+    def print_summary(self):
+        logger.info("="*10 + "  Data Summary  " + "="*10)
+        logger.info("Number of data pairs: %d" %self.nfiles)
+        logger.info("NUmber of windows: %d"%self.nwins)

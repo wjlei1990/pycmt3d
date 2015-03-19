@@ -36,22 +36,23 @@ class Cmt3D(object):
         """
         Use Window to setup weight
         """
+        logger.info("*"*15)
         logger.info("Start weighting...")
         if self.config.weight_data:
             # first calculate azimuth and distance for each data pair
             self.prepare_for_weighting()
             # then calculate azimuth weighting
             naz_list = self.calculate_azimuth_bin()
-            logger.debug("Azimuth bin: [%s]" %(', '.join(map(str, naz_list))))
+            logger.info("Azimuth bin: [%s]" %(', '.join(map(str, naz_list))))
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
                 naz = naz_list[idx_naz]
-                logger.info("%s.%s.%s, num_win, dist, naz: %d, %f, %d", window.station, window.network, window.component,
+                logger.debug("%s.%s.%s, num_win, dist, naz: %d, %f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
-                #window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
             # normalization of data weights
-            # Attention: the code here might be tedious but I just do not know how to make it bette without changing previous codes
+            # Attention: the code here might be tedious but I just do not know how to make it bette
+            # without changing previous codes
             self.normalize_weight()
         else:
             for idx, window in enumerate(self.window):
@@ -131,6 +132,8 @@ class Cmt3D(object):
     # Setup the matrix A and b
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
+        logger.info("*"*15)
+        logger.info("Set up inversion matrix")
         self.A = np.zeros((self.config.npar, self.config.npar))
         self.b = np.zeros(self.config.npar)
         A1_all = []
@@ -241,6 +244,9 @@ class Cmt3D(object):
 
     def invert_cmt(self, A, b):
 
+        logger.info("*"*20)
+        logger.info("Invert cmt parameters")
+
         npar = self.config.npar
         #old_par = self.cmt_par[0:npar]
         old_par = self.cmt_par[0:npar]/self.config.scale_par[0:npar]
@@ -297,7 +303,7 @@ class Cmt3D(object):
             # if invert for moment tensor with double couple constraints
             # setup starting solution, solve directly for moment instead
             # of dm, exact implementation of (A16)
-            logger.info('No-linear Inversion')
+            logger.info('Non-linear Inversion')
             mstart = np.copy(old_par)
             m1 = np.copy(mstart)
             lam = np.zeros(2)
@@ -328,11 +334,14 @@ class Cmt3D(object):
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
         self.new_cmt_par = new_cmt_par
-        logger.debug("New CMT par: [%s]" %('. '.join(map(str, new_cmt_par[:]))))
-        logger.debug("Trace: %e" %(np.sum(new_cmt_par[0:3])))
+        logger.info("Old CMT par: [%s]" %(', '.join(map(str, self.cmt_par))))
+        logger.info("dm: [%s]" %(', '.join(map(str, new_cmt_par-self.cmt_par))))
+        logger.info("New CMT par: [%s]" %(', '.join(map(str, new_cmt_par))))
 
         # convert it to CMTSource instance
         self.convert_new_cmt_par()
+        logger.info("Trace: %e" %(np.sum(new_cmt_par[0:3])))
+        logger.info("Energy change: %f%%" %( (self.new_cmtsource.M0 - self.cmtsource.M0)/self.cmtsource.M0*100.0))
 
     def convert_new_cmt_par(self):
         """
@@ -457,6 +466,7 @@ class Cmt3D(object):
             idx_end = int(min(math.ceil(tend/obsd.stats.delta), obsd.stats.npts))
             if self.config.station_correction:
                 [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
+                print "shift:", nshift
                 istart_d = max(1, idx_start + nshift)
                 iend_d = min(npts, idx_end + nshift)
                 istart = istart_d - nshift
@@ -530,3 +540,9 @@ class Cmt3D(object):
             self.calculate_variance_reduction()
         elif self.config.bootstrap == True:
             self.invert_bootstrap()
+
+    def print_source_summary(self):
+        cmt = self.cmtsource
+        logger.info("="*10 + "  Event Summary  " + "="*10)
+        logger.info("Event name: %s" %cmt.eventname)
+        logger.info("Trace: %e" %((cmt.m_rr + cmt.m_tt + cmt.m_pp)/cmt.M0))
