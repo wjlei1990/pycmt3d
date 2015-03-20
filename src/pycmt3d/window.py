@@ -43,6 +43,7 @@ class DataContainer(object):
     """
     def __init__(self, flexwin_file, par_list):
         """
+
         :param flexwin_file: old way of flexwin output file for cmt3d
         :param par_list: derivative parameter name list
         """
@@ -86,6 +87,7 @@ class DataContainer(object):
     def load_data(self, win_obj):
         """
         Old way of loading obsd and synt data...
+
         :param win_obj:
         :return:
         """

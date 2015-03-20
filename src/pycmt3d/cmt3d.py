@@ -26,8 +26,19 @@ from __init__ import logger
 import obspy
 
 class Cmt3D(object):
+    """
+    Class that handles the solver part of source inversion
+
+    :param cmtsource: earthquake source
+    :type cmtsource: :class:`pycmt3d.CMTSource`
+    :param window: all data and window
+    :type window: :class:`pycmt3d.Window`
+    :param config: configuration for source inversion
+    :type config: :class:`pycmt3d.Config`
+    """
 
     def __init__(self, cmtsource, window, config):
+
         self.config = config
         self.cmtsource = cmtsource
         self.window = window
@@ -36,7 +47,9 @@ class Cmt3D(object):
 
     def setup_weight(self):
         """
-        Use Window to setup weight
+        Use Window and location information to setup weight
+
+        :returns:
         """
         logger.info("*"*15)
         logger.info("Start weighting...")
@@ -63,7 +76,10 @@ class Cmt3D(object):
 
     def prepare_for_weighting(self):
         """
-        Calculate azimuth and distance and store it
+        Prepare necessary information for weighting, e.x., calculating azimuth and distance
+        and store it
+
+        :return:
         """
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
@@ -77,8 +93,9 @@ class Cmt3D(object):
     @staticmethod
     def get_azimuth_bin_number(azimuth):
         """
-        Calculate the bin number of a give azimuth
-        :param azimuth:
+        Calculate the bin number of a given azimuth
+
+        :param azimuth: test test test
         :return:
         """
         # the azimth ranges from [0,360]
@@ -95,6 +112,7 @@ class Cmt3D(object):
     def calculate_azimuth_bin(self):
         """
         Calculate the azimuth and sort them into bins
+
         :return:
         """
         naz_list = np.zeros(const.NREGIONS)
@@ -108,6 +126,11 @@ class Cmt3D(object):
         return naz_list
 
     def normalize_weight(self):
+        """
+        Normalize the weighting and make the maxium to 1
+
+        :return:
+        """
         max_weight = 0.0
         for window in self.window:
             max_temp = np.max(window.weight)
@@ -123,6 +146,12 @@ class Cmt3D(object):
             logger.debug("Updated, weight: [%s]" %(', '.join(map(self.float_to_str, window.weight))))
 
     def get_station_info(self, datalist):
+        """
+        Using the event location and station information to calculate azimuth and distance
+
+        :param datalist: data dictionary(referred to pycmt3d.Window.datalist)
+        :return:
+        """
         # this might be related to datafile type(sac, mseed or asdf)
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
@@ -135,6 +164,12 @@ class Cmt3D(object):
     # Setup the matrix A and b
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
+        """
+        Set up the Matrix A and vector b to solve the A * (dm) = b
+        A is the Hessian Matrix and b is the misfit
+
+        :return:
+        """
         logger.info("*"*15)
         logger.info("Set up inversion matrix")
         self.A = np.zeros((self.config.npar, self.config.npar))
@@ -174,7 +209,16 @@ class Cmt3D(object):
                                cmt.latitude, cmt.time_shift, cmt.half_duration])
 
     def compute_A_b(self, window, win_idx):
+        """
+        Calculate the matrix A and vector b based on one pair of observed data and
+        synthetic data on a given window.
 
+        :param window: data and window information
+        :type window: :class:`pycmt3d.Window`
+        :param win_idx: window index(a specific window)
+        :type win_idx: integer
+        :return:
+        """
         par_list = self.config.par_name
         npar = self.config.npar
         dcmt_par = self.config.dcmt_par
@@ -248,6 +292,14 @@ class Cmt3D(object):
 
     def invert_cmt(self, A, b):
 
+        """
+        Solver part. Hession matrix A and misfit vector b will be reconstructed here
+        based on different constraints.
+
+        :param A: basic Hessian matrix
+        :param b: basid misfit vector
+        :return:
+        """
         logger.info("*"*20)
         logger.info("Invert cmt parameters")
 
@@ -349,7 +401,8 @@ class Cmt3D(object):
 
     def convert_new_cmt_par(self):
         """
-        Convert self.new_cmt_par array to CMTSource
+        Convert self.new_cmt_par array to CMTSource instance
+
         :return:
         """
         oldcmt = self.cmtsource
@@ -368,6 +421,8 @@ class Cmt3D(object):
     def invert_bootstrap(self):
         """
         It is used to evaluate the mean, standard deviation, and variance of new parameters
+
+        :return:
         """
         new_par_array = np.zeros((self.config.bootstrap_repeat, self.npar))
         for i in range(self.config.bootstrap_repeat):
@@ -378,6 +433,18 @@ class Cmt3D(object):
         self.par_var = np.var(new_par_array, axis=0)
 
     def get_f_df(self, A, b, m, lam, mstart, fij, f0):
+        """
+        Iterative solver for Non-linear case(double-couple constraint)
+
+        :param A: basic Hessian matrix
+        :param b: basic misfit vector
+        :param m: current source array
+        :param lam: constraints coefficient for zero-trace and double-couple constraints
+        :param mstart: starting source solution
+        :param fij: reconstructed Hessian Matrix AA
+        :param f0: reconstructed misfit vector bb
+        :return:
+        """
 
         npar = self.config.npar
         NM = const.NM
@@ -428,8 +495,12 @@ class Cmt3D(object):
         fij[npar, 0:NM] = dc1_dm
         fij[npar+1, 0:NM] = dc2_dm
 
-    def calculate_var(self):
+    def calculate_variance(self):
+        """
+        Calculate variance reduction based on old and new source solution
 
+        :return:
+        """
         npar = self.config.npar
         dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
 
@@ -454,10 +525,15 @@ class Cmt3D(object):
     def calculate_var_reduction_one_trace(self, obsd, synt, win_time):
         """
         Calculate the variance reduction on a pair of obsd and synt and windows
-        :param obsd:
-        :param synt:
-        :param win_time:
-        :return: variance v1 and energy d1
+
+        :param obsd: observed data trace
+        :type obsd: :class:`obspy.core.trace.Trace`
+        :param synt: synthetic data trace
+        :type synt: :class:`obspy.core.trace.Trace`
+        :param win_time: [win_start, win_end]
+        :type win_time: :class:`list` or :class:`numpy.array`
+        :return:  waveform misfit reduction and observed data energy [v1, d1]
+        :rtype: [float, float]
         """
         num_wins = win_time.shape[0]
         v1 = np.zeros(num_wins)
@@ -488,6 +564,13 @@ class Cmt3D(object):
         return [v1, d1]
 
     def compute_new_syn(self, datalist, dm):
+        """
+        Compute new synthetic data based on new CMTSOLUTION
+
+        :param datalist: dictionary of all data
+        :param dm: CMTSolution perterbation, i.e., (self.new_cmt_par-self.cmt_par)
+        :return:
+        """
         # get a dummy copy to keep meta data information
         datalist['new_synt'] = datalist['synt'].copy()
 
@@ -515,6 +598,20 @@ class Cmt3D(object):
 
     @staticmethod
     def calculate_criteria(obsd, synt, istart, iend):
+        """
+        Calculate the time shift, max cross-correlation value and energy differnce
+
+        :param obsd: observed data trace
+        :type obsd: :class:`obspy.core.trace.Trace`
+        :param synt: synthetic data trace
+        :type synt: :class:`obspy.core.trace.Trace`
+        :param istart: start index of window
+        :type istart: int
+        :param iend: end index of window
+        :param iend: int
+        :return: [number of shift points, max cc value, dlnA]
+        :rtype: [int, float, float]
+        """
         # cross-correlation measurement
         len = iend - istart
         zero_padding = np.zeros(len)
@@ -528,24 +625,32 @@ class Cmt3D(object):
 
     @staticmethod
     def construct_hanning_taper(npts):
+        """
+        Hanning taper construct
+
+        :param npts: number of points
+        :return:
+        """
         taper = np.zeros(npts)
         for i in range(npts):
             taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts-1))))
         return taper
 
     def source_inversion(self):
-        self.load_winfile()
         self.setup_weight()
-        # setup matrix based on misfit
         self.setup_matrix()
-        # calculate new cmt solution
-        if self.config.bootstrap == False:
+        if self.config.bootstrap:
             self.invert_cmt(self.A, self.b)
-            self.calculate_variance_reduction()
-        elif self.config.bootstrap == True:
+            self.calculate_variance()
+        else:
             self.invert_bootstrap()
 
     def print_source_summary(self):
+        """
+        Print CMTSolution source summary
+
+        :return:
+        """
         cmt = self.cmtsource
         logger.info("="*10 + "  Event Summary  " + "="*10)
         logger.info("Event name: %s" %cmt.eventname)
@@ -557,4 +662,10 @@ class Cmt3D(object):
 
     @staticmethod
     def float_to_str(value):
+        """
+        Convert float value to a specific precision string
+
+        :param value:
+        :return: string of the value
+        """
         return "%.5f" % value

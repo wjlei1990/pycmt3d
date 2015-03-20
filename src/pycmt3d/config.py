@@ -21,6 +21,23 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
                     az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
                     love_dist_weight=0.55):
 
+    """
+    Defualt weighting function
+
+    :param kcmpnm:
+    :param dist_in_km:
+    :param azi_count:
+    :param nwins:
+    :param comp_r_weight:
+    :param comp_t_weight:
+    :param comp_z_weight:
+    :param az_exp_weight:
+    :param pnl_dist_weight:
+    :param rayleigh_dist_weight:
+    :param love_dist_weight:
+    :return:
+    """
+
     data_weight = np.zeros(nwins)
     # component weight
     comp_direct = kcmpnm[2]
@@ -51,12 +68,29 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
 
 
 class Config(object):
+    """
+    Configuration for source inversion
 
-    def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0, ddelta=0.0,
+    :param npar: number of parameters to be inverted
+    :param dlocation: location perturbation when calculated perturbed synthetic data
+    :param ddepth: depth perturbation
+    :param dmoment: moment perturbation
+    :param weight_data: bool value of weighting data
+    :param weight_function: weighting function
+    :param station_correction: bool value of whether applies station correction
+    :param zero_trace: bool value of whether applies zero-trace constraint
+    :param double_couple: bool value of whether applied double-couple constraint
+    :param lamda_damping: damping coefficient
+    :param bootstrap: bool value of whether applied bootstrap method
+    :param bootstrap_repeat: bootstrap iterations
+    """
+
+    def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
                  weight_data=True, weight_function=None,
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
+
         self.npar = npar
         if self.npar not in [6, 7, 9, 10, 11]:
             print ('Error: the current npar (number of parameters) is ', self.npar)
@@ -70,7 +104,6 @@ class Config(object):
         self.dlocation = dlocation
         self.ddepth = ddepth
         self.dmoment = dmoment
-        self.ddelta = ddelta
         self.weight_data = weight_data
         if weight_function is not None:
             self.weight_function = weight_function
@@ -101,6 +134,7 @@ class Config(object):
     def print_summary(self):
         """
         Print function of configuration
+
         :return:
         """
         npar = self.npar

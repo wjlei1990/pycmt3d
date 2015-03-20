@@ -1,0 +1,763 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pycmt3d.cmt3d &mdash; pycmt3d 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="pycmt3d 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pycmt3d.cmt3d</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c"># -*- coding: utf-8 -*-</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;No module named numpy. &quot;</span>
+           <span class="s">&quot;Please install numpy first, it is needed before using pycmt3d.&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">obspy</span> <span class="kn">import</span> <span class="n">read</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;No module named obspy. &quot;</span>
+           <span class="s">&quot;Please install obspy first, it is needed before using pycmt3d.&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">source</span> <span class="kn">import</span> <span class="n">CMTSource</span>
+<span class="kn">from</span> <span class="nn">obspy.core.util.geodetics</span> <span class="kn">import</span> <span class="n">gps2DistAzimuth</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.cross_correlation</span> <span class="kn">import</span> <span class="n">xcorr</span>
+<span class="kn">import</span> <span class="nn">const</span>
+<span class="kn">from</span> <span class="nn">window</span> <span class="kn">import</span> <span class="n">Window</span>
+<span class="kn">from</span> <span class="nn">__init__</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">import</span> <span class="nn">obspy</span>
+
+<div class="viewcode-block" id="Cmt3D"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D">[docs]</a><span class="k">class</span> <span class="nc">Cmt3D</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class that handles the solver part of source inversion</span>
+
+<span class="sd">    :param cmtsource: earthquake source</span>
+<span class="sd">    :type cmtsource: :class:`pycmt3d.CMTSource`</span>
+<span class="sd">    :param window: all data and window</span>
+<span class="sd">    :type window: :class:`pycmt3d.Window`</span>
+<span class="sd">    :param config: configuration for source inversion</span>
+<span class="sd">    :type config: :class:`pycmt3d.Config`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmtsource</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span> <span class="o">=</span> <span class="n">cmtsource</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">window</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">print_source_summary</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Cmt3D.setup_weight"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.setup_weight">[docs]</a>    <span class="k">def</span> <span class="nf">setup_weight</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use Window and location information to setup weight</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">15</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Start weighting...&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">weight_data</span><span class="p">:</span>
+            <span class="c"># first calculate azimuth and distance for each data pair</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_weighting</span><span class="p">()</span>
+            <span class="c"># then calculate azimuth weighting</span>
+            <span class="n">naz_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_azimuth_bin</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Azimuth bin: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">naz_list</span><span class="p">))))</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">window</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">):</span>
+                <span class="n">idx_naz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_azimuth_bin_number</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">azimuth</span><span class="p">)</span>
+                <span class="n">naz</span> <span class="o">=</span> <span class="n">naz_list</span><span class="p">[</span><span class="n">idx_naz</span><span class="p">]</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">, num_win, dist, naz: </span><span class="si">%d</span><span class="s">, </span><span class="si">%.2f</span><span class="s">, </span><span class="si">%d</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">component</span><span class="p">,</span>
+                            <span class="n">window</span><span class="o">.</span><span class="n">num_wins</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">dist_in_km</span><span class="p">,</span> <span class="n">naz</span><span class="p">)</span>
+                <span class="n">window</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">weight_function</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">component</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">dist_in_km</span><span class="p">,</span> <span class="n">naz</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">num_wins</span><span class="p">)</span>
+            <span class="c"># normalization of data weights</span>
+            <span class="c"># Attention: the code here might be tedious but I just do not know how to make it bette</span>
+            <span class="c"># without changing previous codes</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalize_weight</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">window</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">):</span>
+                <span class="c"># set even weighting</span>
+                <span class="n">window</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">num_wins</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.prepare_for_weighting"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.prepare_for_weighting">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_for_weighting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepare necessary information for weighting, e.x., calculating azimuth and distance</span>
+<span class="sd">        and store it</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event_lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">latitude</span>
+        <span class="n">event_lon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">longitude</span>
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="n">sta_lat</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sac</span><span class="p">[</span><span class="s">&#39;stla&#39;</span><span class="p">]</span>
+            <span class="n">sta_lon</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sac</span><span class="p">[</span><span class="s">&#39;stlo&#39;</span><span class="p">]</span>
+            <span class="n">dist_in_m</span><span class="p">,</span> <span class="n">az</span><span class="p">,</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">gps2DistAzimuth</span><span class="p">(</span><span class="n">event_lat</span><span class="p">,</span> <span class="n">event_lon</span><span class="p">,</span> <span class="n">sta_lat</span><span class="p">,</span> <span class="n">sta_lon</span><span class="p">)</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">dist_in_km</span> <span class="o">=</span> <span class="n">dist_in_m</span><span class="o">/</span><span class="mf">1000.0</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">azimuth</span> <span class="o">=</span> <span class="n">az</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Cmt3D.get_azimuth_bin_number"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.get_azimuth_bin_number">[docs]</a>    <span class="k">def</span> <span class="nf">get_azimuth_bin_number</span><span class="p">(</span><span class="n">azimuth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the bin number of a given azimuth</span>
+
+<span class="sd">        :param azimuth: test test test</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># the azimth ranges from [0,360]</span>
+        <span class="c"># so a little modification here</span>
+        <span class="n">daz</span> <span class="o">=</span> <span class="mf">360.0</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">NREGIONS</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">azimuth</span> <span class="o">/</span> <span class="n">daz</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">k</span><span class="o">&lt;</span><span class="mi">0</span> <span class="ow">or</span> <span class="n">k</span><span class="o">&gt;</span><span class="n">const</span><span class="o">.</span><span class="n">NREGIONS</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">azimuth</span><span class="o">-</span><span class="mf">360.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.0001</span><span class="p">:</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">NREGIONS</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span> <span class="p">(</span><span class="s">&#39;Error bining azimuth&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">k</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.calculate_azimuth_bin"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.calculate_azimuth_bin">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_azimuth_bin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the azimuth and sort them into bins</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">naz_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">NREGIONS</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="n">bin_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_azimuth_bin_number</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">azimuth</span><span class="p">)</span>
+            <span class="c"># 1) weight on window numbers</span>
+            <span class="c">#naz_list[bin_idx] += window.num_wins</span>
+            <span class="c"># 2) weigth on files</span>
+            <span class="n">naz_list</span><span class="p">[</span><span class="n">bin_idx</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">naz_list</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.normalize_weight"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.normalize_weight">[docs]</a>    <span class="k">def</span> <span class="nf">normalize_weight</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Normalize the weighting and make the maxium to 1</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_weight</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="n">max_temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">max_temp</span> <span class="o">&gt;</span> <span class="n">max_weight</span><span class="p">:</span>
+                <span class="n">max_weight</span> <span class="o">=</span> <span class="n">max_temp</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Global Max Weight: </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">max_weight</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">, weight: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">component</span><span class="p">,</span>
+                                                    <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">float_to_str</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="p">))))</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">weight</span> <span class="o">/=</span> <span class="n">max_weight</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Updated, weight: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">float_to_str</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="p">))))</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.get_station_info"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.get_station_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_station_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datalist</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Using the event location and station information to calculate azimuth and distance</span>
+
+<span class="sd">        :param datalist: data dictionary(referred to pycmt3d.Window.datalist)</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># this might be related to datafile type(sac, mseed or asdf)</span>
+        <span class="n">event_lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">latitude</span>
+        <span class="n">event_lon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">longitude</span>
+        <span class="c"># station location from synthetic file</span>
+        <span class="n">sta_lat</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sac</span><span class="p">[</span><span class="s">&#39;stla&#39;</span><span class="p">]</span>
+        <span class="n">sta_lon</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sac</span><span class="p">[</span><span class="s">&#39;stlo&#39;</span><span class="p">]</span>
+        <span class="n">dist_in_m</span><span class="p">,</span> <span class="n">az</span><span class="p">,</span> <span class="n">baz</span> <span class="o">=</span> <span class="n">gps2DistAzimuth</span><span class="p">(</span><span class="n">event_lat</span><span class="p">,</span> <span class="n">event_lon</span><span class="p">,</span> <span class="n">sta_lat</span><span class="p">,</span> <span class="n">sta_lon</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">dist_in_m</span><span class="o">/</span><span class="mf">1000.0</span><span class="p">,</span> <span class="n">az</span><span class="p">]</span>
+
+    <span class="c"># Setup the matrix A and b</span>
+    <span class="c"># If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution</span></div>
+<div class="viewcode-block" id="Cmt3D.setup_matrix"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.setup_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">setup_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up the Matrix A and vector b to solve the A * (dm) = b</span>
+<span class="sd">        A is the Hessian Matrix and b is the misfit</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">15</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Set up inversion matrix&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">)</span>
+        <span class="n">A1_all</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">b1_all</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="c"># loop over pair of data</span>
+            <span class="k">for</span> <span class="n">win_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">num_wins</span><span class="p">):</span>
+                <span class="c"># loop over each window</span>
+                <span class="p">[</span><span class="n">A1</span><span class="p">,</span> <span class="n">b1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_A_b</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">win_idx</span><span class="p">)</span>
+                <span class="n">A1_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">A1</span><span class="p">)</span>
+                <span class="n">b1_all</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">b1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">A_bootstrap</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b_bootstrap</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap_repeat</span><span class="p">):</span>
+                <span class="n">random_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">random_array</span> <span class="o">*</span> <span class="n">A1_all</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">random_array</span> <span class="o">*</span> <span class="n">b1_all</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">A_bootstrap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">b_bootstrap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+        <span class="c"># Xin, do you have a type error here?</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">A1_all</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b1_all</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Inversion Matrix A is as follows:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">))))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;RHS vector b is as follows:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;[</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">))))</span>
+
+        <span class="c"># we setup the full array, but based on npar, only part of it will be used</span>
+        <span class="n">cmt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">cmt</span><span class="o">.</span><span class="n">m_rr</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_tt</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_pp</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_rt</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_rp</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_tp</span><span class="p">,</span>
+                               <span class="n">cmt</span><span class="o">.</span><span class="n">depth_in_m</span><span class="o">/</span><span class="mf">1000.0</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">longitude</span><span class="p">,</span>
+                               <span class="n">cmt</span><span class="o">.</span><span class="n">latitude</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">time_shift</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">half_duration</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.compute_A_b"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.compute_A_b">[docs]</a>    <span class="k">def</span> <span class="nf">compute_A_b</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">win_idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the matrix A and vector b based on one pair of observed data and</span>
+<span class="sd">        synthetic data on a given window.</span>
+
+<span class="sd">        :param window: data and window information</span>
+<span class="sd">        :type window: :class:`pycmt3d.Window`</span>
+<span class="sd">        :param win_idx: window index(a specific window)</span>
+<span class="sd">        :type win_idx: integer</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">par_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">par_name</span>
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span>
+        <span class="n">dcmt_par</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dcmt_par</span>
+
+        <span class="n">datalist</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span>
+        <span class="n">obsd</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;obsd&#39;</span><span class="p">]</span>
+        <span class="n">synt</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span><span class="p">,</span> <span class="n">synt</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span><span class="p">)</span>
+        <span class="n">win</span> <span class="o">=</span> <span class="p">[</span><span class="n">window</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">win_idx</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">win_idx</span><span class="p">,</span><span class="mi">1</span><span class="p">]]</span>
+
+        <span class="n">istart</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">win</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">),</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">iend</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">win</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">),</span><span class="n">npts</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">istart</span> <span class="o">&gt;</span> <span class="n">iend</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Check window for </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
+                            <span class="n">window</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">component</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">station_correction</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">nshift</span><span class="p">,</span> <span class="n">cc</span><span class="p">,</span> <span class="n">dlna</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_criteria</span><span class="p">(</span><span class="n">obsd</span><span class="p">,</span> <span class="n">synt</span><span class="p">,</span> <span class="n">istart</span><span class="p">,</span> <span class="n">iend</span><span class="p">)</span>
+            <span class="k">print</span> <span class="s">&quot;shift:&quot;</span><span class="p">,</span> <span class="n">nshift</span>
+            <span class="n">istart_d</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">istart</span> <span class="o">+</span> <span class="n">nshift</span><span class="p">)</span>
+            <span class="n">iend_d</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">npts</span><span class="p">,</span> <span class="n">iend</span> <span class="o">+</span> <span class="n">nshift</span><span class="p">)</span>
+            <span class="n">istart_s</span> <span class="o">=</span> <span class="n">istart_d</span> <span class="o">-</span> <span class="n">nshift</span>
+            <span class="n">iend_s</span> <span class="o">=</span> <span class="n">iend_d</span> <span class="o">-</span> <span class="n">nshift</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">istart_d</span> <span class="o">=</span> <span class="n">istart</span>
+            <span class="n">iend_d</span> <span class="o">=</span> <span class="n">iend</span>
+            <span class="n">istart_s</span> <span class="o">=</span> <span class="n">istart</span>
+            <span class="n">iend_s</span> <span class="o">=</span> <span class="n">iend</span>
+        <span class="c">#print &quot;debug, shift&quot;, istart, iend, istart_s, iend_s, nshift</span>
+
+        <span class="n">dsyn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">npar</span><span class="p">,</span> <span class="n">npts</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">itype</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">npar</span><span class="p">):</span>
+            <span class="n">type_name</span> <span class="o">=</span> <span class="n">par_list</span><span class="p">[</span><span class="n">itype</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">itype</span> <span class="o">&lt;</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">:</span>
+                <span class="c"># check file: check dt, npts</span>
+                <span class="n">dt_synt</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span>
+                <span class="n">dt_obsd</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;obsd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dt_synt</span> <span class="o">-</span> <span class="n">dt_obsd</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.0001</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Delta in synthetic and observed no the same&quot;</span><span class="p">)</span>
+                <span class="n">dt</span> <span class="o">=</span> <span class="n">dt_synt</span>
+            <span class="k">if</span> <span class="n">itype</span> <span class="o">&lt;</span> <span class="n">const</span><span class="o">.</span><span class="n">NM</span><span class="p">:</span> <span class="c"># moment tensor</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="n">type_name</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span><span class="o">/</span><span class="n">dcmt_par</span><span class="p">[</span><span class="n">itype</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">itype</span> <span class="o">&lt;</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">:</span>  <span class="c"># location</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">datalist</span><span class="p">[</span><span class="n">type_name</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span><span class="o">-</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="p">])</span><span class="o">/</span><span class="n">dcmt_par</span><span class="p">[</span><span class="n">itype</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">itype</span> <span class="o">==</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">:</span>  <span class="c"># time shift</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span><span class="o">-</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:(</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">)])</span><span class="o">/</span><span class="p">(</span><span class="n">dt</span><span class="o">*</span><span class="n">dcmt_par</span><span class="p">[</span><span class="n">itype</span><span class="p">])</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="n">npts</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">itype</span> <span class="o">==</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span> <span class="c"># half duration</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">[</span><span class="n">itype</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">dsyn</span><span class="p">[</span><span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">,</span><span class="mi">1</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span><span class="o">-</span><span class="n">dsyn</span><span class="p">[</span><span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="n">dt</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">dsyn</span><span class="p">[</span><span class="n">itype</span><span class="p">,</span> <span class="n">npts</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c"># hanning taper</span>
+        <span class="n">taper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">construct_hanning_taper</span><span class="p">(</span><span class="n">iend_s</span><span class="o">-</span><span class="n">istart_s</span><span class="p">)</span>
+        <span class="n">A1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">npar</span><span class="p">,</span> <span class="n">npar</span><span class="p">))</span>
+        <span class="n">b1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">npar</span><span class="p">)</span>
+        <span class="c"># compute A and b by taking into account data weights</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">npar</span><span class="p">):</span>
+             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">npar</span><span class="p">):</span>
+                 <span class="c">#print &quot;debug:&quot;, istart_s, iend_s</span>
+                 <span class="c">#print &quot;debug:&quot;, window.weight[win_idx], dt #, np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s])</span>
+                 <span class="c">#print &quot;debug, sum:&quot;, taper.shape, taper</span>
+                 <span class="c">#print &quot;debug, dsyn:&quot;, dsyn[i, istart_s:iend_s].shape, dsyn[i, istart_s:iend_s]</span>
+                 <span class="n">A1</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">taper</span> <span class="o">*</span> <span class="n">dsyn</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">istart_s</span><span class="p">:</span><span class="n">iend_s</span><span class="p">]</span> <span class="o">*</span> <span class="n">dsyn</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">istart_s</span><span class="p">:</span><span class="n">iend_s</span><span class="p">])</span> <span class="o">*</span> <span class="n">dt</span>
+             <span class="n">b1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">taper</span> <span class="o">*</span> <span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span> <span class="o">-</span> <span class="n">synt</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_s</span><span class="p">:</span><span class="n">iend_s</span><span class="p">])</span> <span class="o">*</span>
+                     <span class="n">dsyn</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">istart_s</span><span class="p">:</span><span class="n">iend_s</span><span class="p">])</span>
+        <span class="c">#for i in range(npar):</span>
+        <span class="c">#    A1[i] = window.weight[win_idx] * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt</span>
+        <span class="c">#    b1 = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *</span>
+        <span class="c">#                                 dsyn[:][istart_s:iend_s])</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">A1</span><span class="p">,</span> <span class="n">b1</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.invert_cmt"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.invert_cmt">[docs]</a>    <span class="k">def</span> <span class="nf">invert_cmt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Solver part. Hession matrix A and misfit vector b will be reconstructed here</span>
+<span class="sd">        based on different constraints.</span>
+
+<span class="sd">        :param A: basic Hessian matrix</span>
+<span class="sd">        :param b: basid misfit vector</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Invert cmt parameters&quot;</span><span class="p">)</span>
+
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span>
+        <span class="c">#old_par = self.cmt_par[0:npar]</span>
+        <span class="n">old_par</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+
+        <span class="c"># scale the A and b matrix</span>
+        <span class="n">max_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">A</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)):</span>
+            <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">/=</span> <span class="n">max_row</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/=</span> <span class="n">max_row</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="c"># setup inversion schema</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">double_couple</span><span class="p">:</span>
+            <span class="n">linear_inversion</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">na</span> <span class="o">=</span> <span class="n">npar</span> <span class="o">+</span> <span class="mi">2</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">zero_trace</span><span class="p">:</span>
+            <span class="n">linear_inversion</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">na</span> <span class="o">=</span> <span class="n">npar</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">linear_inversion</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">na</span> <span class="o">=</span> <span class="n">npar</span>
+
+        <span class="c"># add damping</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+        <span class="n">damp_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">npar</span><span class="p">,</span> <span class="n">npar</span><span class="p">])</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">damp_matrix</span><span class="p">,</span> <span class="n">trace</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">lamda_damping</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">A</span> <span class="o">+</span> <span class="n">damp_matrix</span>
+
+        <span class="c"># setup new matrix based on constraints</span>
+        <span class="n">AA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">na</span><span class="p">,</span> <span class="n">na</span><span class="p">])</span>
+        <span class="n">bb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">na</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">linear_inversion</span><span class="p">:</span>
+            <span class="c"># if invert for moment tensor with zero-trace constraints or no constraint</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Linear Inversion&quot;</span><span class="p">)</span>
+            <span class="n">AA</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span>
+            <span class="n">bb</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">zero_trace</span><span class="p">:</span>
+                <span class="n">bb</span><span class="p">[</span><span class="n">na</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">old_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
+                <span class="n">AA</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">,</span> <span class="n">na</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+                <span class="n">AA</span><span class="p">[</span><span class="n">na</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+                <span class="n">AA</span><span class="p">[</span><span class="n">na</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">na</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="c"># use linear solver</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">AA</span><span class="p">,</span> <span class="n">bb</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;Matrix is singular...LinearAlgError&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Check Matrix Singularity&quot;</span><span class="p">)</span>
+            <span class="c"># check here</span>
+            <span class="n">new_par</span> <span class="o">=</span> <span class="n">old_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">+</span> <span class="n">dm</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;cmt_par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]))))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Scaled old_par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="n">old_par</span><span class="p">))))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;dm: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">dm</span><span class="p">))))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># if invert for moment tensor with double couple constraints</span>
+            <span class="c"># setup starting solution, solve directly for moment instead</span>
+            <span class="c"># of dm, exact implementation of (A16)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Non-linear Inversion&#39;</span><span class="p">)</span>
+            <span class="n">mstart</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">old_par</span><span class="p">)</span>
+            <span class="n">m1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mstart</span><span class="p">)</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+            <span class="c"># nolinear solver. Maybe there are already existing code.</span>
+            <span class="c"># check later</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">const</span><span class="o">.</span><span class="n">NMAX_NL_ITER</span><span class="p">,</span> <span class="n">na</span><span class="p">])</span>
+            <span class="k">for</span> <span class="nb">iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">NMAX_NL_ITER</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_f_df</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">m1</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mstart</span><span class="p">,</span> <span class="n">AA</span><span class="p">,</span> <span class="n">bb</span><span class="p">)</span>
+                <span class="c">#logger.info(&quot;Inversion Matrix AA is as follows:&quot;)</span>
+                <span class="c">#logger.info(&quot;\n%s&quot; %(&#39;\n&#39;.join(map(str, AA))))</span>
+                <span class="c">#logger.info(&quot;Inversion vector bb is as follows:&quot;)</span>
+                <span class="c">#logger.info(&quot;[%s]&quot; %(&#39;, &#39;.join(map(str, bb))))</span>
+                <span class="n">bb</span> <span class="o">=</span> <span class="o">-</span> <span class="n">bb</span>
+                <span class="n">xout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">AA</span><span class="p">,</span> <span class="n">bb</span><span class="p">)</span>
+                <span class="c">#logger.debug(&quot;xout: [%s]&quot; %(&#39;, &#39;.join(map(str, xout))))</span>
+                <span class="n">m1</span> <span class="o">=</span> <span class="n">m1</span> <span class="o">+</span> <span class="n">xout</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+                <span class="n">lam</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">+</span> <span class="n">xout</span><span class="p">[</span><span class="n">npar</span><span class="p">:</span><span class="n">na</span><span class="p">]</span>
+                <span class="n">error</span><span class="p">[</span><span class="nb">iter</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">AA</span><span class="p">,</span> <span class="n">xout</span><span class="p">)</span> <span class="o">-</span> <span class="n">bb</span>
+            <span class="n">dm</span> <span class="o">=</span> <span class="n">m1</span> <span class="o">-</span> <span class="n">mstart</span>
+            <span class="n">new_par</span> <span class="o">=</span> <span class="n">m1</span>
+            <span class="c">#logger.debug(&quot;dm: [%s]&quot; %(&#39;, &#39;.join(map(str, dm))))</span>
+            <span class="c">#logger.debug(&quot;Scaled old_par: [%s]&quot; %(&#39;, &#39;.join(map(str,old_par))))</span>
+            <span class="c">#for iter in range(const.NMAX_NL_ITER):</span>
+            <span class="c">#    print &quot;iter&quot;, iter, error[iter, :]</span>
+            <span class="c">#    print &quot;sum abs error:&quot;, np.sum(abs(error[iter, :]))</span>
+
+        <span class="n">new_cmt_par</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">)</span>
+        <span class="n">new_cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_cmt_par</span> <span class="o">=</span> <span class="n">new_cmt_par</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Old CMT par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">))))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;dm: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">new_cmt_par</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">))))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;New CMT par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">new_cmt_par</span><span class="p">))))</span>
+
+        <span class="c"># convert it to CMTSource instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">convert_new_cmt_par</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Trace: </span><span class="si">%e</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">new_cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Energy change: </span><span class="si">%f%%</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_cmtsource</span><span class="o">.</span><span class="n">M0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">M0</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span><span class="o">.</span><span class="n">M0</span><span class="o">*</span><span class="mf">100.0</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.convert_new_cmt_par"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.convert_new_cmt_par">[docs]</a>    <span class="k">def</span> <span class="nf">convert_new_cmt_par</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert self.new_cmt_par array to CMTSource instance</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">oldcmt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span>
+        <span class="n">newcmt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_cmt_par</span>
+        <span class="n">time_shift</span> <span class="o">=</span> <span class="n">newcmt</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+        <span class="n">new_cmt_time</span> <span class="o">=</span> <span class="n">oldcmt</span><span class="o">.</span><span class="n">origin_time</span> <span class="o">+</span> <span class="n">time_shift</span>
+        <span class="c"># copy old one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_cmtsource</span> <span class="o">=</span> <span class="n">CMTSource</span><span class="p">(</span><span class="n">origin_time</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">origin_time</span><span class="p">,</span>
+            <span class="n">pde_latitude</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">pde_latitude</span><span class="p">,</span> <span class="n">pde_longitude</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">pde_longitude</span><span class="p">,</span>
+            <span class="n">mb</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">mb</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">ms</span><span class="p">,</span> <span class="n">pde_depth_in_m</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">pde_depth_in_m</span><span class="p">,</span>
+            <span class="n">region_tag</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">region_tag</span><span class="p">,</span> <span class="n">eventname</span><span class="o">=</span><span class="n">oldcmt</span><span class="o">.</span><span class="n">eventname</span><span class="p">,</span>
+            <span class="n">cmt_time</span><span class="o">=</span><span class="n">new_cmt_time</span><span class="p">,</span>  <span class="n">half_duration</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span>
+            <span class="n">latitude</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span> <span class="n">longitude</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="n">depth_in_m</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+            <span class="n">m_rr</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m_tt</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">m_pp</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">m_rt</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">m_rp</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">m_tp</span><span class="o">=</span><span class="n">newcmt</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.invert_bootstrap"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.invert_bootstrap">[docs]</a>    <span class="k">def</span> <span class="nf">invert_bootstrap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        It is used to evaluate the mean, standard deviation, and variance of new parameters</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_par_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap_repeat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">npar</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap_repeat</span><span class="p">):</span>
+            <span class="n">new_par</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert_cmt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">A_bootstrap</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">b_bootstrap</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">new_par_array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_par</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">par_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">new_par_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">par_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">new_par_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">par_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">new_par_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.get_f_df"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.get_f_df">[docs]</a>    <span class="k">def</span> <span class="nf">get_f_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mstart</span><span class="p">,</span> <span class="n">fij</span><span class="p">,</span> <span class="n">f0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterative solver for Non-linear case(double-couple constraint)</span>
+
+<span class="sd">        :param A: basic Hessian matrix</span>
+<span class="sd">        :param b: basic misfit vector</span>
+<span class="sd">        :param m: current source array</span>
+<span class="sd">        :param lam: constraints coefficient for zero-trace and double-couple constraints</span>
+<span class="sd">        :param mstart: starting source solution</span>
+<span class="sd">        :param fij: reconstructed Hessian Matrix AA</span>
+<span class="sd">        :param f0: reconstructed misfit vector bb</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span>
+        <span class="n">NM</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">NM</span>
+
+        <span class="c"># U_j</span>
+        <span class="n">dc1_dm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c"># V_j</span>
+        <span class="n">dc2_dm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+        <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+
+        <span class="c"># f(x^i) = H_jk (m_k^i -m_k^0) - b_j + lam_1 * U_j + lam_2 * V_j (A11)</span>
+        <span class="n">f0</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span>
+        <span class="n">f0</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span><span class="o">-</span><span class="n">mstart</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">])</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+        <span class="c">#print &quot;f0 step1:&quot;, f0</span>
+        <span class="n">f0</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">const</span><span class="o">.</span><span class="n">NM</span><span class="p">]</span> <span class="o">+=</span> <span class="n">lam</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">dc1_dm</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">const</span><span class="o">.</span><span class="n">NM</span><span class="p">]</span> <span class="o">+</span> <span class="n">lam</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dc2_dm</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">const</span><span class="o">.</span><span class="n">NM</span><span class="p">]</span>
+        <span class="c">#print &quot;f0 step2:&quot;, f0</span>
+        <span class="c"># f_(n+1) and f_(n+2)</span>
+        <span class="n">f0</span><span class="p">[</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">moment_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]],[</span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]],[</span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span><span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]]])</span>
+        <span class="n">f0</span><span class="p">[</span><span class="n">npar</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">moment_tensor</span><span class="p">)</span>
+        <span class="c">#print &quot;det1:&quot;, f0[npar+1]</span>
+        <span class="n">f0</span><span class="p">[</span><span class="n">npar</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="p">)</span> \
+                <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="p">)</span> \
+                <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span> <span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="p">)</span>
+        <span class="c">#print &quot;det2:&quot;, f0[npar+1]</span>
+
+        <span class="c"># Y_jk</span>
+        <span class="n">dc2_dmi_dmj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">6</span><span class="p">,</span><span class="mi">6</span><span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>     <span class="mf">0.0</span><span class="p">,</span>    <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>     <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>      <span class="mf">0.0</span><span class="p">,</span>         <span class="mf">0.0</span><span class="p">,</span>    <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>  <span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>    <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>    <span class="mf">0.0</span><span class="p">,</span>      <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>      <span class="mf">0.0</span><span class="p">,</span>      <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>   <span class="mf">0.0</span>      <span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>    <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>    <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>      <span class="mf">0.0</span><span class="p">,</span>   <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>    <span class="mf">0.0</span><span class="p">,</span>        <span class="mf">0.0</span>      <span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>     <span class="mf">0.0</span><span class="p">,</span>     <span class="mf">0.0</span><span class="p">,</span>  <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>    <span class="mi">2</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>    <span class="mi">2</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>    <span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>     <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>    <span class="mf">0.0</span><span class="p">,</span>    <span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>    <span class="mi">2</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>    <span class="p">])</span>
+        <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">5</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>   <span class="mf">0.0</span><span class="p">,</span>      <span class="mf">0.0</span><span class="p">,</span>    <span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>    <span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>  <span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">])</span>
+
+        <span class="c"># ! f_jk = H_jk + lam_2 * Y_jk</span>
+        <span class="n">fij</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">fij</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+        <span class="n">fij</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">]</span> <span class="o">=</span> <span class="n">fij</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">]</span> <span class="o">+</span> <span class="n">lam</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dc2_dmi_dmj</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">]</span>
+        <span class="n">fij</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">,</span> <span class="n">npar</span><span class="p">]</span> <span class="o">=</span> <span class="n">dc1_dm</span>
+        <span class="n">fij</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">,</span> <span class="n">npar</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">dc2_dm</span>
+        <span class="n">fij</span><span class="p">[</span><span class="n">npar</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">]</span> <span class="o">=</span> <span class="n">dc1_dm</span>
+        <span class="n">fij</span><span class="p">[</span><span class="n">npar</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">NM</span><span class="p">]</span> <span class="o">=</span> <span class="n">dc2_dm</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.calculate_variance"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.calculate_variance">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate variance reduction based on old and new source solution</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+
+        <span class="n">var_all</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">var_all_new</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">_idx</span><span class="p">,</span> <span class="n">window</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">):</span>
+            <span class="n">obsd</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;obsd&#39;</span><span class="p">]</span>
+            <span class="n">synt</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">compute_new_syn</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">,</span> <span class="n">dm</span><span class="p">)</span>
+            <span class="n">new_synt</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;new_synt&#39;</span><span class="p">]</span>
+            <span class="c"># calculate old variance</span>
+            <span class="p">[</span><span class="n">v1</span><span class="p">,</span> <span class="n">d1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_var_reduction_one_trace</span><span class="p">(</span><span class="n">obsd</span><span class="p">,</span> <span class="n">synt</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">win_time</span><span class="p">)</span>
+            <span class="c"># calculate new variance</span>
+            <span class="p">[</span><span class="n">v2</span><span class="p">,</span> <span class="n">d2</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_var_reduction_one_trace</span><span class="p">(</span><span class="n">obsd</span><span class="p">,</span> <span class="n">new_synt</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">win_time</span><span class="p">)</span>
+
+            <span class="n">var_all</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">v1</span><span class="o">*</span><span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="o">*</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">)</span>
+            <span class="n">var_all_new</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">v2</span><span class="o">*</span><span class="n">window</span><span class="o">.</span><span class="n">weight</span><span class="o">*</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Total Variance Reduced from </span><span class="si">%e</span><span class="s"> to </span><span class="si">%e</span><span class="s"> ===== </span><span class="si">%f</span><span class="s"> </span><span class="si">%%</span><span class="s">&quot;</span>
+                    <span class="o">%</span><span class="p">(</span><span class="n">var_all</span><span class="p">,</span> <span class="n">var_all_new</span><span class="p">,</span> <span class="p">(</span><span class="n">var_all</span><span class="o">-</span><span class="n">var_all_new</span><span class="p">)</span><span class="o">/</span><span class="n">var_all</span><span class="o">*</span><span class="mi">100</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.calculate_var_reduction_one_trace"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.calculate_var_reduction_one_trace">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_var_reduction_one_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obsd</span><span class="p">,</span> <span class="n">synt</span><span class="p">,</span> <span class="n">win_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the variance reduction on a pair of obsd and synt and windows</span>
+
+<span class="sd">        :param obsd: observed data trace</span>
+<span class="sd">        :type obsd: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">        :param synt: synthetic data trace</span>
+<span class="sd">        :type synt: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">        :param win_time: [win_start, win_end]</span>
+<span class="sd">        :type win_time: :class:`list` or :class:`numpy.array`</span>
+<span class="sd">        :return:  waveform misfit reduction and observed data energy [v1, d1]</span>
+<span class="sd">        :rtype: [float, float]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_wins</span> <span class="o">=</span> <span class="n">win_time</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">v1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_wins</span><span class="p">)</span>
+        <span class="n">d1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_wins</span><span class="p">)</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span><span class="p">,</span> <span class="n">synt</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_win_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">win_time</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">tstart</span> <span class="o">=</span> <span class="n">win_time</span><span class="p">[</span><span class="n">_win_idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">tend</span> <span class="o">=</span> <span class="n">win_time</span><span class="p">[</span><span class="n">_win_idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">idx_start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">tstart</span><span class="o">/</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">),</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">idx_end</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">tend</span><span class="o">/</span><span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span><span class="p">),</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">station_correction</span><span class="p">:</span>
+                <span class="p">[</span><span class="n">nshift</span><span class="p">,</span> <span class="n">cc</span><span class="p">,</span> <span class="n">dlnA</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_criteria</span><span class="p">(</span><span class="n">obsd</span><span class="p">,</span> <span class="n">synt</span><span class="p">,</span> <span class="n">idx_start</span><span class="p">,</span> <span class="n">idx_end</span><span class="p">)</span>
+                <span class="c">#print &quot;shift:&quot;, nshift</span>
+                <span class="n">istart_d</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">idx_start</span> <span class="o">+</span> <span class="n">nshift</span><span class="p">)</span>
+                <span class="n">iend_d</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">npts</span><span class="p">,</span> <span class="n">idx_end</span> <span class="o">+</span> <span class="n">nshift</span><span class="p">)</span>
+                <span class="n">istart</span> <span class="o">=</span> <span class="n">istart_d</span> <span class="o">-</span> <span class="n">nshift</span>
+                <span class="n">iend</span> <span class="o">=</span> <span class="n">iend_d</span> <span class="o">-</span> <span class="n">nshift</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">istart_d</span> <span class="o">=</span> <span class="n">idx_start</span>
+                <span class="n">istart</span> <span class="o">=</span> <span class="n">idx_start</span>
+                <span class="n">iend_d</span> <span class="o">=</span> <span class="n">idx_end</span>
+                <span class="n">iend</span> <span class="o">=</span> <span class="n">idx_end</span>
+
+            <span class="n">taper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">construct_hanning_taper</span><span class="p">(</span><span class="n">iend</span><span class="o">-</span><span class="n">istart</span><span class="p">)</span>
+            <span class="n">v1</span><span class="p">[</span><span class="n">_win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">taper</span> <span class="o">*</span> <span class="p">(</span><span class="n">synt</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">]</span><span class="o">-</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">d1</span><span class="p">[</span><span class="n">_win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">taper</span> <span class="o">*</span> <span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c">#print &quot;v1, idx:&quot;, v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">v1</span><span class="p">,</span> <span class="n">d1</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.compute_new_syn"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.compute_new_syn">[docs]</a>    <span class="k">def</span> <span class="nf">compute_new_syn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datalist</span><span class="p">,</span> <span class="n">dm</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute new synthetic data based on new CMTSOLUTION</span>
+
+<span class="sd">        :param datalist: dictionary of all data</span>
+<span class="sd">        :param dm: CMTSolution perterbation, i.e., (self.new_cmt_par-self.cmt_par)</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># get a dummy copy to keep meta data information</span>
+        <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;new_synt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">npts</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span>
+        <span class="n">dsyn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">npts</span><span class="p">,</span> <span class="n">npar</span><span class="p">])</span>
+        <span class="n">par_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">par_name</span>
+        <span class="n">dcmt_par</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dcmt_par</span>
+        <span class="n">dm_scaled</span> <span class="o">=</span> <span class="n">dm</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">npar</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">const</span><span class="o">.</span><span class="n">NM</span><span class="p">:</span>
+                <span class="n">dsyn</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="n">par_list</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">data</span> <span class="o">/</span> <span class="n">dcmt_par</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">:</span>
+                <span class="n">dsyn</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span> <span class="n">datalist</span><span class="p">[</span><span class="n">par_list</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">data</span> <span class="o">-</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="n">dcmt_par</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">i</span> <span class="o">==</span> <span class="n">const</span><span class="o">.</span><span class="n">NML</span><span class="p">:</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="mi">0</span><span class="p">:(</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">npts</span><span class="p">]</span> <span class="o">-</span> <span class="n">datalist</span><span class="p">[</span><span class="mi">0</span><span class="p">:(</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">)])</span> <span class="o">/</span> <span class="p">(</span><span class="n">dt</span><span class="o">*</span><span class="n">dcmt_par</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">dsyn</span><span class="p">[</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dsyn</span><span class="p">[</span><span class="n">npts</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">i</span> <span class="o">==</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">NML</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="c"># what the hell here....</span>
+                <span class="k">pass</span>
+
+        <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;new_synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dsyn</span><span class="p">,</span> <span class="n">dm_scaled</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Cmt3D.calculate_criteria"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.calculate_criteria">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_criteria</span><span class="p">(</span><span class="n">obsd</span><span class="p">,</span> <span class="n">synt</span><span class="p">,</span> <span class="n">istart</span><span class="p">,</span> <span class="n">iend</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the time shift, max cross-correlation value and energy differnce</span>
+
+<span class="sd">        :param obsd: observed data trace</span>
+<span class="sd">        :type obsd: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">        :param synt: synthetic data trace</span>
+<span class="sd">        :type synt: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">        :param istart: start index of window</span>
+<span class="sd">        :type istart: int</span>
+<span class="sd">        :param iend: end index of window</span>
+<span class="sd">        :param iend: int</span>
+<span class="sd">        :return: [number of shift points, max cc value, dlnA]</span>
+<span class="sd">        :rtype: [int, float, float]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># cross-correlation measurement</span>
+        <span class="nb">len</span> <span class="o">=</span> <span class="n">iend</span> <span class="o">-</span> <span class="n">istart</span>
+        <span class="n">zero_padding</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
+        <span class="n">trace1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">zero_padding</span><span class="p">,</span> <span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">],</span> <span class="n">zero_padding</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">trace2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">zero_padding</span><span class="p">,</span> <span class="n">synt</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">],</span> <span class="n">zero_padding</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">nshift</span><span class="p">,</span> <span class="n">max_cc</span> <span class="o">=</span> <span class="n">xcorr</span><span class="p">(</span><span class="n">trace1</span><span class="p">,</span> <span class="n">trace2</span><span class="p">,</span> <span class="nb">len</span><span class="p">)</span>
+        <span class="c"># amplitude anomaly</span>
+        <span class="n">dlnA</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">trace1</span><span class="p">,</span> <span class="n">trace1</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">trace2</span><span class="p">,</span> <span class="n">trace2</span><span class="p">))</span> <span class="o">-</span> <span class="mf">1.0</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">nshift</span><span class="p">,</span> <span class="n">max_cc</span><span class="p">,</span> <span class="n">dlnA</span><span class="p">]</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Cmt3D.construct_hanning_taper"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.construct_hanning_taper">[docs]</a>    <span class="k">def</span> <span class="nf">construct_hanning_taper</span><span class="p">(</span><span class="n">npts</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hanning taper construct</span>
+
+<span class="sd">        :param npts: number of points</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">taper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">npts</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">npts</span><span class="p">):</span>
+            <span class="n">taper</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">npts</span><span class="o">-</span><span class="mi">1</span><span class="p">))))</span>
+        <span class="k">return</span> <span class="n">taper</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.source_inversion"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.source_inversion">[docs]</a>    <span class="k">def</span> <span class="nf">source_inversion</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_weight</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_matrix</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">invert_cmt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_variance</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">invert_bootstrap</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Cmt3D.print_source_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.print_source_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_source_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print CMTSolution source summary</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cmt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmtsource</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="s">&quot;  Event Summary  &quot;</span> <span class="o">+</span> <span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Event name: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">cmt</span><span class="o">.</span><span class="n">eventname</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Latitude and longitude: </span><span class="si">%.2f</span><span class="s">, </span><span class="si">%.2f</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">cmt</span><span class="o">.</span><span class="n">latitude</span><span class="p">,</span> <span class="n">cmt</span><span class="o">.</span><span class="n">longitude</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Depth: </span><span class="si">%.1f</span><span class="s"> km&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cmt</span><span class="o">.</span><span class="n">depth_in_m</span><span class="o">/</span><span class="mf">1000.0</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Region tag: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">cmt</span><span class="o">.</span><span class="n">region_tag</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Trace: </span><span class="si">%.3e</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">((</span><span class="n">cmt</span><span class="o">.</span><span class="n">m_rr</span> <span class="o">+</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_tt</span> <span class="o">+</span> <span class="n">cmt</span><span class="o">.</span><span class="n">m_pp</span><span class="p">)</span><span class="o">/</span><span class="n">cmt</span><span class="o">.</span><span class="n">M0</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Moment Magnitude: </span><span class="si">%.2f</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">cmt</span><span class="o">.</span><span class="n">moment_magnitude</span><span class="p">))</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Cmt3D.float_to_str"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.float_to_str">[docs]</a>    <span class="k">def</span> <span class="nf">float_to_str</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert float value to a specific precision string</span>
+
+<span class="sd">        :param value:</span>
+<span class="sd">        :return: string of the value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%.5f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">value</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Wenjie Lei and Xin Song.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
