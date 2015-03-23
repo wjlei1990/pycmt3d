@@ -43,7 +43,7 @@ class Cmt3D(object):
         self.cmtsource = cmtsource
         self.window = window
 
-        self.print_source_summary()
+        self.print_cmtsource_summary(self.cmtsource)
 
     def setup_weight(self):
         """
@@ -103,7 +103,7 @@ class Cmt3D(object):
         daz = 360.0 / const.NREGIONS
         k = int(math.floor(azimuth / daz))
         if ( k<0 or k>const.NREGIONS):
-            if abs(azimuth-360.0) < 0.0001:
+            if azimuth-360.0 < 0.0001:
                 k = const.NREGIONS - 1
             else:
                 raise ValueError ('Error bining azimuth')
@@ -184,6 +184,9 @@ class Cmt3D(object):
                 A1_all.append(A1)
                 b1_all.append(b1)
 
+        for _idx, bb in enumerate(b1_all):
+            print _idx, bb
+
         if self.config.bootstrap == True:
             self.A_bootstrap = []
             self.b_bootstrap = []
@@ -237,7 +240,7 @@ class Cmt3D(object):
 
         if self.config.station_correction:
             [nshift, cc, dlna] = self.calculate_criteria(obsd, synt, istart, iend)
-            print "shift:", nshift
+            #print "shift:", nshift
             istart_d = max(1, istart + nshift)
             iend_d = min(npts, iend + nshift)
             istart_s = istart_d - nshift
@@ -275,19 +278,34 @@ class Cmt3D(object):
         A1 = np.zeros((npar, npar))
         b1 = np.zeros(npar)
         # compute A and b by taking into account data weights
-        for i in range(npar):
-             for j in range(npar):
-                 #print "debug:", istart_s, iend_s
-                 #print "debug:", window.weight[win_idx], dt #, np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s])
-                 #print "debug, sum:", taper.shape, taper
-                 #print "debug, dsyn:", dsyn[i, istart_s:iend_s].shape, dsyn[i, istart_s:iend_s]
-                 A1[i][j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
-             b1[i] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
-                     dsyn[i, istart_s:iend_s])
+        #for i in range(npar):
+        #     for j in range(npar):
+        #         #print "debug:", istart_s, iend_s
+        #         #print "debug:", window.weight[win_idx], dt #, np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s])
+        #         #print "debug, sum:", taper.shape, taper
+        #         #print "debug, dsyn:", dsyn[i, istart_s:iend_s].shape, dsyn[i, istart_s:iend_s]
+        #         A1[i][j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
+        #     b1[i] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+        #             dsyn[i, istart_s:iend_s]) * dt
         #for i in range(npar):
         #    A1[i] = window.weight[win_idx] * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt
         #    b1 = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
         #                                 dsyn[:][istart_s:iend_s])
+
+        for j in range(npar):
+             for i in range(0, j+1):
+                 A1[i,j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
+             b1[j] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] -
+                                    synt.data[istart_s:iend_s]) * dsyn[j, istart_s:iend_s]) * dt
+        for j in range(npar):
+            for i in range(j+1, npar):
+                A1[i,j] = A1[j,i]
+
+        print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
+        print "debug, distance", window.dist_in_km
+        print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
+        print "b1:", b1, np.sum(b1)
+
         return [A1, b1]
 
     def invert_cmt(self, A, b):
@@ -300,8 +318,6 @@ class Cmt3D(object):
         :param b: basid misfit vector
         :return:
         """
-        logger.info("*"*20)
-        logger.info("Invert cmt parameters")
 
         npar = self.config.npar
         #old_par = self.cmt_par[0:npar]
@@ -335,7 +351,7 @@ class Cmt3D(object):
         bb = np.zeros(na)
         if linear_inversion:
             # if invert for moment tensor with zero-trace constraints or no constraint
-            logger.info("Linear Inversion")
+            #logger.info("Linear Inversion")
             AA[0:npar, 0:npar] = A
             bb[0:npar] = b
             if self.config.zero_trace:
@@ -351,15 +367,12 @@ class Cmt3D(object):
                 raise ValueError("Check Matrix Singularity")
             # check here
             new_par = old_par[0:npar] + dm[0:npar]
-            logger.debug("cmt_par: [%s]" %(', '.join(map(str, self.cmt_par[0:npar]))))
-            logger.debug("Scaled old_par: [%s]" %(', '.join(map(str,old_par))))
-            logger.debug("dm: [%s]" %(', '.join(map(str, dm))))
 
         else:
             # if invert for moment tensor with double couple constraints
             # setup starting solution, solve directly for moment instead
             # of dm, exact implementation of (A16)
-            logger.info('Non-linear Inversion')
+            #logger.info('Non-linear Inversion')
             mstart = np.copy(old_par)
             m1 = np.copy(mstart)
             lam = np.zeros(2)
@@ -390,14 +403,9 @@ class Cmt3D(object):
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
         self.new_cmt_par = new_cmt_par
-        logger.info("Old CMT par: [%s]" %(', '.join(map(str, self.cmt_par))))
-        logger.info("dm: [%s]" %(', '.join(map(str, new_cmt_par-self.cmt_par))))
-        logger.info("New CMT par: [%s]" %(', '.join(map(str, new_cmt_par))))
 
         # convert it to CMTSource instance
         self.convert_new_cmt_par()
-        logger.info("Trace: %e" %(np.sum(new_cmt_par[0:3])))
-        logger.info("Energy change: %f%%" %( (self.new_cmtsource.M0 - self.cmtsource.M0)/self.cmtsource.M0*100.0))
 
     def convert_new_cmt_par(self):
         """
@@ -596,8 +604,7 @@ class Cmt3D(object):
 
         datalist['new_synt'].data = datalist['synt'].data + np.dot(dsyn, dm_scaled)
 
-    @staticmethod
-    def calculate_criteria(obsd, synt, istart, iend):
+    def calculate_criteria(self, obsd, synt, istart, iend):
         """
         Calculate the time shift, max cross-correlation value and energy differnce
 
@@ -613,15 +620,30 @@ class Cmt3D(object):
         :rtype: [int, float, float]
         """
         # cross-correlation measurement
-        len = iend - istart
-        zero_padding = np.zeros(len)
-        trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
-        trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
-        nshift, max_cc = xcorr(trace1, trace2, len)
+        #len = iend - istart
+        #zero_padding = np.zeros(len)
+        #trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
+        #trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
+        obsd_trace = obsd.data[istart:iend]
+        synt_trace = synt.data[istart:iend]
+        max_cc, nshift = self._xcorr_win_(obsd_trace, synt_trace)
         # amplitude anomaly
-        dlnA = math.sqrt( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
+        #dlnA = ( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
+        dlnA = self._dlnA_win(obsd_trace, synt_trace)
 
         return [nshift, max_cc, dlnA]
+
+    @staticmethod
+    def _xcorr_win_(obsd, synt):
+        cc = np.correlate(obsd, synt, mode="full")
+        nshift = cc.argmax() - len(obsd) + 1
+        # Normalized cross correlation.
+        max_cc_value = cc.max() / np.sqrt((synt ** 2).sum() * (obsd ** 2).sum())
+        return max_cc_value, nshift
+
+    @staticmethod
+    def _dlnA_win(obsd, synt):
+        return 0.5 * np.log(np.sum(obsd ** 2) / np.sum(synt ** 2))
 
     @staticmethod
     def construct_hanning_taper(npts):
@@ -641,17 +663,18 @@ class Cmt3D(object):
         self.setup_matrix()
         if self.config.bootstrap:
             self.invert_cmt(self.A, self.b)
+            self.print_inversion_summary()
             self.calculate_variance()
         else:
             self.invert_bootstrap()
 
-    def print_source_summary(self):
+    @staticmethod
+    def print_cmtsource_summary(cmt):
         """
         Print CMTSolution source summary
 
         :return:
         """
-        cmt = self.cmtsource
         logger.info("="*10 + "  Event Summary  " + "="*10)
         logger.info("Event name: %s" %cmt.eventname)
         logger.info("   Latitude and longitude: %.2f, %.2f" %(cmt.latitude, cmt.longitude))
@@ -669,3 +692,33 @@ class Cmt3D(object):
         :return: string of the value
         """
         return "%.5f" % value
+
+    def print_inversion_summary(self):
+        logger.info("*"*20)
+        logger.info("Invert cmt parameters")
+
+        logger.info("Old CMT par: [%s]" %(', '.join(map(str, self.cmt_par))))
+        logger.info("dm: [%s]" %(', '.join(map(str, new_cmt_par-self.cmt_par))))
+        logger.info("New CMT par: [%s]" %(', '.join(map(str, new_cmt_par))))
+
+        logger.info("Trace: %e" %(np.sum(new_cmt_par[0:3])))
+        logger.info("Energy change: %f%%" %( (self.new_cmtsource.M0 - self.cmtsource.M0)/self.cmtsource.M0*100.0))
+
+        self.inversion_result_table()
+
+    def inversion_result_table(self):
+        title = "*"*10 + " Inversion Result Table(%d pars) " + "*"*10 %self.config.npar
+        logger.info(title)
+
+        logger.info("PAR         Old_CMT        New_CMT")
+        logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.Mrr, self.new_cmtsource.Mrr))
+        logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.Mtt, self.new_cmtsource.Mtt))
+        logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.Mpp, self.new_cmtsource.Mpp))
+        logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.Mrt, self.new_cmtsource.Mrt))
+        logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.Mrp, self.new_cmtsource.Mrp))
+        logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.Mtp, self.new_cmtsource.Mtp))
+        logger.info("dep:  %15.6e  %15.6e" %(self.cmtsource.dep, self.new_cmtsource.dep))
+        logger.info("lon:  %15.6e  %15.6e" %(self.cmtsource.lon, self.new_cmtsource.lon))
+        logger.info("lat:  %15.6e  %15.6e" %(self.cmtsource.lat, self.new_cmtsource.lat))
+        logger.info("ctm:  %15.6e  %15.6e" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
+        logger.info("hdr:  %15.6e  %15.6e" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
