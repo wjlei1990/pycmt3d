@@ -154,9 +154,9 @@ class Config(object):
             logger.info("   No weighting applied")
         logger.info("Inversion Scheme")
         if self.double_couple:
-            logger.info("   invert for double-couple source")
+            logger.info("   invert for double-couple source ===> Non-linear Inversion")
         elif self.zero_trace:
-            logger.info("   invert for zero-trace source")
+            logger.info("   invert for zero-trace source ===> Linear Inversion")
         else:
-            logger.info("   No constraints applied")
+            logger.info("   No constraints applied ===> Linear Inversion ")
         logger.info("   inversion dampling lambda: %f" %self.lamda_damping)

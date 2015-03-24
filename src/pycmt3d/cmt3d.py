@@ -184,8 +184,8 @@ class Cmt3D(object):
                 A1_all.append(A1)
                 b1_all.append(b1)
 
-        for _idx, bb in enumerate(b1_all):
-            print _idx, bb
+        #for _idx, bb in enumerate(b1_all):
+        #    print _idx, bb
 
         if self.config.bootstrap == True:
             self.A_bootstrap = []
@@ -301,10 +301,10 @@ class Cmt3D(object):
             for i in range(j+1, npar):
                 A1[i,j] = A1[j,i]
 
-        print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
-        print "debug, distance", window.dist_in_km
-        print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
-        print "b1:", b1, np.sum(b1)
+        #print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
+        #print "debug, distance", window.dist_in_km
+        #print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
+        #print "b1:", b1, np.sum(b1)
 
         return [A1, b1]
 
@@ -661,7 +661,7 @@ class Cmt3D(object):
     def source_inversion(self):
         self.setup_weight()
         self.setup_matrix()
-        if self.config.bootstrap:
+        if not self.config.bootstrap:
             self.invert_cmt(self.A, self.b)
             self.print_inversion_summary()
             self.calculate_variance()
@@ -695,30 +695,30 @@ class Cmt3D(object):
 
     def print_inversion_summary(self):
         logger.info("*"*20)
-        logger.info("Invert cmt parameters")
+        logger.info("Invert cmt parameters(%d par)" %self.config.npar)
 
         logger.info("Old CMT par: [%s]" %(', '.join(map(str, self.cmt_par))))
-        logger.info("dm: [%s]" %(', '.join(map(str, new_cmt_par-self.cmt_par))))
-        logger.info("New CMT par: [%s]" %(', '.join(map(str, new_cmt_par))))
+        logger.info("dm: [%s]" %(', '.join(map(str, self.new_cmt_par - self.cmt_par))))
+        logger.info("New CMT par: [%s]" %(', '.join(map(str, self.new_cmt_par))))
 
-        logger.info("Trace: %e" %(np.sum(new_cmt_par[0:3])))
-        logger.info("Energy change: %f%%" %( (self.new_cmtsource.M0 - self.cmtsource.M0)/self.cmtsource.M0*100.0))
+        logger.info("Trace: %e" %(np.sum(self.new_cmt_par[0:3])))
+        logger.info("Energy change: %5.2f%%" %( (self.new_cmtsource.M0 - self.cmtsource.M0)/self.cmtsource.M0*100.0))
 
         self.inversion_result_table()
 
     def inversion_result_table(self):
-        title = "*"*10 + " Inversion Result Table(%d pars) " + "*"*10 %self.config.npar
+        title = "*"*10 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*10
         logger.info(title)
 
         logger.info("PAR         Old_CMT        New_CMT")
-        logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.Mrr, self.new_cmtsource.Mrr))
-        logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.Mtt, self.new_cmtsource.Mtt))
-        logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.Mpp, self.new_cmtsource.Mpp))
-        logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.Mrt, self.new_cmtsource.Mrt))
-        logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.Mrp, self.new_cmtsource.Mrp))
-        logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.Mtp, self.new_cmtsource.Mtp))
-        logger.info("dep:  %15.6e  %15.6e" %(self.cmtsource.dep, self.new_cmtsource.dep))
-        logger.info("lon:  %15.6e  %15.6e" %(self.cmtsource.lon, self.new_cmtsource.lon))
-        logger.info("lat:  %15.6e  %15.6e" %(self.cmtsource.lat, self.new_cmtsource.lat))
+        logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr))
+        logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt))
+        logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp))
+        logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
+        logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
+        logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
+        logger.info("dep:  %15.6e  %15.6e" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
+        logger.info("lon:  %15.6e  %15.6e" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
+        logger.info("lat:  %15.6e  %15.6e" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
         logger.info("ctm:  %15.6e  %15.6e" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
         logger.info("hdr:  %15.6e  %15.6e" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
