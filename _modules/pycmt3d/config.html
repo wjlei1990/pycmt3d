@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pycmt3d.config &mdash; pycmt3d 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="pycmt3d 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pycmt3d.config</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Configuration object for pycmt3d</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;No module named numpy. &quot;</span>
+           <span class="s">&quot;Please install numpy first, it is needed before using pycmt3d.&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">const</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">__init__</span> <span class="kn">import</span> <span class="n">logger</span>
+
+<div class="viewcode-block" id="default_weight_function"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.default_weight_function">[docs]</a><span class="k">def</span> <span class="nf">default_weight_function</span><span class="p">(</span><span class="n">kcmpnm</span><span class="p">,</span> <span class="n">dist_in_km</span><span class="p">,</span> <span class="n">azi_count</span><span class="p">,</span> <span class="n">nwins</span><span class="p">,</span>
+                    <span class="n">comp_r_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">comp_t_weight</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">comp_z_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                    <span class="n">az_exp_weight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">pnl_dist_weight</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">rayleigh_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span>
+                    <span class="n">love_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Defualt weighting function</span>
+
+<span class="sd">    :param kcmpnm:</span>
+<span class="sd">    :param dist_in_km:</span>
+<span class="sd">    :param azi_count:</span>
+<span class="sd">    :param nwins:</span>
+<span class="sd">    :param comp_r_weight:</span>
+<span class="sd">    :param comp_t_weight:</span>
+<span class="sd">    :param comp_z_weight:</span>
+<span class="sd">    :param az_exp_weight:</span>
+<span class="sd">    :param pnl_dist_weight:</span>
+<span class="sd">    :param rayleigh_dist_weight:</span>
+<span class="sd">    :param love_dist_weight:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">data_weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nwins</span><span class="p">)</span>
+    <span class="c"># component weight</span>
+    <span class="n">comp_direct</span> <span class="o">=</span> <span class="n">kcmpnm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;Z&#39;</span><span class="p">):</span>
+        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_z_weight</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;R&#39;</span><span class="p">):</span>
+        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_r_weight</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">):</span>
+        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_t_weight</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The direction of component of seismic data has to be Z, R or T&#39;</span><span class="p">)</span>
+
+    <span class="c"># distance weights</span>
+    <span class="c"># for global seismograms, this obviously has to be changed</span>
+    <span class="k">for</span> <span class="n">win_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nwins</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">):</span>
+            <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">love_dist_weight</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">nwins</span><span class="o">&gt;</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">win_idx</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+                <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">pnl_dist_weight</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">rayleigh_dist_weight</span>
+
+        <span class="c"># assemble data weights</span>
+        <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">*</span> <span class="p">((</span><span class="n">dist_in_km</span><span class="o">/</span><span class="n">const</span><span class="o">.</span><span class="n">REF_DIST</span><span class="p">)</span> <span class="o">**</span> <span class="n">dist_exp_weight</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data_weight</span>
+
+</div>
+<div class="viewcode-block" id="Config"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.Config">[docs]</a><span class="k">class</span> <span class="nc">Config</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configuration for source inversion</span>
+
+<span class="sd">    :param npar: number of parameters to be inverted</span>
+<span class="sd">    :param dlocation: location perturbation when calculated perturbed synthetic data</span>
+<span class="sd">    :param ddepth: depth perturbation</span>
+<span class="sd">    :param dmoment: moment perturbation</span>
+<span class="sd">    :param weight_data: bool value of weighting data</span>
+<span class="sd">    :param weight_function: weighting function</span>
+<span class="sd">    :param station_correction: bool value of whether applies station correction</span>
+<span class="sd">    :param zero_trace: bool value of whether applies zero-trace constraint</span>
+<span class="sd">    :param double_couple: bool value of whether applied double-couple constraint</span>
+<span class="sd">    :param lamda_damping: damping coefficient</span>
+<span class="sd">    :param bootstrap: bool value of whether applied bootstrap method</span>
+<span class="sd">    :param bootstrap_repeat: bootstrap iterations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                 <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">npar</span> <span class="o">=</span> <span class="n">npar</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">npar</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">]:</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Error: the current npar (number of parameters) is &#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">npar</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;The npar (number of parameters) must be 6, 7, 9, 10 or 11&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;When npar is 6: moment tensor&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;When npar is 7: moment tensor + depth&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;When npar is 9: moment tensor + depth + location(e.g. latitude and longitude)&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;When npar is 10: moment tensor + depth + location + time&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;When npar is 11: moment tensor + depth + location + time + half duration&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dlocation</span> <span class="o">=</span> <span class="n">dlocation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ddepth</span> <span class="o">=</span> <span class="n">ddepth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span> <span class="o">=</span> <span class="n">dmoment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight_data</span> <span class="o">=</span> <span class="n">weight_data</span>
+        <span class="k">if</span> <span class="n">weight_function</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">weight_function</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">default_weight_function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">station_correction</span> <span class="o">=</span> <span class="n">station_correction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zero_trace</span> <span class="o">=</span> <span class="n">zero_trace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">double_couple</span> <span class="o">=</span> <span class="n">double_couple</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lamda_damping</span> <span class="o">=</span> <span class="n">lamda_damping</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">par_name</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;Mrr&quot;</span><span class="p">,</span> <span class="s">&quot;Mtt&quot;</span><span class="p">,</span> <span class="s">&quot;Mpp&quot;</span><span class="p">,</span> <span class="s">&quot;Mrt&quot;</span><span class="p">,</span> <span class="s">&quot;Mrp&quot;</span><span class="p">,</span> <span class="s">&quot;Mtp&quot;</span><span class="p">,</span>
+                         <span class="s">&quot;dep&quot;</span><span class="p">,</span> <span class="s">&quot;lon&quot;</span><span class="p">,</span> <span class="s">&quot;lat&quot;</span><span class="p">,</span> <span class="s">&quot;ctm&quot;</span><span class="p">,</span> <span class="s">&quot;hdr&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_par</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span>
+                                   <span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_MOMENT</span><span class="p">,</span>
+                                   <span class="n">const</span><span class="o">.</span><span class="n">SCALE_DEPTH</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_LONGITUDE</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_LATTITUDE</span><span class="p">,</span>
+                                   <span class="n">const</span><span class="o">.</span><span class="n">SCALE_CTIME</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">SCALE_HDUR</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dcmt_par</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dmoment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ddepth</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dlocation</span><span class="p">,</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">dlocation</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">scale_par</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bootstrap</span> <span class="o">=</span> <span class="n">bootstrap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bootstrap_repeat</span> <span class="o">=</span> <span class="n">bootstrap_repeat</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">print_summary</span><span class="p">()</span>
+
+    <span class="c"># The function weight_function is to calculate the weight for different component and azimuths</span>
+    <span class="c"># The default value of input weights are based on my previous research, the user should modify it according to your circumstances</span>
+
+<div class="viewcode-block" id="Config.print_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.Config.print_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print function of configuration</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npar</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="s">&quot;  Config Summary  &quot;</span> <span class="o">+</span> <span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of Inversion Par: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">npar</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">par_name</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">])))</span>
+        <span class="c">#logger.info(&quot;delta for deriv: [%8.5f(degree), %8.5f(km), %e(dyn/nm)]&quot; %(self.dlocation, self.ddepth, self.dmoment))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Delta: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dcmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]))))</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Weighting scheme&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">==</span> <span class="n">default_weight_function</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Weighting data ===&gt; Using Default weighting function&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Weighting data ===&gt; Using user-defined weighting function&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   No weighting applied&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Inversion Scheme&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">double_couple</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   invert for double-couple source ===&gt; Non-linear Inversion&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_trace</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   invert for zero-trace source ===&gt; Linear Inversion&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   No constraints applied ===&gt; Linear Inversion &quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   inversion dampling lambda: </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">lamda_damping</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Wenjie Lei and Xin Song.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
