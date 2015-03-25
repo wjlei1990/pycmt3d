@@ -7,6 +7,9 @@ All the constants used in pycmt3d
 
 import numpy as np
 
+PAR_LIST = ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
+            "dep", "lon", "lat", "ctm", "hdr")
+
 # Mathmatical constants
 PI = np.pi
 

@@ -12,6 +12,8 @@ pycmt3d.cmt3d module
     :undoc-members:
     :show-inheritance:
 
+.. _my-config-label:
+
 pycmt3d.config module
 ---------------------
 
@@ -28,6 +30,8 @@ pycmt3d.const module
     :undoc-members:
     :show-inheritance:
 
+.. _my-source-label:
+
 pycmt3d.source module
 ---------------------
 
@@ -35,6 +39,8 @@ pycmt3d.source module
     :members:
     :undoc-members:
     :show-inheritance:
+
+.. _my-window-label:
 
 pycmt3d.window module
 ---------------------

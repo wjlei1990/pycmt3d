@@ -100,7 +100,7 @@ class Config(object):
             print ('When npar is 9: moment tensor + depth + location(e.g. latitude and longitude)')
             print ('When npar is 10: moment tensor + depth + location + time')
             print ('When npar is 11: moment tensor + depth + location + time + half duration')
-            return None
+            raise ValueError("Re-enter npar")
         self.dlocation = dlocation
         self.ddepth = ddepth
         self.dmoment = dmoment
@@ -114,8 +114,7 @@ class Config(object):
         self.double_couple = double_couple
         self.lamda_damping = lamda_damping
 
-        self.par_name = ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
-                         "dep", "lon", "lat", "ctm", "hdr")
+        self.par_name = const.PAR_LIST
         self.scale_par = np.array([const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
                                    const.SCALE_MOMENT, const.SCALE_MOMENT, const.SCALE_MOMENT,
                                    const.SCALE_DEPTH, const.SCALE_LONGITUDE, const.SCALE_LATTITUDE,

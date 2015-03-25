@@ -1,4 +1,7 @@
 .idea/
+doc/log.txt
 doc/_build
 testdata/
 *.pyc
+trash
+*.sw*
