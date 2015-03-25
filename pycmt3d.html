@@ -24,8 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="pycmt3d 1.0 documentation" href="index.html" />
-    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
-    <link rel="prev" title="&lt;no title&gt;" href="modules.html" /> 
+    <link rel="prev" title="Tutourial" href="tutorial.html" /> 
   </head>
   <body>
     <div class="related">
@@ -38,10 +37,9 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="modules.html" title="&lt;no title&gt;"
+          <a href="tutorial.html" title="Tutourial"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
-          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+        <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -305,7 +303,16 @@ synthetic data on a given window.</p>
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.inversion_result_table">
 <tt class="descname">inversion_result_table</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.inversion_result_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.inversion_result_table" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Print out the inversion table</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.invert_bootstrap">
@@ -389,7 +396,16 @@ and store it</p>
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.print_inversion_summary">
 <tt class="descname">print_inversion_summary</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.print_inversion_summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.print_inversion_summary" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Print out the inversion summary</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.setup_matrix">
@@ -429,7 +445,7 @@ A is the Hessian Matrix and b is the misfit</p>
 
 </div>
 <div class="section" id="module-pycmt3d.config">
-<span id="pycmt3d-config-module"></span><h2>pycmt3d.config module<a class="headerlink" href="#module-pycmt3d.config" title="Permalink to this headline">¶</a></h2>
+<span id="pycmt3d-config-module"></span><span id="my-config-label"></span><h2>pycmt3d.config module<a class="headerlink" href="#module-pycmt3d.config" title="Permalink to this headline">¶</a></h2>
 <p>Configuration object for pycmt3d</p>
 <dl class="class">
 <dt id="pycmt3d.config.Config">
@@ -510,7 +526,7 @@ A is the Hessian Matrix and b is the misfit</p>
 <p>All the constants used in pycmt3d</p>
 </div>
 <div class="section" id="module-pycmt3d.source">
-<span id="pycmt3d-source-module"></span><h2>pycmt3d.source module<a class="headerlink" href="#module-pycmt3d.source" title="Permalink to this headline">¶</a></h2>
+<span id="pycmt3d-source-module"></span><span id="my-source-label"></span><h2>pycmt3d.source module<a class="headerlink" href="#module-pycmt3d.source" title="Permalink to this headline">¶</a></h2>
 <p>Source and Receiver classes of Instaseis.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -610,12 +626,12 @@ notation:
 
 </div>
 <div class="section" id="module-pycmt3d.window">
-<span id="pycmt3d-window-module"></span><h2>pycmt3d.window module<a class="headerlink" href="#module-pycmt3d.window" title="Permalink to this headline">¶</a></h2>
+<span id="pycmt3d-window-module"></span><span id="my-window-label"></span><h2>pycmt3d.window module<a class="headerlink" href="#module-pycmt3d.window" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="pycmt3d.window.DataContainer">
-<em class="property">class </em><tt class="descclassname">pycmt3d.window.</tt><tt class="descname">DataContainer</tt><big>(</big><em>flexwin_file</em>, <em>par_list</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">pycmt3d.window.</tt><tt class="descname">DataContainer</tt><big>(</big><em>flexwin_file</em>, <em>par_list</em>, <em>load_from_asdf=False</em>, <em>asdf_file_dict=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>Class that contains all necessary data and window information</p>
+<p>Class that contains methods that load data and window information</p>
 <dl class="method">
 <dt id="pycmt3d.window.DataContainer.load_data">
 <tt class="descname">load_data</tt><big>(</big><em>win_obj</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_data" title="Permalink to this definition">¶</a></dt>
@@ -633,15 +649,52 @@ notation:
 </dd></dl>
 
 <dl class="method">
+<dt id="pycmt3d.window.DataContainer.load_data_asdf">
+<tt class="descname">load_data_asdf</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_data_asdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_data_asdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>load data from asdf file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="pycmt3d.window.DataContainer.load_winfile">
 <tt class="descname">load_winfile</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_winfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_winfile" title="Permalink to this definition">¶</a></dt>
 <dd><p>old way of loading flexwin outputfile</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="pycmt3d.window.DataContainer.load_winfile_asdf">
+<tt class="descname">load_winfile_asdf</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_winfile_asdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_winfile_asdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>load window file for asdf file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="pycmt3d.window.DataContainer.print_summary">
 <tt class="descname">print_summary</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.print_summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.print_summary" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Print summary of data container</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </dd></dl>
 
@@ -649,7 +702,8 @@ notation:
 <dt id="pycmt3d.window.Window">
 <em class="property">class </em><tt class="descclassname">pycmt3d.window.</tt><tt class="descname">Window</tt><big>(</big><em>station=None</em>, <em>network=None</em>, <em>location=None</em>, <em>component=None</em>, <em>num_wins=0</em>, <em>win_time=None</em>, <em>weight=None</em>, <em>obsd_fn=None</em>, <em>synt_fn=None</em>, <em>datalist=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#Window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.Window" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>Obsd, synt and window information from one component of one station</p>
+<p>Obsd, synt, deriv synt trace and window information from one component of one station.
+Also, window weighting, station azimuth, distance is also included.</p>
 </dd></dl>
 
 </div>
@@ -679,8 +733,8 @@ notation:
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="modules.html"
-                        title="previous chapter">&lt;no title&gt;</a></p>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Tutourial</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/pycmt3d.txt"
@@ -713,10 +767,9 @@ notation:
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="modules.html" title="&lt;no title&gt;"
+          <a href="tutorial.html" title="Tutourial"
              >previous</a> |</li>
-        <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li>
-          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+        <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

@@ -743,6 +743,11 @@
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%.5f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">value</span>
 </div>
 <div class="viewcode-block" id="Cmt3D.print_inversion_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.print_inversion_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_inversion_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print out the inversion summary</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">20</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Invert cmt parameters(</span><span class="si">%d</span><span class="s"> par)&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">)</span>
 
@@ -756,6 +761,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">inversion_result_table</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="Cmt3D.inversion_result_table"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.cmt3d.Cmt3D.inversion_result_table">[docs]</a>    <span class="k">def</span> <span class="nf">inversion_result_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print out the inversion table</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">title</span> <span class="o">=</span> <span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="s">&quot; Inversion Result Table(</span><span class="si">%d</span><span class="s"> npar) &quot;</span> <span class="o">%</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npar</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;*&quot;</span><span class="o">*</span><span class="mi">10</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
 

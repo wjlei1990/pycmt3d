@@ -59,17 +59,17 @@
 
 <span class="kn">from</span> <span class="nn">__init__</span> <span class="kn">import</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">obspy</span> <span class="kn">import</span> <span class="n">read</span>
-<span class="kn">import</span> <span class="nn">os</span>
+
 
 <div class="viewcode-block" id="Window"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.Window">[docs]</a><span class="k">class</span> <span class="nc">Window</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Obsd, synt and window information from one component of one station</span>
+<span class="sd">    Obsd, synt, deriv synt trace and window information from one component of one station.</span>
+<span class="sd">    Also, window weighting, station azimuth, distance is also included.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">network</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">num_wins</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                  <span class="n">win_time</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">obsd_fn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">synt_fn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                  <span class="n">datalist</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">station</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
@@ -88,18 +88,35 @@
 </div>
 <div class="viewcode-block" id="DataContainer"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer">[docs]</a><span class="k">class</span> <span class="nc">DataContainer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Class that contains all necessary data and window information</span>
+<span class="sd">    Class that contains methods that load data and window information</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flexwin_file</span><span class="p">,</span> <span class="n">par_list</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flexwin_file</span><span class="p">,</span> <span class="n">par_list</span><span class="p">,</span> <span class="n">load_from_asdf</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">asdf_file_dict</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-
 <span class="sd">        :param flexwin_file: old way of flexwin output file for cmt3d</span>
 <span class="sd">        :param par_list: derivative parameter name list</span>
+<span class="sd">        :param load_from_asdf: bool whether load from asdf file</span>
+<span class="sd">        :param asdf_file_dict: asdf file dictionary.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flexwin_file</span> <span class="o">=</span> <span class="n">flexwin_file</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">par_list</span> <span class="o">=</span> <span class="n">par_list</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">npar</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">par_list</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">load_from_asdf</span><span class="p">:</span>
+            <span class="c"># check</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">asdf_file_dict</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;asdf_file_dict should be dictionary. Key from par_list and &quot;</span>
+                                 <span class="s">&quot;value is the asdf file name&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">asdf_file_dict</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">npar</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;par_list is not consistent with asdf_file_dict&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">par_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">asdf_file_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;key in par_list is not in asdf_file_dict&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile_asdf</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_data_asdf</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">print_summary</span><span class="p">()</span>
 
 <div class="viewcode-block" id="DataContainer.load_winfile"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_winfile">[docs]</a>    <span class="k">def</span> <span class="nf">load_winfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -157,7 +174,28 @@
             <span class="n">synt_dev_fn</span> <span class="o">=</span> <span class="n">synt_fn</span> <span class="o">+</span> <span class="s">&quot;.&quot;</span> <span class="o">+</span> <span class="n">deriv_par</span>
             <span class="n">win_obj</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="n">deriv_par</span><span class="p">]</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">synt_dev_fn</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 </div>
+<div class="viewcode-block" id="DataContainer.load_winfile_asdf"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_winfile_asdf">[docs]</a>    <span class="k">def</span> <span class="nf">load_winfile_asdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        load window file for asdf file</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="DataContainer.load_data_asdf"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_data_asdf">[docs]</a>    <span class="k">def</span> <span class="nf">load_data_asdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        load data from asdf file</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
 <div class="viewcode-block" id="DataContainer.print_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.print_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print summary of data container</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">nfiles_R</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">nfiles_T</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">nfiles_Z</span> <span class="o">=</span> <span class="mi">0</span>
