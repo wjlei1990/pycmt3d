@@ -309,7 +309,6 @@ class Cmt3D(object):
         return [A1, b1]
 
     def invert_cmt(self, A, b):
-
         """
         Solver part. Hession matrix A and misfit vector b will be reconstructed here
         based on different constraints.
@@ -423,7 +422,7 @@ class Cmt3D(object):
             mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
             region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
             cmt_time=new_cmt_time,  half_duration=newcmt[10],
-            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6],
+            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6]*1000.0,
             m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
 
     def invert_bootstrap(self):
@@ -727,8 +726,8 @@ class Cmt3D(object):
         logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
         logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
         logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
-        logger.info("dep:  %15.6e  %15.6e" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
-        logger.info("lon:  %15.6e  %15.6e" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
-        logger.info("lat:  %15.6e  %15.6e" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
-        logger.info("ctm:  %15.6e  %15.6e" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
-        logger.info("hdr:  %15.6e  %15.6e" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
+        logger.info("dep:  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
+        logger.info("lon:  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
+        logger.info("lat:  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
+        logger.info("ctm:  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
+        logger.info("hdr:  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
