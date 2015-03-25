@@ -13,7 +13,6 @@ Contents
 
    intro
    tutorial
-   modules
 
 
 Indices and tables

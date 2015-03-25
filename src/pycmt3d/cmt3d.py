@@ -694,6 +694,11 @@ class Cmt3D(object):
         return "%.5f" % value
 
     def print_inversion_summary(self):
+        """
+        Print out the inversion summary
+
+        :return:
+        """
         logger.info("*"*20)
         logger.info("Invert cmt parameters(%d par)" %self.config.npar)
 
@@ -707,6 +712,11 @@ class Cmt3D(object):
         self.inversion_result_table()
 
     def inversion_result_table(self):
+        """
+        Print out the inversion table
+
+        :return:
+        """
         title = "*"*10 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*10
         logger.info(title)
 

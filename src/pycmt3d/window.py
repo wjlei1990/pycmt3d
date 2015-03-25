@@ -10,17 +10,17 @@ except:
 
 from __init__ import logger
 from obspy import read
-import os
+
 
 class Window(object):
     """
-    Obsd, synt and window information from one component of one station
+    Obsd, synt, deriv synt trace and window information from one component of one station.
+    Also, window weighting, station azimuth, distance is also included.
     """
+
     def __init__(self, station=None, network=None, location=None, component=None, num_wins=0,
                  win_time=None, weight=None, obsd_fn=None, synt_fn=None,
                  datalist=None):
-        """
-        """
         self.station = station
         self.network = network
         self.location = location
@@ -39,18 +39,35 @@ class Window(object):
 
 class DataContainer(object):
     """
-    Class that contains all necessary data and window information
+    Class that contains methods that load data and window information
     """
-    def __init__(self, flexwin_file, par_list):
+    def __init__(self, flexwin_file, par_list, load_from_asdf=False, asdf_file_dict=None):
         """
-
         :param flexwin_file: old way of flexwin output file for cmt3d
         :param par_list: derivative parameter name list
+        :param load_from_asdf: bool whether load from asdf file
+        :param asdf_file_dict: asdf file dictionary.
         """
         self.flexwin_file = flexwin_file
         self.par_list = par_list
         self.window = []
-        self.load_winfile()
+        self.npar = len(par_list)
+
+        if load_from_asdf:
+            # check
+            if not isinstance(asdf_file_dict):
+                raise ValueError("asdf_file_dict should be dictionary. Key from par_list and "
+                                 "value is the asdf file name")
+            if len(asdf_file_dict) != (self.npar+1):
+                raise ValueError("par_list is not consistent with asdf_file_dict")
+            for key in par_list:
+                if key not in asdf_file_dict.keys():
+                    raise ValueError("key in par_list is not in asdf_file_dict")
+            self.load_winfile_asdf()
+            self.load_data_asdf()
+        else:
+            self.load_winfile()
+
         self.print_summary()
 
     def load_winfile(self):
@@ -108,7 +125,28 @@ class DataContainer(object):
             synt_dev_fn = synt_fn + "." + deriv_par
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
 
+    def load_winfile_asdf(self):
+        """
+        load window file for asdf file
+
+        :return:
+        """
+        pass
+
+    def load_data_asdf(self):
+        """
+        load data from asdf file
+
+        :return:
+        """
+        pass
+
     def print_summary(self):
+        """
+        Print summary of data container
+
+        :return:
+        """
         nfiles_R = 0
         nfiles_T = 0
         nfiles_Z = 0
