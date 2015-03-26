@@ -15,9 +15,9 @@ def gen_random_array(npts, threshold=0):
 
     if npts <= 0:
         return
-    sum = 0
-    while sum <= threshold:
+    nsample = 0
+    while nsample <= threshold:
         random_array = np.random.randint(2, size=npts)
-        sum = sum(random_array)
+        nsample = sum(random_array)
 
     return random_array

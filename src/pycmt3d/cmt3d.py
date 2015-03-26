@@ -226,18 +226,18 @@ class Cmt3D(object):
             self.b_bootstrap = []
             for i in range(self.config.bootstrap_repeat):
                 random_array = util.gen_random_array(self.nwins, threshold=0.2*self.nwins)
-                self.A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
-                self.b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
-                self.A_bootstrap.append(self.A)
-                self.b_bootstrap.append(self.b)
-        else:
-            #print self.weight_array
-            self.A = util.sum_matrix( self.weight_array, self.A1_all)
-            self.b = util.sum_matrix( self.weight_array, self.b1_all)
-            logger.info("Inversion Matrix A is as follows:")
-            logger.info("\n%s" %('\n'.join(map(self._float_array_to_str, self.A))))
-            logger.info("RHS vector b is as follows:")
-            logger.info("[%s]" %(self._float_array_to_str(self.b)))
+                A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
+                b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
+                self.A_bootstrap.append(A)
+                self.b_bootstrap.append(b)
+
+        #print self.weight_array
+        self.A = util.sum_matrix( self.weight_array, self.A1_all)
+        self.b = util.sum_matrix( self.weight_array, self.b1_all)
+        logger.info("Inversion Matrix A is as follows:")
+        logger.info("\n%s" %('\n'.join(map(self._float_array_to_str, self.A))))
+        logger.info("RHS vector b is as follows:")
+        logger.info("[%s]" %(self._float_array_to_str(self.b)))
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -438,10 +438,8 @@ class Cmt3D(object):
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
-        self.new_cmt_par = new_cmt_par
 
-        # convert it to CMTSource instance
-        self.convert_new_cmt_par()
+        return new_cmt_par
 
     def convert_new_cmt_par(self):
         """
@@ -468,10 +466,13 @@ class Cmt3D(object):
 
         :return:
         """
-        new_par_array = np.zeros((self.config.bootstrap_repeat, self.npar))
+        new_par_array = np.zeros((self.config.bootstrap_repeat, const.NPARMAX))
         for i in range(self.config.bootstrap_repeat):
             new_par = self.invert_cmt(self.A_bootstrap[i], self.b_bootstrap[i])
-            new_par_array[i] = new_par
+            new_par_array[i,:] = new_par
+        #print self.A_bootstrap[0]
+        #print self.b_bootstrap[0]
+        #print new_par_array
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
@@ -698,12 +699,16 @@ class Cmt3D(object):
         self.setup_matrix()
         self.setup_weight()
         self.ensemble_measurement()
-        if not self.config.bootstrap:
-            self.invert_cmt(self.A, self.b)
-            self.print_inversion_summary()
-            self.calculate_variance()
-        else:
+        self.new_cmt_par = self.invert_cmt(self.A, self.b)
+        # convert it to CMTSource instance
+        self.convert_new_cmt_par()
+
+        self.calculate_variance()
+
+        if self.config.bootstrap:
             self.invert_bootstrap()
+
+        self.print_inversion_summary()
 
     @staticmethod
     def print_cmtsource_summary(cmt):
@@ -770,15 +775,31 @@ class Cmt3D(object):
         title = "*"*10 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*10
         logger.info(title)
 
-        logger.info("PAR         Old_CMT        New_CMT")
-        logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr))
-        logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt))
-        logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp))
-        logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
-        logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
-        logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
-        logger.info("dep:  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
-        logger.info("lon:  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
-        logger.info("lat:  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
-        logger.info("ctm:  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
-        logger.info("hdr:  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
+        if not self.config.bootstrap:
+            logger.info("PAR         Old_CMT        New_CMT")
+            logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr))
+            logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt))
+            logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp))
+            logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
+            logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
+            logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
+            logger.info("dep:  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
+            logger.info("lon:  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
+            logger.info("lat:  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
+            logger.info("ctm:  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
+            logger.info("hdr:  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
+        else:
+            logger.info("PAR         Old_CMT          New_CMT     Bootstrap_Mean     Bootstrap_STD")
+            logger.info("Mrr:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr, self.par_mean[0], self.par_std[0]))
+            logger.info("Mtt:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt, self.par_mean[1], self.par_std[1]))
+            logger.info("Mpp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp, self.par_mean[2], self.par_std[2]))
+            logger.info("Mrt:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt, self.par_mean[3], self.par_std[3]))
+            logger.info("Mrp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp, self.par_mean[4], self.par_std[4]))
+            logger.info("Mtp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp, self.par_mean[5], self.par_std[5]))
+            logger.info("dep:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0, self.par_mean[6], self.par_std[6]))
+            logger.info("lon:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude, self.par_mean[7], self.par_std[7]))
+            logger.info("lat:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude, self.par_mean[8], self.par_std[8]))
+            logger.info("ctm:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift, self.par_mean[9], self.par_std[9]))
+            logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration, self.par_mean[10], self.par_std[10]))
+
+
