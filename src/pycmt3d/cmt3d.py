@@ -768,7 +768,7 @@ class Cmt3D(object):
 
         :return:
         """
-        title = "*"*10 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*10
+        title = "*"*20 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*20
         logger.info(title)
 
         if not self.config.bootstrap:
