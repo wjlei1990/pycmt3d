@@ -476,6 +476,7 @@ class Cmt3D(object):
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
+        self.std_over_mean = self.par_std/np.abs(self.par_mean)
 
     def get_f_df(self, A, b, m, lam, mstart, fij, f0):
         """
@@ -789,17 +790,28 @@ class Cmt3D(object):
             logger.info("ctm:  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
             logger.info("hdr:  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
         else:
-            logger.info("PAR         Old_CMT          New_CMT     Bootstrap_Mean     Bootstrap_STD")
-            logger.info("Mrr:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr, self.par_mean[0], self.par_std[0]))
-            logger.info("Mtt:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt, self.par_mean[1], self.par_std[1]))
-            logger.info("Mpp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp, self.par_mean[2], self.par_std[2]))
-            logger.info("Mrt:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt, self.par_mean[3], self.par_std[3]))
-            logger.info("Mrp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp, self.par_mean[4], self.par_std[4]))
-            logger.info("Mtp:  %15.6e  %15.6e  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp, self.par_mean[5], self.par_std[5]))
-            logger.info("dep:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0, self.par_mean[6], self.par_std[6]))
-            logger.info("lon:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude, self.par_mean[7], self.par_std[7]))
-            logger.info("lat:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude, self.par_mean[8], self.par_std[8]))
-            logger.info("ctm:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift, self.par_mean[9], self.par_std[9]))
-            logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration, self.par_mean[10], self.par_std[10]))
+            logger.info("PAR         Old_CMT          New_CMT     Bootstrap_Mean     Bootstrap_STD     STD/Mean")
+            logger.info("Mrr:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr,
+                                            self.par_mean[0], self.par_std[0], self.std_over_mean[0]*100))
+            logger.info("Mtt:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt,
+                                            self.par_mean[1], self.par_std[1], self.std_over_mean[1]*100))
+            logger.info("Mpp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp,
+                                            self.par_mean[2], self.par_std[2], self.std_over_mean[2]*100))
+            logger.info("Mrt:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt,
+                                            self.par_mean[3], self.par_std[3], self.std_over_mean[3]*100))
+            logger.info("Mrp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp,
+                                            self.par_mean[4], self.par_std[4], self.std_over_mean[4]*100))
+            logger.info("Mtp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp,
+                                            self.par_mean[5], self.par_std[5], self.std_over_mean[5]*100))
+            logger.info("dep:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0,
+                                            self.par_mean[6], self.par_std[6], self.std_over_mean[6]*100))
+            logger.info("lon:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.longitude, self.new_cmtsource.longitude,
+                                            self.par_mean[7], self.par_std[7], self.std_over_mean[7]*100))
+            logger.info("lat:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.latitude, self.new_cmtsource.latitude,
+                                            self.par_mean[8], self.par_std[8], self.std_over_mean[8]*100))
+            logger.info("ctm:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift,
+                                            self.par_mean[9], self.par_std[9], self.std_over_mean[9]*100))
+            logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration,
+                                            self.par_mean[10], self.par_std[10], self.std_over_mean[10]*100))
 
 
