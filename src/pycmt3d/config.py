@@ -19,7 +19,7 @@ from __init__ import logger
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
                     comp_r_weight=2.0, comp_t_weight=1.5, comp_z_weight=2.0,
                     az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
-                    love_dist_weight=0.55):
+                    love_dist_weight=0.55, dist_weight_mode = "exponential"):
 
     """
     Defualt weighting function
@@ -61,11 +61,28 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
             else:
                 dist_exp_weight = rayleigh_dist_weight
 
-        # assemble data weights
-        data_weight[win_idx] = cmp_weight * ((dist_in_km/const.REF_DIST) ** dist_exp_weight) / (azi_count ** az_exp_weight)
+        if dist_weight_mode.lower() == "exponential":
+            # exponential weight on distance
+            data_weight[win_idx] = cmp_weight * ((dist_in_km/const.REF_DIST) ** dist_exp_weight) / (azi_count ** az_exp_weight)
+        elif dist_weight_mode.lower() == "uniform":
+            # no distance weighting
+            data_weight[win_idx] = cmp_weight / (azi_count ** az_exp_weight)
+        elif dist_weight_mode.lower() == "damping":
+            # damping over short distance and long distance
+            data_weight[win_idx]= cmp_weight / (azi_count ** az_exp_weight) * dist_damping_function(dist_in_km)
 
     return data_weight
 
+def dist_damping_function(dist_in_km):
+    geo_degree = dist_in_km/112 # 111.325km = 1 degree
+    if geo_degree <= 60:
+        return geo_degree/60.0
+    elif geo_degree <= 120:
+        return 1.0
+    elif geo_degree <= 180:
+        return (180.0 - geo_degree)/60.0
+    else:
+        return 0
 
 class Config(object):
     """
@@ -86,7 +103,7 @@ class Config(object):
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 weight_data=True, weight_function=None,
+                 weight_data=True, weight_function=None, normalize_measurements=False,
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
@@ -109,6 +126,7 @@ class Config(object):
             self.weight_function = weight_function
         else:
             self.weight_function = default_weight_function
+        self.normalize_measurements = normalize_measurements
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple

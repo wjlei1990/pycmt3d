@@ -24,6 +24,7 @@ import const
 from window import Window
 from __init__ import logger
 import obspy
+import util
 
 class Cmt3D(object):
     """
@@ -37,11 +38,13 @@ class Cmt3D(object):
     :type config: :class:`pycmt3d.Config`
     """
 
-    def __init__(self, cmtsource, window, config):
+    def __init__(self, cmtsource, data_container, config):
 
         self.config = config
         self.cmtsource = cmtsource
-        self.window = window
+        self.data_container = data_container
+        self.window = self.data_container.window
+        self.nwins = self.data_container.nwins
 
         self.print_cmtsource_summary(self.cmtsource)
 
@@ -64,11 +67,33 @@ class Cmt3D(object):
                 naz = naz_list[idx_naz]
                 logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
-                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
+
+                if self.config.normalize_measurements:
+                    mode = "damping"
+                else:
+                    mode = "exponential"
+                # weighting on compoent, distance and azimuth
+                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins,
+                                                            dist_weight_mode=mode)
+                #print "debug:", window.weight
+
+                if self.config.normalize_measurements:
+                    # normalize by energy
+                    window.weight = window.weight/window.energy
+                    print window.weight
+
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette
             # without changing previous codes
             self.normalize_weight()
+
+            self.weight_array = np.zeros([self.data_container.nwins])
+            _idx = 0
+            for window in self.window:
+                for win_idx in range(window.num_wins):
+                    self.weight_array[_idx] = window.weight[win_idx]
+                    _idx += 1
+
         else:
             for idx, window in enumerate(self.window):
                 # set even weighting
@@ -141,9 +166,9 @@ class Cmt3D(object):
 
         for window in self.window:
             logger.debug("%s.%s.%s, weight: [%s]" %(window.network, window.station, window.component,
-                                                    ', '.join(map(self.float_to_str, window.weight))))
+                                                    ', '.join(map(self._float_to_str, window.weight))))
             window.weight /= max_weight
-            logger.debug("Updated, weight: [%s]" %(', '.join(map(self.float_to_str, window.weight))))
+            logger.debug("Updated, weight: [%s]" %(', '.join(map(self._float_to_str, window.weight))))
 
     def get_station_info(self, datalist):
         """
@@ -165,45 +190,54 @@ class Cmt3D(object):
     # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
         """
-        Set up the Matrix A and vector b to solve the A * (dm) = b
-        A is the Hessian Matrix and b is the misfit
+        Calculate A and b for all windows
 
         :return:
         """
         logger.info("*"*15)
         logger.info("Set up inversion matrix")
-        self.A = np.zeros((self.config.npar, self.config.npar))
-        self.b = np.zeros(self.config.npar)
-        A1_all = []
-        b1_all = []
+
+        self.A1_all = []
+        self.b1_all = []
         for window in self.window:
             # loop over pair of data
             for win_idx in range(window.num_wins):
                 # loop over each window
+                # here, A and b are exact measurements and no weightings are applied
                 [A1, b1] = self.compute_A_b(window, win_idx)
-                A1_all.append(A1)
-                b1_all.append(b1)
+                self.A1_all.append(A1)
+                self.b1_all.append(b1)
 
         #for _idx, bb in enumerate(b1_all):
         #    print _idx, bb
 
-        if self.config.bootstrap == True:
+    def ensemble_measurement(self):
+        """
+        ensemble all measurements together to form Matrix A and vector b to solve the A * (dm) = b
+        A is the Hessian Matrix and b is the misfit
+
+        :return:
+        """
+        self.A = np.zeros((self.config.npar, self.config.npar))
+        self.b = np.zeros(self.config.npar)
+
+        if self.config.bootstrap:
             self.A_bootstrap = []
             self.b_bootstrap = []
             for i in range(self.config.bootstrap_repeat):
-                random_array = np.random.randint(2, size=(self.config.npar, 1, 1))
-                self.A = np.sum(random_array * A1_all, axis=0)
-                self.b = np.sum(random_array * b1_all, axis=0)
+                random_array = util.gen_random_array(self.nwins, threshold=0.2*self.nwins)
+                self.A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
+                self.b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
                 self.A_bootstrap.append(self.A)
                 self.b_bootstrap.append(self.b)
-        # Xin, do you have a type error here?
-        elif self.config.bootstrap == False:
-            self.A = np.sum(A1_all, axis=0)
-            self.b = np.sum(b1_all, axis=0)
+        else:
+            #print self.weight_array
+            self.A = util.sum_matrix( self.weight_array, self.A1_all)
+            self.b = util.sum_matrix( self.weight_array, self.b1_all)
             logger.info("Inversion Matrix A is as follows:")
-            logger.info("\n%s" %('\n'.join(map(str, self.A))))
+            logger.info("\n%s" %('\n'.join(map(self._float_array_to_str, self.A))))
             logger.info("RHS vector b is as follows:")
-            logger.info("[%s]" %(', '.join(map(str, self.b))))
+            logger.info("[%s]" %(self._float_array_to_str(self.b)))
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -294,12 +328,15 @@ class Cmt3D(object):
 
         for j in range(npar):
              for i in range(0, j+1):
-                 A1[i,j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
-             b1[j] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] -
+                 A1[i,j] = np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
+             b1[j] = np.sum(taper * (obsd.data[istart_d:iend_d] -
                                     synt.data[istart_s:iend_s]) * dsyn[j, istart_s:iend_s]) * dt
         for j in range(npar):
             for i in range(j+1, npar):
                 A1[i,j] = A1[j,i]
+
+        # attach energy
+        window.energy[win_idx] = np.max(np.abs(A1))
 
         #print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
         #print "debug, distance", window.dist_in_km
@@ -658,8 +695,9 @@ class Cmt3D(object):
         return taper
 
     def source_inversion(self):
-        self.setup_weight()
         self.setup_matrix()
+        self.setup_weight()
+        self.ensemble_measurement()
         if not self.config.bootstrap:
             self.invert_cmt(self.A, self.b)
             self.print_inversion_summary()
@@ -683,7 +721,7 @@ class Cmt3D(object):
         logger.info("   Moment Magnitude: %.2f" %(cmt.moment_magnitude))
 
     @staticmethod
-    def float_to_str(value):
+    def _float_to_str(value):
         """
         Convert float value to a specific precision string
 
@@ -691,6 +729,19 @@ class Cmt3D(object):
         :return: string of the value
         """
         return "%.5f" % value
+
+    @staticmethod
+    def _float_array_to_str(array):
+        """
+        Convert float array to string
+
+        :return:
+        """
+        string = "[  "
+        for ele in array:
+            string += "%10.3e  " % ele
+        string += "]"
+        return string
 
     def print_inversion_summary(self):
         """

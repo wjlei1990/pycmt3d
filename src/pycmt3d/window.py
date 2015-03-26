@@ -35,7 +35,7 @@ class Window(object):
         # for weighting
         self.azimuth = None
         self.dist_in_km = None
-
+        self.energy = np.zeros(num_wins)
 
 class DataContainer(object):
     """
