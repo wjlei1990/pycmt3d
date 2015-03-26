@@ -37,6 +37,14 @@ class Window(object):
         self.dist_in_km = None
         self.energy = np.zeros(num_wins)
 
+    def win_energy(self):
+        obsd = self.datalist['obsd']
+        dt = obsd.stats.delta
+        for _idx in range(self.num_wins):
+            istart_d = int(self.win_time[_idx, 0]/dt)
+            iend_d = int(self.win_time[_idx, 1]/dt)
+            self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
+
 class DataContainer(object):
     """
     Class that contains methods that load data and window information

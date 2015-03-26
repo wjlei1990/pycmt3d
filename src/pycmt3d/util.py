@@ -11,13 +11,15 @@ def sum_matrix(coef, data):
 
     return sum
 
-def gen_random_array(npts, threshold=0):
+
+def gen_random_array(npts, sample_number=0):
 
     if npts <= 0:
         return
-    nsample = 0
-    while nsample <= threshold:
-        random_array = np.random.randint(2, size=npts)
-        nsample = sum(random_array)
-
-    return random_array
+    if sample_number <= 1:
+        sample_number = 1
+    subset_array = np.zeros(npts)
+    location_array = np.random.choice(npts, sample_number)
+    for _idx in location_array:
+        subset_array[_idx] += 1
+    return subset_array

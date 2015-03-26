@@ -109,6 +109,9 @@ class Cmt3D(object):
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
         for window in self.window:
+            # calculate energy
+            window.win_energy()
+            # calculate location
             sta_lat = window.datalist['synt'].stats.sac['stla']
             sta_lon = window.datalist['synt'].stats.sac['stlo']
             dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
@@ -186,8 +189,6 @@ class Cmt3D(object):
         dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
         return [dist_in_m/1000.0, az]
 
-    # Setup the matrix A and b
-    # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
         """
         Calculate A and b for all windows
@@ -220,16 +221,6 @@ class Cmt3D(object):
         """
         self.A = np.zeros((self.config.npar, self.config.npar))
         self.b = np.zeros(self.config.npar)
-
-        if self.config.bootstrap:
-            self.A_bootstrap = []
-            self.b_bootstrap = []
-            for i in range(self.config.bootstrap_repeat):
-                random_array = util.gen_random_array(self.nwins, threshold=0.2*self.nwins)
-                A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
-                b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
-                self.A_bootstrap.append(A)
-                self.b_bootstrap.append(b)
 
         #print self.weight_array
         self.A = util.sum_matrix( self.weight_array, self.A1_all)
@@ -335,9 +326,6 @@ class Cmt3D(object):
             for i in range(j+1, npar):
                 A1[i,j] = A1[j,i]
 
-        # attach energy
-        window.energy[win_idx] = np.max(np.abs(A1))
-
         #print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
         #print "debug, distance", window.dist_in_km
         #print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
@@ -345,7 +333,7 @@ class Cmt3D(object):
 
         return [A1, b1]
 
-    def invert_cmt(self, A, b):
+    def invert_solver(self, A, b):
         """
         Solver part. Hession matrix A and misfit vector b will be reconstructed here
         based on different constraints.
@@ -441,42 +429,52 @@ class Cmt3D(object):
 
         return new_cmt_par
 
-    def convert_new_cmt_par(self):
-        """
-        Convert self.new_cmt_par array to CMTSource instance
-
-        :return:
-        """
-        oldcmt = self.cmtsource
-        newcmt = self.new_cmt_par
-        time_shift = newcmt[9]
-        new_cmt_time = oldcmt.origin_time + time_shift
-        # copy old one
-        self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
-            pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
-            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
-            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
-            cmt_time=new_cmt_time,  half_duration=newcmt[10],
-            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6]*1000.0,
-            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
-
     def invert_bootstrap(self):
         """
         It is used to evaluate the mean, standard deviation, and variance of new parameters
 
         :return:
         """
+        # Bootstrap to generate subset A and b
+        self.A_bootstrap = []
+        self.b_bootstrap = []
+        for i in range(self.config.bootstrap_repeat):
+            random_array = util.gen_random_array(self.nwins, sample_number=int(0.3*self.nwins))
+            A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
+            b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
+            #print random_array
+            #print self.weight_array
+            self.A_bootstrap.append(A)
+            self.b_bootstrap.append(b)
+
+        # inversion of each subset
         new_par_array = np.zeros((self.config.bootstrap_repeat, const.NPARMAX))
         for i in range(self.config.bootstrap_repeat):
-            new_par = self.invert_cmt(self.A_bootstrap[i], self.b_bootstrap[i])
+            new_par = self.invert_solver(self.A_bootstrap[i], self.b_bootstrap[i])
             new_par_array[i,:] = new_par
         #print self.A_bootstrap[0]
         #print self.b_bootstrap[0]
         #print new_par_array
+        # statistical analysis
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
         self.std_over_mean = self.par_std/np.abs(self.par_mean)
+
+    def source_inversion(self):
+        self.setup_matrix()
+        self.setup_weight()
+        self.ensemble_measurement()
+        self.new_cmt_par = self.invert_solver(self.A, self.b)
+        # convert it to CMTSource instance
+        self.convert_new_cmt_par()
+        self.calculate_variance()
+
+        if self.config.bootstrap:
+            self.invert_bootstrap()
+
+        self.print_inversion_summary()
+
 
     def get_f_df(self, A, b, m, lam, mstart, fij, f0):
         """
@@ -657,19 +655,31 @@ class Cmt3D(object):
         :return: [number of shift points, max cc value, dlnA]
         :rtype: [int, float, float]
         """
-        # cross-correlation measurement
-        #len = iend - istart
-        #zero_padding = np.zeros(len)
-        #trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
-        #trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
         obsd_trace = obsd.data[istart:iend]
         synt_trace = synt.data[istart:iend]
         max_cc, nshift = self._xcorr_win_(obsd_trace, synt_trace)
-        # amplitude anomaly
-        #dlnA = ( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
         dlnA = self._dlnA_win(obsd_trace, synt_trace)
 
         return [nshift, max_cc, dlnA]
+
+    def convert_new_cmt_par(self):
+        """
+        Convert self.new_cmt_par array to CMTSource instance
+
+        :return:
+        """
+        oldcmt = self.cmtsource
+        newcmt = self.new_cmt_par
+        time_shift = newcmt[9]
+        new_cmt_time = oldcmt.origin_time + time_shift
+        # copy old one
+        self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
+            pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
+            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
+            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
+            cmt_time=new_cmt_time,  half_duration=newcmt[10],
+            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6]*1000.0,
+            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
 
     @staticmethod
     def _xcorr_win_(obsd, synt):
@@ -695,21 +705,6 @@ class Cmt3D(object):
         for i in range(npts):
             taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts-1))))
         return taper
-
-    def source_inversion(self):
-        self.setup_matrix()
-        self.setup_weight()
-        self.ensemble_measurement()
-        self.new_cmt_par = self.invert_cmt(self.A, self.b)
-        # convert it to CMTSource instance
-        self.convert_new_cmt_par()
-
-        self.calculate_variance()
-
-        if self.config.bootstrap:
-            self.invert_bootstrap()
-
-        self.print_inversion_summary()
 
     @staticmethod
     def print_cmtsource_summary(cmt):
@@ -813,5 +808,3 @@ class Cmt3D(object):
                                             self.par_mean[9], self.par_std[9], self.std_over_mean[9]*100))
             logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration,
                                             self.par_mean[10], self.par_std[10], self.std_over_mean[10]*100))
-
-
