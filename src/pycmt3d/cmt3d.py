@@ -76,12 +76,10 @@ class Cmt3D(object):
                 # weighting on compoent, distance and azimuth
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins,
                                                             dist_weight_mode=mode)
-                #print "debug:", window.weight
 
                 if self.config.normalize_window:
-                    # normalize by energy
+                    # normalize each window's measurement by energy
                     window.weight = window.weight/window.energy
-                    #print window.weight
 
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette
@@ -111,7 +109,7 @@ class Cmt3D(object):
         event_lon = self.cmtsource.longitude
         for window in self.window:
             # calculate energy
-            window.win_energy()
+            window.win_energy(mode=self.config.norm_mode)
             # calculate location
             sta_lat = window.datalist['synt'].stats.sac['stla']
             sta_lon = window.datalist['synt'].stats.sac['stlo']
@@ -313,7 +311,7 @@ class Cmt3D(object):
         #             dsyn[i, istart_s:iend_s]) * dt
         #for i in range(npar):
         #    A1[i] = window.weight[win_idx] * np.sum(taper * dsyn[i][istart_s:iend_s] * dsyn[:][istart_s:iend_s]) * dt
-        #    b1 = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
+        #    b1 = window.weight[win_idx] * np.sum(taper * (obsd.da42.29ta[istart_d:iend_d] - synt.data[istart_s:iend_s]) *
         #                                 dsyn[:][istart_s:iend_s])
 
         for j in range(npar):

@@ -94,6 +94,8 @@ class Config(object):
     :param dmoment: moment perturbation
     :param weight_data: bool value of weighting data
     :param weight_function: weighting function
+    :param normalize_window: add window energy into the weighting term
+    :param norm_mode: two modes: 1) "data_and_synt" 2) "data_only"
     :param station_correction: bool value of whether applies station correction
     :param zero_trace: bool value of whether applies zero-trace constraint
     :param double_couple: bool value of whether applied double-couple constraint
@@ -103,7 +105,8 @@ class Config(object):
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 weight_data=True, weight_function=None, normalize_window=False,
+                 weight_data=True, weight_function=None,
+                 normalize_window=False, norm_mode = "data_and_synt",
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
@@ -127,6 +130,7 @@ class Config(object):
         else:
             self.weight_function = default_weight_function
         self.normalize_window = normalize_window
+        self.norm_mode = norm_mode.lower()
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple

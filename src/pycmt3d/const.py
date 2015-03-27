@@ -45,7 +45,7 @@ EPS2 = 1.0e-2
 EPS5 = 1.0e-5
 
 # Number of regions for azimuthal weighting
-NREGIONS = 10
+NREGIONS = 12
 
 # Reference distance for Pnl, Rayleigh and Love wave weighting
 REF_DIST = 100.0

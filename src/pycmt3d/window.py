@@ -38,9 +38,17 @@ class Window(object):
         self.energy = np.zeros(num_wins)
 
     def win_energy(self, mode='data_and_synt'):
+        """
+        Calculate energy inside the window
+
+        :param mode: if mode == 'data_and_synt', then energy is calculated by sqrt(obsd_energy * synt_energy); \
+        if mode == 'data_only', then energy is calculated by obsd_energy only
+        """
         obsd = self.datalist['obsd']
         synt = self.datalist['synt']
         dt = obsd.stats.delta
+        if mode.lower() not in ['data_and_synt', 'data_only']:
+            raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only")
         for _idx in range(self.num_wins):
             istart_d = int(self.win_time[_idx, 0]/dt)
             iend_d = int(self.win_time[_idx, 1]/dt)
