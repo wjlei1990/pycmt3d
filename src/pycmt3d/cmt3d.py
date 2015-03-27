@@ -68,7 +68,7 @@ class Cmt3D(object):
                 logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
 
-                if self.config.normalize_measurements:
+                if self.config.normalize_window:
                     mode = "damping"
                 else:
                     mode = "exponential"
@@ -77,10 +77,10 @@ class Cmt3D(object):
                                                             dist_weight_mode=mode)
                 #print "debug:", window.weight
 
-                if self.config.normalize_measurements:
+                if self.config.normalize_window:
                     # normalize by energy
                     window.weight = window.weight/window.energy
-                    print window.weight
+                    #print window.weight
 
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette

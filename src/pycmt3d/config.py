@@ -103,7 +103,7 @@ class Config(object):
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 weight_data=True, weight_function=None, normalize_measurements=False,
+                 weight_data=True, weight_function=None, normalize_window=False,
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
@@ -126,7 +126,7 @@ class Config(object):
             self.weight_function = weight_function
         else:
             self.weight_function = default_weight_function
-        self.normalize_measurements = normalize_measurements
+        self.normalize_window = normalize_window
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple
