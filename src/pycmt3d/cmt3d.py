@@ -24,6 +24,7 @@ import const
 from window import Window
 from __init__ import logger
 import obspy
+import util
 
 class Cmt3D(object):
     """
@@ -37,11 +38,13 @@ class Cmt3D(object):
     :type config: :class:`pycmt3d.Config`
     """
 
-    def __init__(self, cmtsource, window, config):
+    def __init__(self, cmtsource, data_container, config):
 
         self.config = config
         self.cmtsource = cmtsource
-        self.window = window
+        self.data_container = data_container
+        self.window = self.data_container.window
+        self.nwins = self.data_container.nwins
 
         self.print_cmtsource_summary(self.cmtsource)
 
@@ -57,18 +60,41 @@ class Cmt3D(object):
             # first calculate azimuth and distance for each data pair
             self.prepare_for_weighting()
             # then calculate azimuth weighting
-            naz_list = self.calculate_azimuth_bin()
-            logger.info("Azimuth bin: [%s]" %(', '.join(map(str, naz_list))))
+            naz_files, naz_wins = self.calculate_azimuth_bin()
+            logger.info("Azimuth file bin: [%s]" %(', '.join(map(str, naz_files))))
+            logger.info("Azimuth win bin: [%s]" %(', '.join(map(str, naz_wins))))
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
-                naz = naz_list[idx_naz]
+                naz = naz_files[idx_naz]
                 logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
-                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins)
+
+                if self.config.normalize_window:
+                    mode = "damping"
+                else:
+                    mode = "exponential"
+                # weighting on compoent, distance and azimuth
+                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins,
+                                                            dist_weight_mode=mode)
+                #print "debug:", window.weight
+
+                if self.config.normalize_window:
+                    # normalize by energy
+                    window.weight = window.weight/window.energy
+                    #print window.weight
+
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette
             # without changing previous codes
             self.normalize_weight()
+
+            self.weight_array = np.zeros([self.data_container.nwins])
+            _idx = 0
+            for window in self.window:
+                for win_idx in range(window.num_wins):
+                    self.weight_array[_idx] = window.weight[win_idx]
+                    _idx += 1
+
         else:
             for idx, window in enumerate(self.window):
                 # set even weighting
@@ -84,6 +110,9 @@ class Cmt3D(object):
         event_lat = self.cmtsource.latitude
         event_lon = self.cmtsource.longitude
         for window in self.window:
+            # calculate energy
+            window.win_energy()
+            # calculate location
             sta_lat = window.datalist['synt'].stats.sac['stla']
             sta_lon = window.datalist['synt'].stats.sac['stlo']
             dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
@@ -115,15 +144,13 @@ class Cmt3D(object):
 
         :return:
         """
-        naz_list = np.zeros(const.NREGIONS)
+        naz_files = np.zeros(const.NREGIONS)
+        naz_wins = np.zeros(const.NREGIONS)
         for window in self.window:
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
-            # 1) weight on window numbers
-            #naz_list[bin_idx] += window.num_wins
-            # 2) weigth on files
-            naz_list[bin_idx] += 1
-
-        return naz_list
+            naz_files[bin_idx] += 1
+            naz_wins[bin_idx] += window.num_wins
+        return naz_files, naz_wins
 
     def normalize_weight(self):
         """
@@ -141,9 +168,9 @@ class Cmt3D(object):
 
         for window in self.window:
             logger.debug("%s.%s.%s, weight: [%s]" %(window.network, window.station, window.component,
-                                                    ', '.join(map(self.float_to_str, window.weight))))
+                                                    ', '.join(map(self._float_to_str, window.weight))))
             window.weight /= max_weight
-            logger.debug("Updated, weight: [%s]" %(', '.join(map(self.float_to_str, window.weight))))
+            logger.debug("Updated, weight: [%s]" %(', '.join(map(self._float_to_str, window.weight))))
 
     def get_station_info(self, datalist):
         """
@@ -161,49 +188,46 @@ class Cmt3D(object):
         dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
         return [dist_in_m/1000.0, az]
 
-    # Setup the matrix A and b
-    # If the bootstrap is True, the matrix A and b will be assembled partly for bootstrap evalution
     def setup_matrix(self):
         """
-        Set up the Matrix A and vector b to solve the A * (dm) = b
-        A is the Hessian Matrix and b is the misfit
+        Calculate A and b for all windows
 
         :return:
         """
         logger.info("*"*15)
         logger.info("Set up inversion matrix")
-        self.A = np.zeros((self.config.npar, self.config.npar))
-        self.b = np.zeros(self.config.npar)
-        A1_all = []
-        b1_all = []
+
+        self.A1_all = []
+        self.b1_all = []
         for window in self.window:
             # loop over pair of data
             for win_idx in range(window.num_wins):
                 # loop over each window
+                # here, A and b are exact measurements and no weightings are applied
                 [A1, b1] = self.compute_A_b(window, win_idx)
-                A1_all.append(A1)
-                b1_all.append(b1)
+                self.A1_all.append(A1)
+                self.b1_all.append(b1)
 
         #for _idx, bb in enumerate(b1_all):
         #    print _idx, bb
 
-        if self.config.bootstrap == True:
-            self.A_bootstrap = []
-            self.b_bootstrap = []
-            for i in range(self.config.bootstrap_repeat):
-                random_array = np.random.randint(2, size=(self.config.npar, 1, 1))
-                self.A = np.sum(random_array * A1_all, axis=0)
-                self.b = np.sum(random_array * b1_all, axis=0)
-                self.A_bootstrap.append(self.A)
-                self.b_bootstrap.append(self.b)
-        # Xin, do you have a type error here?
-        elif self.config.bootstrap == False:
-            self.A = np.sum(A1_all, axis=0)
-            self.b = np.sum(b1_all, axis=0)
-            logger.info("Inversion Matrix A is as follows:")
-            logger.info("\n%s" %('\n'.join(map(str, self.A))))
-            logger.info("RHS vector b is as follows:")
-            logger.info("[%s]" %(', '.join(map(str, self.b))))
+    def ensemble_measurement(self):
+        """
+        ensemble all measurements together to form Matrix A and vector b to solve the A * (dm) = b
+        A is the Hessian Matrix and b is the misfit
+
+        :return:
+        """
+        self.A = np.zeros((self.config.npar, self.config.npar))
+        self.b = np.zeros(self.config.npar)
+
+        #print self.weight_array
+        self.A = util.sum_matrix( self.weight_array, self.A1_all)
+        self.b = util.sum_matrix( self.weight_array, self.b1_all)
+        logger.info("Inversion Matrix A is as follows:")
+        logger.info("\n%s" %('\n'.join(map(self._float_array_to_str, self.A))))
+        logger.info("RHS vector b is as follows:")
+        logger.info("[%s]" %(self._float_array_to_str(self.b)))
 
         # we setup the full array, but based on npar, only part of it will be used
         cmt = self.cmtsource
@@ -294,8 +318,8 @@ class Cmt3D(object):
 
         for j in range(npar):
              for i in range(0, j+1):
-                 A1[i,j] = window.weight[win_idx] * np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
-             b1[j] = window.weight[win_idx] * np.sum(taper * (obsd.data[istart_d:iend_d] -
+                 A1[i,j] = np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j,istart_s:iend_s]) * dt
+             b1[j] = np.sum(taper * (obsd.data[istart_d:iend_d] -
                                     synt.data[istart_s:iend_s]) * dsyn[j, istart_s:iend_s]) * dt
         for j in range(npar):
             for i in range(j+1, npar):
@@ -308,8 +332,7 @@ class Cmt3D(object):
 
         return [A1, b1]
 
-    def invert_cmt(self, A, b):
-
+    def invert_solver(self, A, b):
         """
         Solver part. Hession matrix A and misfit vector b will be reconstructed here
         based on different constraints.
@@ -402,29 +425,8 @@ class Cmt3D(object):
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
-        self.new_cmt_par = new_cmt_par
 
-        # convert it to CMTSource instance
-        self.convert_new_cmt_par()
-
-    def convert_new_cmt_par(self):
-        """
-        Convert self.new_cmt_par array to CMTSource instance
-
-        :return:
-        """
-        oldcmt = self.cmtsource
-        newcmt = self.new_cmt_par
-        time_shift = newcmt[9]
-        new_cmt_time = oldcmt.origin_time + time_shift
-        # copy old one
-        self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
-            pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
-            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
-            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
-            cmt_time=new_cmt_time,  half_duration=newcmt[10],
-            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6],
-            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
+        return new_cmt_par
 
     def invert_bootstrap(self):
         """
@@ -432,13 +434,46 @@ class Cmt3D(object):
 
         :return:
         """
-        new_par_array = np.zeros((self.config.bootstrap_repeat, self.npar))
+        # Bootstrap to generate subset A and b
+        self.A_bootstrap = []
+        self.b_bootstrap = []
         for i in range(self.config.bootstrap_repeat):
-            new_par = self.invert_cmt(self.A_bootstrap[i], self.b_bootstrap[i])
-            new_par_array[i] = new_par
+            random_array = util.gen_random_array(self.nwins, sample_number=int(0.3*self.nwins))
+            A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
+            b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
+            #print random_array
+            #print self.weight_array
+            self.A_bootstrap.append(A)
+            self.b_bootstrap.append(b)
+
+        # inversion of each subset
+        new_par_array = np.zeros((self.config.bootstrap_repeat, const.NPARMAX))
+        for i in range(self.config.bootstrap_repeat):
+            new_par = self.invert_solver(self.A_bootstrap[i], self.b_bootstrap[i])
+            new_par_array[i,:] = new_par
+        #print self.A_bootstrap[0]
+        #print self.b_bootstrap[0]
+        #print new_par_array
+        # statistical analysis
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
+        self.std_over_mean = self.par_std/np.abs(self.par_mean)
+
+    def source_inversion(self):
+        self.setup_matrix()
+        self.setup_weight()
+        self.ensemble_measurement()
+        self.new_cmt_par = self.invert_solver(self.A, self.b)
+        # convert it to CMTSource instance
+        self.convert_new_cmt_par()
+        self.calculate_variance()
+
+        if self.config.bootstrap:
+            self.invert_bootstrap()
+
+        self.print_inversion_summary()
+
 
     def get_f_df(self, A, b, m, lam, mstart, fij, f0):
         """
@@ -619,19 +654,31 @@ class Cmt3D(object):
         :return: [number of shift points, max cc value, dlnA]
         :rtype: [int, float, float]
         """
-        # cross-correlation measurement
-        #len = iend - istart
-        #zero_padding = np.zeros(len)
-        #trace1 = np.concatenate((zero_padding, obsd.data[istart:iend], zero_padding), axis=0)
-        #trace2 = np.concatenate((zero_padding, synt.data[istart:iend], zero_padding), axis=0)
         obsd_trace = obsd.data[istart:iend]
         synt_trace = synt.data[istart:iend]
         max_cc, nshift = self._xcorr_win_(obsd_trace, synt_trace)
-        # amplitude anomaly
-        #dlnA = ( np.dot(trace1, trace1)/np.dot(trace2, trace2)) - 1.0
         dlnA = self._dlnA_win(obsd_trace, synt_trace)
 
         return [nshift, max_cc, dlnA]
+
+    def convert_new_cmt_par(self):
+        """
+        Convert self.new_cmt_par array to CMTSource instance
+
+        :return:
+        """
+        oldcmt = self.cmtsource
+        newcmt = self.new_cmt_par
+        time_shift = newcmt[9]
+        new_cmt_time = oldcmt.origin_time + time_shift
+        # copy old one
+        self.new_cmtsource = CMTSource(origin_time=oldcmt.origin_time,
+            pde_latitude=oldcmt.pde_latitude, pde_longitude=oldcmt.pde_longitude,
+            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
+            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
+            cmt_time=new_cmt_time,  half_duration=newcmt[10],
+            latitude=newcmt[8], longitude=newcmt[7], depth_in_m=newcmt[6]*1000.0,
+            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4], m_tp=newcmt[5])
 
     @staticmethod
     def _xcorr_win_(obsd, synt):
@@ -658,16 +705,6 @@ class Cmt3D(object):
             taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts-1))))
         return taper
 
-    def source_inversion(self):
-        self.setup_weight()
-        self.setup_matrix()
-        if not self.config.bootstrap:
-            self.invert_cmt(self.A, self.b)
-            self.print_inversion_summary()
-            self.calculate_variance()
-        else:
-            self.invert_bootstrap()
-
     @staticmethod
     def print_cmtsource_summary(cmt):
         """
@@ -684,7 +721,7 @@ class Cmt3D(object):
         logger.info("   Moment Magnitude: %.2f" %(cmt.moment_magnitude))
 
     @staticmethod
-    def float_to_str(value):
+    def _float_to_str(value):
         """
         Convert float value to a specific precision string
 
@@ -692,6 +729,19 @@ class Cmt3D(object):
         :return: string of the value
         """
         return "%.5f" % value
+
+    @staticmethod
+    def _float_array_to_str(array):
+        """
+        Convert float array to string
+
+        :return:
+        """
+        string = "[  "
+        for ele in array:
+            string += "%10.3e  " % ele
+        string += "]"
+        return string
 
     def print_inversion_summary(self):
         """
@@ -717,18 +767,43 @@ class Cmt3D(object):
 
         :return:
         """
-        title = "*"*10 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*10
+        title = "*"*20 + " Inversion Result Table(%d npar) " %(self.config.npar) + "*"*20
         logger.info(title)
 
-        logger.info("PAR         Old_CMT        New_CMT")
-        logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr))
-        logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt))
-        logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp))
-        logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
-        logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
-        logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
-        logger.info("dep:  %15.6e  %15.6e" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
-        logger.info("lon:  %15.6e  %15.6e" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
-        logger.info("lat:  %15.6e  %15.6e" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
-        logger.info("ctm:  %15.6e  %15.6e" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
-        logger.info("hdr:  %15.6e  %15.6e" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
+        if not self.config.bootstrap:
+            logger.info("PAR         Old_CMT        New_CMT")
+            logger.info("Mrr:  %15.6e  %15.6e" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr))
+            logger.info("Mtt:  %15.6e  %15.6e" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt))
+            logger.info("Mpp:  %15.6e  %15.6e" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp))
+            logger.info("Mrt:  %15.6e  %15.6e" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt))
+            logger.info("Mrp:  %15.6e  %15.6e" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp))
+            logger.info("Mtp:  %15.6e  %15.6e" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp))
+            logger.info("dep:  %15.3f  %15.3f" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0))
+            logger.info("lon:  %15.3f  %15.3f" %(self.cmtsource.longitude, self.new_cmtsource.longitude))
+            logger.info("lat:  %15.3f  %15.3f" %(self.cmtsource.latitude, self.new_cmtsource.latitude))
+            logger.info("ctm:  %15.3f  %15.3f" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift))
+            logger.info("hdr:  %15.3f  %15.3f" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration))
+        else:
+            logger.info("PAR         Old_CMT          New_CMT     Bootstrap_Mean     Bootstrap_STD     STD/Mean")
+            logger.info("Mrr:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rr, self.new_cmtsource.m_rr,
+                                            self.par_mean[0], self.par_std[0], self.std_over_mean[0]*100))
+            logger.info("Mtt:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_tt, self.new_cmtsource.m_tt,
+                                            self.par_mean[1], self.par_std[1], self.std_over_mean[1]*100))
+            logger.info("Mpp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_pp, self.new_cmtsource.m_pp,
+                                            self.par_mean[2], self.par_std[2], self.std_over_mean[2]*100))
+            logger.info("Mrt:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rt, self.new_cmtsource.m_rt,
+                                            self.par_mean[3], self.par_std[3], self.std_over_mean[3]*100))
+            logger.info("Mrp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_rp, self.new_cmtsource.m_rp,
+                                            self.par_mean[4], self.par_std[4], self.std_over_mean[4]*100))
+            logger.info("Mtp:  %15.6e  %15.6e  %15.6e  %15.6e   %10.2f%%" %(self.cmtsource.m_tp, self.new_cmtsource.m_tp,
+                                            self.par_mean[5], self.par_std[5], self.std_over_mean[5]*100))
+            logger.info("dep:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.depth_in_m/1000.0, self.new_cmtsource.depth_in_m/1000.0,
+                                            self.par_mean[6], self.par_std[6], self.std_over_mean[6]*100))
+            logger.info("lon:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.longitude, self.new_cmtsource.longitude,
+                                            self.par_mean[7], self.par_std[7], self.std_over_mean[7]*100))
+            logger.info("lat:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.latitude, self.new_cmtsource.latitude,
+                                            self.par_mean[8], self.par_std[8], self.std_over_mean[8]*100))
+            logger.info("ctm:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.time_shift, self.new_cmtsource.time_shift,
+                                            self.par_mean[9], self.par_std[9], self.std_over_mean[9]*100))
+            logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" %(self.cmtsource.half_duration, self.new_cmtsource.half_duration,
+                                            self.par_mean[10], self.par_std[10], self.std_over_mean[10]*100))

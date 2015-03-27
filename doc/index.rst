@@ -6,13 +6,16 @@
 Welcome to pycmt3d's documentation!
 ===================================
 
-Contents
+*Code without documentation is a piece of crap. ---- Matthieu Lefebvre*
+
+**Contents**
 
 .. toctree::
    :maxdepth: 2
 
    intro
    tutorial
+   pycmt3d
 
 
 Indices and tables
