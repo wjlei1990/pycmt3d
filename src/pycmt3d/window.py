@@ -10,7 +10,7 @@ except:
 
 from __init__ import logger
 from obspy import read
-
+import time
 
 class Window(object):
     """
@@ -61,6 +61,7 @@ class DataContainer(object):
         self.window = []
         self.npar = len(par_list)
 
+        time_stamp1= time.time()
         if load_from_asdf:
             # check
             if not isinstance(asdf_file_dict):
@@ -75,6 +76,8 @@ class DataContainer(object):
             self.load_data_asdf()
         else:
             self.load_winfile()
+        time_stamp2 = time.time()
+        self.elapsed_time = time_stamp2 - time_stamp1
 
         self.print_summary()
 
@@ -178,7 +181,8 @@ class DataContainer(object):
         logger.info("="*10 + "  Data Summary  " + "="*10)
         logger.info("Number of Deriv synt: %d" % len(self.par_list))
         logger.info("   Par: [%s]" % (', '.join(self.par_list)))
-        logger.info("Number of data pairs: %d" %self.nfiles)
+        logger.info("Number of data pairs: %d" % self.nfiles)
         logger.info("   [Z, R, T] = [%d, %d, %d]" %(nfiles_Z, nfiles_R, nfiles_T ))
-        logger.info("Number of windows: %d"%self.nwins)
+        logger.info("Number of windows: %d"% self.nwins)
         logger.info("   [Z, R, T] = [%d, %d, %d]" %(nwins_Z, nwins_R, nwins_T))
+        logger.info("Loading takes %6.2f seconds" % self.elapsed_time)

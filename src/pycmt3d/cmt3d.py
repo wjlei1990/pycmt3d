@@ -60,11 +60,12 @@ class Cmt3D(object):
             # first calculate azimuth and distance for each data pair
             self.prepare_for_weighting()
             # then calculate azimuth weighting
-            naz_list = self.calculate_azimuth_bin()
-            logger.info("Azimuth bin: [%s]" %(', '.join(map(str, naz_list))))
+            naz_files, naz_wins = self.calculate_azimuth_bin()
+            logger.info("Azimuth file bin: [%s]" %(', '.join(map(str, naz_files))))
+            logger.info("Azimuth win bin: [%s]" %(', '.join(map(str, naz_wins))))
             for idx, window in enumerate(self.window):
                 idx_naz = self.get_azimuth_bin_number(window.azimuth)
-                naz = naz_list[idx_naz]
+                naz = naz_files[idx_naz]
                 logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network, window.component,
                             window.num_wins, window.dist_in_km, naz)
 
@@ -143,15 +144,13 @@ class Cmt3D(object):
 
         :return:
         """
-        naz_list = np.zeros(const.NREGIONS)
+        naz_files = np.zeros(const.NREGIONS)
+        naz_wins = np.zeros(const.NREGIONS)
         for window in self.window:
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
-            # 1) weight on window numbers
-            #naz_list[bin_idx] += window.num_wins
-            # 2) weigth on files
-            naz_list[bin_idx] += 1
-
-        return naz_list
+            naz_files[bin_idx] += 1
+            naz_wins[bin_idx] += window.num_wins
+        return naz_files, naz_wins
 
     def normalize_weight(self):
         """
