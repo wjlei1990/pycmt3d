@@ -37,13 +37,18 @@ class Window(object):
         self.dist_in_km = None
         self.energy = np.zeros(num_wins)
 
-    def win_energy(self):
+    def win_energy(self, mode='data_and_synt'):
         obsd = self.datalist['obsd']
+        synt = self.datalist['synt']
         dt = obsd.stats.delta
         for _idx in range(self.num_wins):
             istart_d = int(self.win_time[_idx, 0]/dt)
             iend_d = int(self.win_time[_idx, 1]/dt)
-            self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
+            if mode.lower() == "data_and_synt":
+                self.energy[_idx] = np.sqrt(np.sum(obsd.data[istart_d:iend_d]**2*dt) *
+                                            np.sum(synt.data[istart_d:iend_d]**2*dt))
+            elif mode.lower() == "data_only":
+                self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
 
 class DataContainer(object):
     """
