@@ -56,16 +56,25 @@ Code example as following::
   from config import Config
   npar = 9   # 9 paramter inversion
   config = Config(npar, dlocation=0.03, ddepth=3.0, dmoment=2.0e+23,
-      weight_data=True, weight_function=None, station_correction=True, 
-      zero_trace=True, double_couple=False, lamda_damping=0.0, 
-      bootstrap=False)
+      weight_data=True, weight_function=None, normalize_window=False,
+      norm_mode="data_and_synt", station_correction=True,
+      zero_trace=True, double_couple=False, lamda_damping=0.0,
+      bootstrap=False, bootstrap_repeat=100)
+
+* Bootstrap
+	If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation.
+
+* Window energy normalization
+	If you want the measurement from each window normalized by it's energy, you can set the flag "normalize_window = True" in config. There are two normalization mode you can choose.
+		1. norm_mode="data_and_synt"
+		2. norm_mode="data_only"
 
 Source Inversion
 ########################################
 After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted::
 
   from cmt3d import Cmt3D
-  srcinv = Cmt3D(cmtsource, data.window, config)
+  srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
 
 Workflow Example
@@ -95,5 +104,5 @@ The complete workflow example is shown below::
       bootstrap=False)
 
   # source inversion
-  srcinv = Cmt3D(cmtsource, data.window, config)
+  srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()

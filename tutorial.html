@@ -107,17 +107,39 @@ Data could be loaded as:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">config</span> <span class="kn">import</span> <span class="n">Config</span>
 <span class="n">npar</span> <span class="o">=</span> <span class="mi">9</span>   <span class="c"># 9 paramter inversion</span>
 <span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">2.0e+23</span><span class="p">,</span>
-    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">normalize_window</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+    <span class="n">norm_mode</span><span class="o">=</span><span class="s">&quot;data_and_synt&quot;</span><span class="p">,</span> <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
     <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-    <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
 </div>
+<ul>
+<li><dl class="first docutils">
+<dt>Bootstrap</dt>
+<dd><p class="first last">If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting &#8220;boostrap = True&#8221; in the config. It will provide the mean value and the standard deviation.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Window energy normalization</dt>
+<dd><dl class="first last docutils">
+<dt>If you want the measurement from each window normalized by it&#8217;s energy, you can set the flag &#8220;normalize_window = True&#8221; in config. There are two normalization mode you can choose.</dt>
+<dd><ol class="first last arabic simple">
+<li>norm_mode=&#8221;data_and_synt&#8221;</li>
+<li>norm_mode=&#8221;data_only&#8221;</li>
+</ol>
+</dd>
+</dl>
+</dd>
+</dl>
+</li>
+</ul>
 </div>
 <div class="section" id="source-inversion">
 <h2>Source Inversion<a class="headerlink" href="#source-inversion" title="Permalink to this headline">¶</a></h2>
 <p>After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">cmt3d</span> <span class="kn">import</span> <span class="n">Cmt3D</span>
-<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 <span class="n">srcinv</span><span class="o">.</span><span class="n">source_inversion</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -148,7 +170,7 @@ Data could be loaded as:</p>
     <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 
 <span class="c"># source inversion</span>
-<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 <span class="n">srcinv</span><span class="o">.</span><span class="n">source_inversion</span><span class="p">()</span>
 </pre></div>
 </div>
