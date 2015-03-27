@@ -6,8 +6,6 @@
 Welcome to pycmt3d's documentation!
 ===================================
 
-*Code without documentation is a piece of crap. ---- Matthieu Lefebvre*
-
 **Contents**
 
 .. toctree::
