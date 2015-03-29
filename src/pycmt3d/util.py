@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
+
 def sum_matrix(coef, data):
     if len(coef) != len(data):
         raise ValueError("dimension of coef and data not the same")
-    sum = coef[0] * data[0]
+    sum_value = coef[0] * data[0]
     for _idx in range(1, len(coef)):
-        sum += coef[_idx] * data[_idx]
-
-    return sum
+        sum_value += coef[_idx] * data[_idx]
+    return sum_value
 
 
 def gen_random_array(npts, sample_number=0):

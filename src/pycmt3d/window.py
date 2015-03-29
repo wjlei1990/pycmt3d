@@ -12,6 +12,7 @@ from __init__ import logger
 from obspy import read
 import time
 
+
 class Window(object):
     """
     Obsd, synt, deriv synt trace and window information from one component of one station.
@@ -50,6 +51,7 @@ class Window(object):
             elif mode.lower() == "data_only":
                 self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
 
+
 class DataContainer(object):
     """
     Class that contains methods that load data and window information
@@ -65,11 +67,13 @@ class DataContainer(object):
         self.par_list = par_list
         self.window = []
         self.npar = len(par_list)
+        self.nfiles = 0
+        self.nwins = 0
 
-        time_stamp1= time.time()
+        time_stamp1 = time.time()
         if load_from_asdf:
             # check
-            if not isinstance(asdf_file_dict):
+            if not isinstance(asdf_file_dict, dict):
                 raise ValueError("asdf_file_dict should be dictionary. Key from par_list and "
                                  "value is the asdf file name")
             if len(asdf_file_dict) != (self.npar+1):
@@ -99,13 +103,13 @@ class DataContainer(object):
                 obsd_fn = f.readline().strip()
                 synt_fn = f.readline().strip()
                 num_wins = int(f.readline().strip())
-                win_time = np.zeros((num_wins,2))
+                win_time = np.zeros((num_wins, 2))
                 for iwin in range(num_wins):
                     [left, right] = f.readline().strip().split()
                     win_time[iwin, 0] = float(left)
                     win_time[iwin, 1] = float(right)
                 win_obj = Window(num_wins=num_wins, win_time=win_time,
-                                  obsd_fn=obsd_fn, synt_fn=synt_fn)
+                                 obsd_fn=obsd_fn, synt_fn=synt_fn)
                 # load all data, observed and synthetics into the object
                 self.load_data(win_obj)
                 self.window.append(win_obj)
@@ -181,13 +185,13 @@ class DataContainer(object):
                 nwins_Z += window.num_wins
             else:
                 raise ValueError("Unrecognized compoent in windows: %s.%s.%s"
-                                 %(window.station, window.network, window.component))
+                                 % (window.station, window.network, window.component))
 
         logger.info("="*10 + "  Data Summary  " + "="*10)
         logger.info("Number of Deriv synt: %d" % len(self.par_list))
         logger.info("   Par: [%s]" % (', '.join(self.par_list)))
         logger.info("Number of data pairs: %d" % self.nfiles)
-        logger.info("   [Z, R, T] = [%d, %d, %d]" %(nfiles_Z, nfiles_R, nfiles_T ))
-        logger.info("Number of windows: %d"% self.nwins)
-        logger.info("   [Z, R, T] = [%d, %d, %d]" %(nwins_Z, nwins_R, nwins_T))
+        logger.info("   [Z, R, T] = [%d, %d, %d]" % (nfiles_Z, nfiles_R, nfiles_T))
+        logger.info("Number of windows: %d" % self.nwins)
+        logger.info("   [Z, R, T] = [%d, %d, %d]" % (nwins_Z, nwins_R, nwins_T))
         logger.info("Loading takes %6.2f seconds" % self.elapsed_time)

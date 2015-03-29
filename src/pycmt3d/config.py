@@ -13,13 +13,13 @@ except:
     raise ImportError(msg)
 
 import const
-import math
 from __init__ import logger
 
+
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
-                    comp_r_weight=2.0, comp_t_weight=1.5, comp_z_weight=2.0,
-                    az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
-                    love_dist_weight=0.55, dist_weight_mode = "exponential"):
+                            comp_r_weight=2.0, comp_t_weight=1.5, comp_z_weight=2.0,
+                            az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
+                            love_dist_weight=0.55, dist_weight_mode="exponential"):
 
     """
     Defualt weighting function
@@ -41,11 +41,11 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
     data_weight = np.zeros(nwins)
     # component weight
     comp_direct = kcmpnm[2]
-    if (comp_direct == 'Z'):
+    if comp_direct == 'Z':
         cmp_weight = comp_z_weight
-    elif (comp_direct == 'R'):
+    elif comp_direct == 'R':
         cmp_weight = comp_r_weight
-    elif (comp_direct == 'T'):
+    elif comp_direct == 'T':
         cmp_weight = comp_t_weight
     else:
         raise ValueError('The direction of component of seismic data has to be Z, R or T')
@@ -53,10 +53,10 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
     # distance weights
     # for global seismograms, this obviously has to be changed
     for win_idx in range(nwins):
-        if (comp_direct == 'T'):
+        if comp_direct == 'T':
             dist_exp_weight = love_dist_weight
         else:
-            if (nwins>1 and win_idx==0):
+            if nwins > 1 and win_idx == 0:
                 dist_exp_weight = pnl_dist_weight
             else:
                 dist_exp_weight = rayleigh_dist_weight
@@ -69,12 +69,13 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
             data_weight[win_idx] = cmp_weight / (azi_count ** az_exp_weight)
         elif dist_weight_mode.lower() == "damping":
             # damping over short distance and long distance
-            data_weight[win_idx]= cmp_weight / (azi_count ** az_exp_weight) * dist_damping_function(dist_in_km)
+            data_weight[win_idx] = cmp_weight / (azi_count ** az_exp_weight) * dist_damping_function(dist_in_km)
 
     return data_weight
 
+
 def dist_damping_function(dist_in_km):
-    geo_degree = dist_in_km/112 # 111.325km = 1 degree
+    geo_degree = dist_in_km/112  # 111.325km = 1 degree
     if geo_degree <= 60:
         return geo_degree/60.0
     elif geo_degree <= 120:
@@ -83,6 +84,7 @@ def dist_damping_function(dist_in_km):
         return (180.0 - geo_degree)/60.0
     else:
         return 0
+
 
 class Config(object):
     """
@@ -145,9 +147,6 @@ class Config(object):
 
         self.print_summary()
 
-    # The function weight_function is to calculate the weight for different component and azimuths
-    # The default value of input weights are based on my previous research, the user should modify it according to your circumstances
-
     def print_summary(self):
         """
         Print function of configuration
@@ -156,10 +155,9 @@ class Config(object):
         """
         npar = self.npar
         logger.info("="*10 + "  Config Summary  " + "="*10)
-        logger.info("Number of Inversion Par: %d" %npar)
-        logger.info("   Par: [%s]" %(', '.join(self.par_name[0:npar])))
-        #logger.info("delta for deriv: [%8.5f(degree), %8.5f(km), %e(dyn/nm)]" %(self.dlocation, self.ddepth, self.dmoment))
-        logger.info("   Delta: [%s]" %(', '.join(map(str, self.dcmt_par[0:npar]*self.scale_par[0:npar]))))
+        logger.info("Number of Inversion Par: %d" % npar)
+        logger.info("   Par: [%s]" % (', '.join(self.par_name[0:npar])))
+        logger.info("   Delta: [%s]" % (', '.join(map(str, self.dcmt_par[0:npar]*self.scale_par[0:npar]))))
 
         logger.info("Weighting scheme")
         if self.weight_data:
@@ -176,4 +174,4 @@ class Config(object):
             logger.info("   invert for zero-trace source ===> Linear Inversion")
         else:
             logger.info("   No constraints applied ===> Linear Inversion ")
-        logger.info("   inversion dampling lambda: %f" %self.lamda_damping)
+        logger.info("   inversion dampling lambda: %f" % self.lamda_damping)

@@ -97,3 +97,4 @@ The complete workflow example is shown below::
   # source inversion
   srcinv = Cmt3D(cmtsource, data.window, config)
   srcinv.source_inversion()
+
