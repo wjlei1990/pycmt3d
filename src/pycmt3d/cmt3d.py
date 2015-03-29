@@ -80,11 +80,10 @@ class Cmt3D(object):
                 # weighting on compoent, distance and azimuth
                 window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins,
                                                             dist_weight_mode=mode)
-                # print "debug:", window.weight
 
                 if self.config.normalize_window:
-                    # normalize by energy
-                    window.weight = window.weight / window.energy
+                    # normalize each window's measurement by energy
+                    window.weight = window.weight/window.energy
 
             # normalization of data weights
             # Attention: the code here might be tedious but I just do not know how to make it bette
@@ -114,7 +113,7 @@ class Cmt3D(object):
         event_lon = self.cmtsource.longitude
         for window in self.window:
             # calculate energy
-            window.win_energy()
+            window.win_energy(mode=self.config.norm_mode)
             # calculate location
             sta_lat = window.datalist['synt'].stats.sac['stla']
             sta_lon = window.datalist['synt'].stats.sac['stlo']
