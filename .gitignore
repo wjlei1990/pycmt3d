@@ -5,3 +5,5 @@ testdata/
 *.pyc
 trash
 *.sw*
+src/pycmt3d.egg-info/*
+log.txt
