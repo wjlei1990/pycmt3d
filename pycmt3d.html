@@ -24,7 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="pycmt3d 1.0 documentation" href="index.html" />
-    <link rel="prev" title="Tutourial" href="tutorial.html" /> 
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
   </head>
   <body>
     <div class="related">
@@ -37,7 +37,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="tutorial.html" title="Tutourial"
+          <a href="tutorial.html" title="Tutorial"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -57,7 +57,7 @@
 <span id="pycmt3d-cmt3d-module"></span><h2>pycmt3d.cmt3d module<a class="headerlink" href="#module-pycmt3d.cmt3d" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="pycmt3d.cmt3d.Cmt3D">
-<em class="property">class </em><tt class="descclassname">pycmt3d.cmt3d.</tt><tt class="descname">Cmt3D</tt><big>(</big><em>cmtsource</em>, <em>window</em>, <em>config</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">pycmt3d.cmt3d.</tt><tt class="descname">Cmt3D</tt><big>(</big><em>cmtsource</em>, <em>data_container</em>, <em>config</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class that handles the solver part of source inversion</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -66,7 +66,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>cmtsource</strong> (<tt class="xref py py-class docutils literal"><span class="pre">pycmt3d.CMTSource</span></tt>) &#8211; earthquake source</li>
-<li><strong>window</strong> (<tt class="xref py py-class docutils literal"><span class="pre">pycmt3d.Window</span></tt>) &#8211; all data and window</li>
+<li><strong>data_container</strong> &#8211; all data and window</li>
 <li><strong>config</strong> (<tt class="xref py py-class docutils literal"><span class="pre">pycmt3d.Config</span></tt>) &#8211; configuration for source inversion</li>
 </ul>
 </td>
@@ -227,22 +227,6 @@ synthetic data on a given window.</p>
 </dd></dl>
 
 <dl class="staticmethod">
-<dt id="pycmt3d.cmt3d.Cmt3D.float_to_str">
-<em class="property">static </em><tt class="descname">float_to_str</tt><big>(</big><em>value</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.float_to_str"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.float_to_str" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert float value to a specific precision string</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> &#8211; </td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">string of the value</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="staticmethod">
 <dt id="pycmt3d.cmt3d.Cmt3D.get_azimuth_bin_number">
 <em class="property">static </em><tt class="descname">get_azimuth_bin_number</tt><big>(</big><em>azimuth</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.get_azimuth_bin_number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.get_azimuth_bin_number" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the bin number of a given azimuth</p>
@@ -330,7 +314,22 @@ synthetic data on a given window.</p>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.invert_cmt">
-<tt class="descname">invert_cmt</tt><big>(</big><em>A</em>, <em>b</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.invert_cmt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.invert_cmt" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">invert_cmt</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.invert_cmt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.invert_cmt" title="Permalink to this definition">¶</a></dt>
+<dd><p>ensemble all measurements together to form Matrix A and vector b to solve the A * (dm) = b
+A is the Hessian Matrix and b is the misfit</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.invert_solver">
+<tt class="descname">invert_solver</tt><big>(</big><em>A</em>, <em>b</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.invert_solver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.invert_solver" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solver part. Hession matrix A and misfit vector b will be reconstructed here
 based on different constraints.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -353,7 +352,7 @@ based on different constraints.</p>
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.normalize_weight">
 <tt class="descname">normalize_weight</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.normalize_weight"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.normalize_weight" title="Permalink to this definition">¶</a></dt>
-<dd><p>Normalize the weighting and make the maxium to 1</p>
+<dd><p>Normalize the weighting and make the maximum to 1</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -410,8 +409,7 @@ and store it</p>
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.setup_matrix">
 <tt class="descname">setup_matrix</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.setup_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.setup_matrix" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set up the Matrix A and vector b to solve the A * (dm) = b
-A is the Hessian Matrix and b is the misfit</p>
+<dd><p>Calculate A and b for all windows</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -449,7 +447,7 @@ A is the Hessian Matrix and b is the misfit</p>
 <p>Configuration object for pycmt3d</p>
 <dl class="class">
 <dt id="pycmt3d.config.Config">
-<em class="property">class </em><tt class="descclassname">pycmt3d.config.</tt><tt class="descname">Config</tt><big>(</big><em>npar</em>, <em>dlocation=0.0</em>, <em>ddepth=0.0</em>, <em>dmoment=0.0</em>, <em>weight_data=True</em>, <em>weight_function=None</em>, <em>station_correction=True</em>, <em>zero_trace=True</em>, <em>double_couple=False</em>, <em>lamda_damping=0.0</em>, <em>bootstrap=False</em>, <em>bootstrap_repeat=100</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#Config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.Config" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">pycmt3d.config.</tt><tt class="descname">Config</tt><big>(</big><em>npar</em>, <em>dlocation=0.0</em>, <em>ddepth=0.0</em>, <em>dmoment=0.0</em>, <em>weight_data=True</em>, <em>weight_function=None</em>, <em>normalize_window=False</em>, <em>norm_mode='data_and_synt'</em>, <em>station_correction=True</em>, <em>zero_trace=True</em>, <em>double_couple=False</em>, <em>lamda_damping=0.0</em>, <em>bootstrap=False</em>, <em>bootstrap_repeat=100</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#Config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.Config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Configuration for source inversion</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -463,6 +461,8 @@ A is the Hessian Matrix and b is the misfit</p>
 <li><strong>dmoment</strong> &#8211; moment perturbation</li>
 <li><strong>weight_data</strong> &#8211; bool value of weighting data</li>
 <li><strong>weight_function</strong> &#8211; weighting function</li>
+<li><strong>normalize_window</strong> &#8211; add window energy into the weighting term</li>
+<li><strong>norm_mode</strong> &#8211; two modes: 1) &#8220;data_and_synt&#8221; 2) &#8220;data_only&#8221;</li>
 <li><strong>station_correction</strong> &#8211; bool value of whether applies station correction</li>
 <li><strong>zero_trace</strong> &#8211; bool value of whether applies zero-trace constraint</li>
 <li><strong>double_couple</strong> &#8211; bool value of whether applied double-couple constraint</li>
@@ -492,7 +492,7 @@ A is the Hessian Matrix and b is the misfit</p>
 
 <dl class="function">
 <dt id="pycmt3d.config.default_weight_function">
-<tt class="descclassname">pycmt3d.config.</tt><tt class="descname">default_weight_function</tt><big>(</big><em>kcmpnm</em>, <em>dist_in_km</em>, <em>azi_count</em>, <em>nwins</em>, <em>comp_r_weight=2.0</em>, <em>comp_t_weight=1.5</em>, <em>comp_z_weight=2.0</em>, <em>az_exp_weight=0.5</em>, <em>pnl_dist_weight=0.75</em>, <em>rayleigh_dist_weight=0.55</em>, <em>love_dist_weight=0.55</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#default_weight_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.default_weight_function" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">pycmt3d.config.</tt><tt class="descname">default_weight_function</tt><big>(</big><em>kcmpnm</em>, <em>dist_in_km</em>, <em>azi_count</em>, <em>nwins</em>, <em>comp_r_weight=2.0</em>, <em>comp_t_weight=1.5</em>, <em>comp_z_weight=2.0</em>, <em>az_exp_weight=0.5</em>, <em>pnl_dist_weight=0.75</em>, <em>rayleigh_dist_weight=0.55</em>, <em>love_dist_weight=0.55</em>, <em>dist_weight_mode='exponential'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#default_weight_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.default_weight_function" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defualt weighting function</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -519,6 +519,11 @@ A is the Hessian Matrix and b is the misfit</p>
 </tbody>
 </table>
 </dd></dl>
+
+<dl class="function">
+<dt id="pycmt3d.config.dist_damping_function">
+<tt class="descclassname">pycmt3d.config.</tt><tt class="descname">dist_damping_function</tt><big>(</big><em>dist_in_km</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#dist_damping_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.dist_damping_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 </div>
 <div class="section" id="module-pycmt3d.const">
@@ -704,6 +709,20 @@ notation:
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Obsd, synt, deriv synt trace and window information from one component of one station.
 Also, window weighting, station azimuth, distance is also included.</p>
+<dl class="method">
+<dt id="pycmt3d.window.Window.win_energy">
+<tt class="descname">win_energy</tt><big>(</big><em>mode='data_and_synt'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#Window.win_energy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.Window.win_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate energy inside the window</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>mode</strong> &#8211; if mode == &#8216;data_and_synt&#8217;, then energy is calculated by sqrt(obsd_energy * synt_energy);         if mode == &#8216;data_only&#8217;, then energy is calculated by obsd_energy only</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </dd></dl>
 
 </div>
@@ -734,7 +753,7 @@ Also, window weighting, station azimuth, distance is also included.</p>
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="tutorial.html"
-                        title="previous chapter">Tutourial</a></p>
+                        title="previous chapter">Tutorial</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/pycmt3d.txt"
@@ -767,7 +786,7 @@ Also, window weighting, station azimuth, distance is also included.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="tutorial.html" title="Tutourial"
+          <a href="tutorial.html" title="Tutorial"
              >previous</a> |</li>
         <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>

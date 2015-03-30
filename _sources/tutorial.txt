@@ -1,5 +1,5 @@
-Tutourial
-==========================================
+Tutorial
+========
 
 To run the inversion, one need to prepare:
 
@@ -11,15 +11,15 @@ To run the inversion, one need to prepare:
 3. Inversion shema: how to inversion is done(Ref :ref:`my-config-label`)
 
 CMTSource
-#########################################
+#########
 Source instance could be loaded as::
 
-  import source
+  from pycmt3d.source import CMTSource 
   cmtfile = "path/to/your/cmtfile"
   cmtsource = CMTSource.from_CMTSOLUTION_file(cmtfile)
 
 Data
-########################################
+####
 The pycmt3d pacakge takes two kinds of data.
 
 1. sac format data
@@ -27,8 +27,8 @@ The pycmt3d pacakge takes two kinds of data.
   Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows. Another thing it needs to know is how many number of deriv synthetic files you want to read. The deriv parameter is listed as [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, hald duration].
   Data could be loaded as::
 
-    from window import *
-    from const import PAR_LIST
+    from pycmt3d.window import DataContainer
+    from pycmt3d.const import PAR_LIST
     npar = 6
     flexwin_output = "path/to/your/flexwin_output"
     data = DataContainer(flexwin_output, PAR_LIST[:npar])
@@ -40,7 +40,7 @@ The pycmt3d pacakge takes two kinds of data.
    it will be added later on...
 
 Inversion schema
-#########################################
+################
 Works partially as the INVERSION.PAR file as the fortran version.
 
 One config example is to 
@@ -53,29 +53,38 @@ One config example is to
 
 Code example as following::
 
-  from config import Config
+  from pycmt3d.config import Config
   npar = 9   # 9 paramter inversion
   config = Config(npar, dlocation=0.03, ddepth=3.0, dmoment=2.0e+23,
-      weight_data=True, weight_function=None, station_correction=True, 
-      zero_trace=True, double_couple=False, lamda_damping=0.0, 
-      bootstrap=False)
+      weight_data=True, weight_function=None, normalize_window=False,
+      norm_mode="data_and_synt", station_correction=True,
+      zero_trace=True, double_couple=False, lamda_damping=0.0,
+      bootstrap=False, bootstrap_repeat=100)
+
+* Bootstrap
+    If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation.
+
+* Window energy normalization
+    If you want the measurement from each window normalized by it's energy, you can set the flag "normalize_window = True" in config. There are two normalization mode you can choose.
+    1. norm_mode="data_and_synt"
+    2. norm_mode="data_only"
 
 Source Inversion
-########################################
+################
 After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted::
 
-  from cmt3d import Cmt3D
-  srcinv = Cmt3D(cmtsource, data.window, config)
+  from pycmt3d.cmt3d import Cmt3D
+  srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
 
 Workflow Example
-########################################
+################
 The complete workflow example is shown below::
 
-  import source
-  from window import *
-  from config import Config
-  from cmt3d import Cmt3D
+  from pycmt3d.source import CMTSource
+  from pycmt3d.window import *
+  from pycmt3d.config import Config
+  from pycmt3d.cmt3d import Cmt3D
 
   # load cmtsource
   cmtfile = "path/to/your/cmtfile"
@@ -95,5 +104,6 @@ The complete workflow example is shown below::
       bootstrap=False)
 
   # source inversion
-  srcinv = Cmt3D(cmtsource, data.window, config)
+  srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
+

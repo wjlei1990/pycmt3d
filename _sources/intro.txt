@@ -10,7 +10,7 @@ In this package, the default function is waveform differnce.
 The pacakge runs currently on one core(no parallel support) because most of the time is spend on I/O but not calculation.
 
 New features
-#####################################
+###############################
 1. Bootstrap statistical analysis.
 
   Bootstrap method is added in the inversion. So measurements will be randomly selected to ensemble the inversion. Thus we can evaluate the statistic feature of the source inversion, like mean value and standard deviation.

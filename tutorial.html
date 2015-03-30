@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Tutourial &mdash; pycmt3d 1.0 documentation</title>
+    <title>Tutorial &mdash; pycmt3d 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="pycmt3d 1.0 documentation" href="index.html" />
     <link rel="next" title="pycmt3d package" href="pycmt3d.html" />
-    <link rel="prev" title="Introduction" href="intro.html" /> 
+    <link rel="prev" title="Installation" href="install.html" /> 
   </head>
   <body>
     <div class="related">
@@ -41,7 +41,7 @@
           <a href="pycmt3d.html" title="pycmt3d package"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="intro.html" title="Introduction"
+          <a href="install.html" title="Installation"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -52,8 +52,8 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="tutourial">
-<h1>Tutourial<a class="headerlink" href="#tutourial" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
 <p>To run the inversion, one need to prepare:</p>
 <ol class="arabic simple">
 <li>Original CMTSource: CMTSource used as starting solution(Ref <a class="reference internal" href="pycmt3d.html#my-source-label"><em>pycmt3d.source module</em></a>).</li>
@@ -63,7 +63,7 @@
 <div class="section" id="cmtsource">
 <h2>CMTSource<a class="headerlink" href="#cmtsource" title="Permalink to this headline">¶</a></h2>
 <p>Source instance could be loaded as:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">source</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.source</span> <span class="kn">import</span> <span class="n">CMTSource</span>
 <span class="n">cmtfile</span> <span class="o">=</span> <span class="s">&quot;path/to/your/cmtfile&quot;</span>
 <span class="n">cmtsource</span> <span class="o">=</span> <span class="n">CMTSource</span><span class="o">.</span><span class="n">from_CMTSOLUTION_file</span><span class="p">(</span><span class="n">cmtfile</span><span class="p">)</span>
 </pre></div>
@@ -78,8 +78,8 @@
 <blockquote>
 <div><p>Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows. Another thing it needs to know is how many number of deriv synthetic files you want to read. The deriv parameter is listed as [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, hald duration].
 Data could be loaded as:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">window</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">const</span> <span class="kn">import</span> <span class="n">PAR_LIST</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.window</span> <span class="kn">import</span> <span class="n">DataContainer</span>
+<span class="kn">from</span> <span class="nn">pycmt3d.const</span> <span class="kn">import</span> <span class="n">PAR_LIST</span>
 <span class="n">npar</span> <span class="o">=</span> <span class="mi">6</span>
 <span class="n">flexwin_output</span> <span class="o">=</span> <span class="s">&quot;path/to/your/flexwin_output&quot;</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">DataContainer</span><span class="p">(</span><span class="n">flexwin_output</span><span class="p">,</span> <span class="n">PAR_LIST</span><span class="p">[:</span><span class="n">npar</span><span class="p">])</span>
@@ -104,20 +104,37 @@ Data could be loaded as:</p>
 5. Damping set to 0(no damping)
 6. Bootstrap will not be used.</p>
 <p>Code example as following:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">config</span> <span class="kn">import</span> <span class="n">Config</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.config</span> <span class="kn">import</span> <span class="n">Config</span>
 <span class="n">npar</span> <span class="o">=</span> <span class="mi">9</span>   <span class="c"># 9 paramter inversion</span>
 <span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">2.0e+23</span><span class="p">,</span>
-    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">normalize_window</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+    <span class="n">norm_mode</span><span class="o">=</span><span class="s">&quot;data_and_synt&quot;</span><span class="p">,</span> <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
     <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-    <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
 </div>
+<ul>
+<li><dl class="first docutils">
+<dt>Bootstrap</dt>
+<dd><p class="first last">If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting &#8220;boostrap = True&#8221; in the config. It will provide the mean value and the standard deviation.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Window energy normalization</dt>
+<dd><p class="first last">If you want the measurement from each window normalized by it&#8217;s energy, you can set the flag &#8220;normalize_window = True&#8221; in config. There are two normalization mode you can choose.
+1. norm_mode=&#8221;data_and_synt&#8221;
+2. norm_mode=&#8221;data_only&#8221;</p>
+</dd>
+</dl>
+</li>
+</ul>
 </div>
 <div class="section" id="source-inversion">
 <h2>Source Inversion<a class="headerlink" href="#source-inversion" title="Permalink to this headline">¶</a></h2>
 <p>After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">cmt3d</span> <span class="kn">import</span> <span class="n">Cmt3D</span>
-<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.cmt3d</span> <span class="kn">import</span> <span class="n">Cmt3D</span>
+<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 <span class="n">srcinv</span><span class="o">.</span><span class="n">source_inversion</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -125,10 +142,10 @@ Data could be loaded as:</p>
 <div class="section" id="workflow-example">
 <h2>Workflow Example<a class="headerlink" href="#workflow-example" title="Permalink to this headline">¶</a></h2>
 <p>The complete workflow example is shown below:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">source</span>
-<span class="kn">from</span> <span class="nn">window</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">config</span> <span class="kn">import</span> <span class="n">Config</span>
-<span class="kn">from</span> <span class="nn">cmt3d</span> <span class="kn">import</span> <span class="n">Cmt3D</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.source</span> <span class="kn">import</span> <span class="n">CMTSource</span>
+<span class="kn">from</span> <span class="nn">pycmt3d.window</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pycmt3d.config</span> <span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">from</span> <span class="nn">pycmt3d.cmt3d</span> <span class="kn">import</span> <span class="n">Cmt3D</span>
 
 <span class="c"># load cmtsource</span>
 <span class="n">cmtfile</span> <span class="o">=</span> <span class="s">&quot;path/to/your/cmtfile&quot;</span>
@@ -148,7 +165,7 @@ Data could be loaded as:</p>
     <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 
 <span class="c"># source inversion</span>
-<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">srcinv</span> <span class="o">=</span> <span class="n">Cmt3D</span><span class="p">(</span><span class="n">cmtsource</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 <span class="n">srcinv</span><span class="o">.</span><span class="n">source_inversion</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -163,7 +180,7 @@ Data could be loaded as:</p>
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Tutourial</a><ul>
+<li><a class="reference internal" href="#">Tutorial</a><ul>
 <li><a class="reference internal" href="#cmtsource">CMTSource</a></li>
 <li><a class="reference internal" href="#data">Data</a></li>
 <li><a class="reference internal" href="#inversion-schema">Inversion schema</a></li>
@@ -174,8 +191,8 @@ Data could be loaded as:</p>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="intro.html"
-                        title="previous chapter">Introduction</a></p>
+  <p class="topless"><a href="install.html"
+                        title="previous chapter">Installation</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="pycmt3d.html"
                         title="next chapter">pycmt3d package</a></p>
@@ -214,7 +231,7 @@ Data could be loaded as:</p>
           <a href="pycmt3d.html" title="pycmt3d package"
              >next</a> |</li>
         <li class="right" >
-          <a href="intro.html" title="Introduction"
+          <a href="install.html" title="Installation"
              >previous</a> |</li>
         <li><a href="index.html">pycmt3d 1.0 documentation</a> &raquo;</li> 
       </ul>

@@ -62,13 +62,13 @@
     <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">const</span>
-<span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">__init__</span> <span class="kn">import</span> <span class="n">logger</span>
 
+
 <div class="viewcode-block" id="default_weight_function"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.default_weight_function">[docs]</a><span class="k">def</span> <span class="nf">default_weight_function</span><span class="p">(</span><span class="n">kcmpnm</span><span class="p">,</span> <span class="n">dist_in_km</span><span class="p">,</span> <span class="n">azi_count</span><span class="p">,</span> <span class="n">nwins</span><span class="p">,</span>
-                    <span class="n">comp_r_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">comp_t_weight</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">comp_z_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
-                    <span class="n">az_exp_weight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">pnl_dist_weight</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">rayleigh_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span>
-                    <span class="n">love_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">):</span>
+                            <span class="n">comp_r_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">comp_t_weight</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">comp_z_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                            <span class="n">az_exp_weight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">pnl_dist_weight</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">rayleigh_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span>
+                            <span class="n">love_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span> <span class="n">dist_weight_mode</span><span class="o">=</span><span class="s">&quot;exponential&quot;</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Defualt weighting function</span>
@@ -90,11 +90,11 @@
     <span class="n">data_weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nwins</span><span class="p">)</span>
     <span class="c"># component weight</span>
     <span class="n">comp_direct</span> <span class="o">=</span> <span class="n">kcmpnm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;Z&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;Z&#39;</span><span class="p">:</span>
         <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_z_weight</span>
-    <span class="k">elif</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;R&#39;</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;R&#39;</span><span class="p">:</span>
         <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_r_weight</span>
-    <span class="k">elif</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">:</span>
         <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_t_weight</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The direction of component of seismic data has to be Z, R or T&#39;</span><span class="p">)</span>
@@ -102,18 +102,37 @@
     <span class="c"># distance weights</span>
     <span class="c"># for global seismograms, this obviously has to be changed</span>
     <span class="k">for</span> <span class="n">win_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nwins</span><span class="p">):</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">:</span>
             <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">love_dist_weight</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">nwins</span><span class="o">&gt;</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">win_idx</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">nwins</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">win_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">pnl_dist_weight</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">rayleigh_dist_weight</span>
 
-        <span class="c"># assemble data weights</span>
-        <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">*</span> <span class="p">((</span><span class="n">dist_in_km</span><span class="o">/</span><span class="n">const</span><span class="o">.</span><span class="n">REF_DIST</span><span class="p">)</span> <span class="o">**</span> <span class="n">dist_exp_weight</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;exponential&quot;</span><span class="p">:</span>
+            <span class="c"># exponential weight on distance</span>
+            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">*</span> <span class="p">((</span><span class="n">dist_in_km</span><span class="o">/</span><span class="n">const</span><span class="o">.</span><span class="n">REF_DIST</span><span class="p">)</span> <span class="o">**</span> <span class="n">dist_exp_weight</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;uniform&quot;</span><span class="p">:</span>
+            <span class="c"># no distance weighting</span>
+            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;damping&quot;</span><span class="p">:</span>
+            <span class="c"># damping over short distance and long distance</span>
+            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span> <span class="o">*</span> <span class="n">dist_damping_function</span><span class="p">(</span><span class="n">dist_in_km</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">data_weight</span>
+
+</div>
+<div class="viewcode-block" id="dist_damping_function"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.dist_damping_function">[docs]</a><span class="k">def</span> <span class="nf">dist_damping_function</span><span class="p">(</span><span class="n">dist_in_km</span><span class="p">):</span>
+    <span class="n">geo_degree</span> <span class="o">=</span> <span class="n">dist_in_km</span><span class="o">/</span><span class="mi">112</span>  <span class="c"># 111.325km = 1 degree</span>
+    <span class="k">if</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">60</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">geo_degree</span><span class="o">/</span><span class="mf">60.0</span>
+    <span class="k">elif</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">120</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">1.0</span>
+    <span class="k">elif</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mf">180.0</span> <span class="o">-</span> <span class="n">geo_degree</span><span class="p">)</span><span class="o">/</span><span class="mf">60.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
 
 </div>
 <div class="viewcode-block" id="Config"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.Config">[docs]</a><span class="k">class</span> <span class="nc">Config</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -126,6 +145,8 @@
 <span class="sd">    :param dmoment: moment perturbation</span>
 <span class="sd">    :param weight_data: bool value of weighting data</span>
 <span class="sd">    :param weight_function: weighting function</span>
+<span class="sd">    :param normalize_window: add window energy into the weighting term</span>
+<span class="sd">    :param norm_mode: two modes: 1) &quot;data_and_synt&quot; 2) &quot;data_only&quot;</span>
 <span class="sd">    :param station_correction: bool value of whether applies station correction</span>
 <span class="sd">    :param zero_trace: bool value of whether applies zero-trace constraint</span>
 <span class="sd">    :param double_couple: bool value of whether applied double-couple constraint</span>
@@ -136,6 +157,7 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
                  <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">normalize_window</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">norm_mode</span> <span class="o">=</span> <span class="s">&quot;data_and_synt&quot;</span><span class="p">,</span>
                  <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                  <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
                  <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
@@ -158,6 +180,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">weight_function</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">default_weight_function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize_window</span> <span class="o">=</span> <span class="n">normalize_window</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_mode</span> <span class="o">=</span> <span class="n">norm_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station_correction</span> <span class="o">=</span> <span class="n">station_correction</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">zero_trace</span> <span class="o">=</span> <span class="n">zero_trace</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">double_couple</span> <span class="o">=</span> <span class="n">double_couple</span>
@@ -176,9 +200,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">print_summary</span><span class="p">()</span>
 
-    <span class="c"># The function weight_function is to calculate the weight for different component and azimuths</span>
-    <span class="c"># The default value of input weights are based on my previous research, the user should modify it according to your circumstances</span>
-
 <div class="viewcode-block" id="Config.print_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.Config.print_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Print function of configuration</span>
@@ -187,10 +208,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">npar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npar</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="s">&quot;  Config Summary  &quot;</span> <span class="o">+</span> <span class="s">&quot;=&quot;</span><span class="o">*</span><span class="mi">10</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of Inversion Par: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">npar</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">par_name</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">])))</span>
-        <span class="c">#logger.info(&quot;delta for deriv: [%8.5f(degree), %8.5f(km), %e(dyn/nm)]&quot; %(self.dlocation, self.ddepth, self.dmoment))</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Delta: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dcmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]))))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of Inversion Par: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">npar</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Par: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">par_name</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">])))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   Delta: [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dcmt_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">scale_par</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">npar</span><span class="p">]))))</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Weighting scheme&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_data</span><span class="p">:</span>
@@ -207,7 +227,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   invert for zero-trace source ===&gt; Linear Inversion&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   No constraints applied ===&gt; Linear Inversion &quot;</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   inversion dampling lambda: </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">lamda_damping</span><span class="p">)</span></div></div>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;   inversion dampling lambda: </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lamda_damping</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
