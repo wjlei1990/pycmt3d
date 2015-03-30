@@ -6,7 +6,7 @@ Currently, the package supports two ways of installation
 --------------
 Installing the package through source code.
 
-The code is hosted on [github](https://github.com/wjlei1990/pycmt3d).
+The code is hosted on `github <https://github.com/wjlei1990/pycmt3d>`_.
 
 Use::
 
@@ -22,3 +22,5 @@ Use::
 
     pip install pycmt3d
 to install it directly from Pypi repository.
+
+(Wait please...Still under test for this method)
