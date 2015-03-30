@@ -1,5 +1,5 @@
-Tutourial
-==========================================
+Tutorial
+========
 
 To run the inversion, one need to prepare:
 
@@ -11,7 +11,7 @@ To run the inversion, one need to prepare:
 3. Inversion shema: how to inversion is done(Ref :ref:`my-config-label`)
 
 CMTSource
-#########################################
+#########
 Source instance could be loaded as::
 
   import source
@@ -19,7 +19,7 @@ Source instance could be loaded as::
   cmtsource = CMTSource.from_CMTSOLUTION_file(cmtfile)
 
 Data
-########################################
+####
 The pycmt3d pacakge takes two kinds of data.
 
 1. sac format data
@@ -40,7 +40,7 @@ The pycmt3d pacakge takes two kinds of data.
    it will be added later on...
 
 Inversion schema
-#########################################
+################
 Works partially as the INVERSION.PAR file as the fortran version.
 
 One config example is to 
@@ -62,15 +62,15 @@ Code example as following::
       bootstrap=False, bootstrap_repeat=100)
 
 * Bootstrap
-	If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation.
+    If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation.
 
 * Window energy normalization
-	If you want the measurement from each window normalized by it's energy, you can set the flag "normalize_window = True" in config. There are two normalization mode you can choose.
-		1. norm_mode="data_and_synt"
-		2. norm_mode="data_only"
+    If you want the measurement from each window normalized by it's energy, you can set the flag "normalize_window = True" in config. There are two normalization mode you can choose.
+    1. norm_mode="data_and_synt"
+    2. norm_mode="data_only"
 
 Source Inversion
-########################################
+################
 After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted::
 
   from cmt3d import Cmt3D
@@ -78,7 +78,7 @@ After get the CMTSource, Data and Inversion scheme ready, the source inversion c
   srcinv.source_inversion()
 
 Workflow Example
-########################################
+################
 The complete workflow example is shown below::
 
   import source

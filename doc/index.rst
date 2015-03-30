@@ -12,6 +12,7 @@ Welcome to pycmt3d's documentation!
    :maxdepth: 2
 
    intro
+   install
    tutorial
    pycmt3d
 
