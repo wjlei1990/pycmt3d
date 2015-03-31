@@ -14,7 +14,7 @@ CMTSource
 #########
 Source instance could be loaded as::
 
-  import source
+  from pycmt3d.source import CMTSource 
   cmtfile = "path/to/your/cmtfile"
   cmtsource = CMTSource.from_CMTSOLUTION_file(cmtfile)
 
@@ -27,8 +27,8 @@ The pycmt3d pacakge takes two kinds of data.
   Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows. Another thing it needs to know is how many number of deriv synthetic files you want to read. The deriv parameter is listed as [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, hald duration].
   Data could be loaded as::
 
-    from window import *
-    from const import PAR_LIST
+    from pycmt3d.window import DataContainer
+    from pycmt3d.const import PAR_LIST
     npar = 6
     flexwin_output = "path/to/your/flexwin_output"
     data = DataContainer(flexwin_output, PAR_LIST[:npar])
@@ -53,7 +53,7 @@ One config example is to
 
 Code example as following::
 
-  from config import Config
+  from pycmt3d.config import Config
   npar = 9   # 9 paramter inversion
   config = Config(npar, dlocation=0.03, ddepth=3.0, dmoment=2.0e+23,
       weight_data=True, weight_function=None, normalize_window=False,
@@ -73,7 +73,7 @@ Source Inversion
 ################
 After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted::
 
-  from cmt3d import Cmt3D
+  from pycmt3d.cmt3d import Cmt3D
   srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
 
@@ -81,10 +81,10 @@ Workflow Example
 ################
 The complete workflow example is shown below::
 
-  import source
-  from window import *
-  from config import Config
-  from cmt3d import Cmt3D
+  from pycmt3d.source import CMTSource
+  from pycmt3d.window import *
+  from pycmt3d.config import Config
+  from pycmt3d.cmt3d import Cmt3D
 
   # load cmtsource
   cmtfile = "path/to/your/cmtfile"
