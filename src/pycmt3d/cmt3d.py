@@ -109,17 +109,11 @@ class Cmt3D(object):
 
         :return:
         """
-        event_lat = self.cmtsource.latitude
-        event_lon = self.cmtsource.longitude
         for window in self.window:
             # calculate energy
             window.win_energy(mode=self.config.norm_mode)
             # calculate location
-            sta_lat = window.datalist['synt'].stats.sac['stla']
-            sta_lon = window.datalist['synt'].stats.sac['stlo']
-            dist_in_m, az, baz = gps2DistAzimuth(event_lat, event_lon, sta_lat, sta_lon)
-            window.dist_in_km = dist_in_m / 1000.0
-            window.azimuth = az
+            window.get_location_info(self.cmtsource)
 
     @staticmethod
     def get_azimuth_bin_number(azimuth):

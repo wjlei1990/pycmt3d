@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-try:
-    import numpy as np
-except:
-    msg = ("No module named numpy. "
-           "Please install numpy first, it is needed before using pycmt3d.")
-    raise ImportError(msg)
 
+import numpy as np
 from __init__ import logger
 from obspy import read
 import time
+from obspy.core.util.geodetics import gps2DistAzimuth
 
 
 class Window(object):
@@ -32,6 +28,13 @@ class Window(object):
         self.obsd_fn = obsd_fn
         self.synt_fn = synt_fn
         self.datalist = datalist
+
+        # location
+        self.latitude = None
+        self.longitude = None
+        # event location
+        self.event_latitude = None
+        self.event_longitude = None
 
         # for weighting
         self.azimuth = None
@@ -58,6 +61,22 @@ class Window(object):
                                             np.sum(synt.data[istart_d:iend_d]**2*dt))
             elif mode.lower() == "data_only":
                 self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
+
+    def get_location_info(self, cmtsource):
+        """
+        calculating azimuth and distance, and then store it
+
+        :param cmtsource: cmt source
+        :return:
+        """
+        self.event_latitude = cmtsource.latitude
+        self.event_longitude = cmtsource.longitude
+        # calculate location
+        self.latitude = self.datalist['synt'].stats.sac['stla']
+        self.longitude = self.datalist['synt'].stats.sac['stlo']
+        dist_in_m, az, baz = gps2DistAzimuth(self.event_latitude, self.event_longitude, self.latitude, self.longitude)
+        self.dist_in_km = dist_in_m / 1000.0
+        self.azimuth = az
 
 
 class DataContainer(object):

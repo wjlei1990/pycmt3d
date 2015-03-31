@@ -108,7 +108,7 @@ class Config(object):
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
                  weight_data=True, weight_function=None,
-                 normalize_window=False, norm_mode = "data_and_synt",
+                 normalize_window=False, norm_mode="data_only",
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
                  bootstrap=False, bootstrap_repeat=100):
