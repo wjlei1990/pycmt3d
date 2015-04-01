@@ -17,17 +17,17 @@ EARTH_HC, _, _ = gps2DistAzimuth(0,0,0, 180)
 class PlotUtil(object):
 
     def __init__(self, data_container=None, cmtsource=None, nregions=12,
-                 new_cmtsource=None, bootstrap_mean=None, bootstrap_std=None):
+                 new_cmtsource=None, bootstrap_mean=None, bootstrap_std=None,
+                 var_reduction=0.0):
         self.data_container = data_container
         self.cmtsource = cmtsource
         self.window = data_container.window
         self.nregions = nregions
 
         self.new_cmtsource = new_cmtsource
-        print bootstrap_mean
-        print bootstrap_std
         self.bootstrap_mean = bootstrap_mean
         self.bootstrap_std = bootstrap_std
+        self.var_reduction = var_reduction
 
         self.moment_tensor = [cmtsource.m_rr, cmtsource.m_tt, cmtsource.m_pp, cmtsource.m_rt, cmtsource.m_rp,
                               cmtsource.m_tp]
@@ -38,7 +38,7 @@ class PlotUtil(object):
         # station
         sta_dict = {}
         for window in self.window:
-            key = window.network + "." + window.component
+            key = window.network + "." + window.station
             if key not in sta_dict.keys():
                 sta_dict[key] = [window.latitude, window.longitude]
 
@@ -154,17 +154,29 @@ class PlotUtil(object):
         par_std = self.bootstrap_std
         std_over_mean = par_std/par_mean
         fontsize = 9
-        incre = 0.08
-        pos = 0.92
+        incre = 0.07
+        pos = 0.80
         format1 = "%15.4e  %15.4e  %15.4e  %15.4e   %10.2f%%"
         format2 = "%16.3f  %16.3f  %20.3f  %20.3f   %15.2f%%"
 
-        text = "PAR         Old_CMT          New_CMT       Bootstrap_Mean      Bootstrap_STD     STD/Mean"
+        text = "Number of stations: %d          Number of widnows: %d" %(len(self.sta_lat), self.data_container.nwins)
+        plt.text(0, 0.93, text, fontsize=10)
+
+        energy_change = (self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0
+        text = "Energy Change: %6.2f%%         Variance Reduction: %6.2f%%" %(energy_change*100, self.var_reduction*100)
+        plt.text(0, 0.86, text, fontsize=10)
+
+        text = "======================   Summary Table    ========================="
         plt.text(0, pos, text, fontsize=fontsize)
+        
+        pos -= incre
+        text = " PAR         Old_CMT          New_CMT       Bootstrap_Mean      Bootstrap_STD     STD/Mean"
+        plt.text(0, pos, text, fontsize=fontsize)
+
+        pos -= incre
         text = "Mrr:" + format1 % (self.cmtsource.m_rr, self.new_cmtsource.m_rr,
                                                                     par_mean[0], par_std[0],
                                                                     std_over_mean[0] * 100)
-        pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mtt:" + format1 % (self.cmtsource.m_tt, self.new_cmtsource.m_tt,
                                                                     par_mean[1], par_std[1],
@@ -191,7 +203,7 @@ class PlotUtil(object):
                                                                     std_over_mean[5] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
-        text = "DEP:" + format2 % (
+        text = "DEP:  " + format2 % (
                 self.cmtsource.depth_in_m / 1000.0, self.new_cmtsource.depth_in_m / 1000.0,
                 par_mean[6], par_std[6], std_over_mean[6] * 100)
         pos -= incre
@@ -201,17 +213,17 @@ class PlotUtil(object):
                 par_mean[7], par_std[7], std_over_mean[7] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
-        text = "LAT: " + format2 % (
+        text = "LAT:  " + format2 % (
                 self.cmtsource.latitude, self.new_cmtsource.latitude,
                 par_mean[8], par_std[8], std_over_mean[8] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
-        text = "CMT: " + format2 % (
+        text = "CMT:   " + format2 % (
                 self.cmtsource.time_shift, self.new_cmtsource.time_shift,
                 par_mean[9], par_std[9], std_over_mean[9] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
-        text = "HDR: " + format2 % (
+        text = "HDR:   " + format2 % (
                 self.cmtsource.half_duration, self.new_cmtsource.half_duration,
                 par_mean[10], par_std[10], std_over_mean[10] * 100)
         pos -= incre
@@ -248,7 +260,7 @@ class PlotUtil(object):
     def plot_sta_dist_azi(self):
         plt.title("Station Dist and Azi", fontsize=10)
         ax = plt.gca()
-        c = plt.scatter(self.sta_theta, self.sta_dist, marker=u'^', c='r', s=50, edgecolor='k', linewidth='0.3')
+        c = plt.scatter(self.sta_theta, self.sta_dist, marker=u'^', c='r', s=20, edgecolor='k', linewidth='0.3')
         c.set_alpha(0.75)
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
@@ -261,10 +273,11 @@ class PlotUtil(object):
         for azi in self.sta_azi:
             azimuth_array.append([azi, 1])
         bins, naz = self.calculate_azimuth_bin(azimuth_array)
+        norm_factor = np.max(naz)
 
         bars = plt.bar(bins, naz, width=(bins[1]-bins[0]), bottom=0.0)
         for r, bar in zip(naz, bars):
-            bar.set_facecolor(plt.cm.jet(r/16.))
+            bar.set_facecolor(plt.cm.jet(r/norm_factor))
             bar.set_alpha(0.5)
             bar.set_linewidth(0.3)
         #ax.set_xticklabels([])
@@ -279,10 +292,11 @@ class PlotUtil(object):
         for window in self.window:
             win_azi.append([window.azimuth, window.num_wins])
         bins, naz = self.calculate_azimuth_bin(win_azi)
+        norm_factor = np.max(naz)
 
         bars = plt.bar(bins, naz, width=(bins[1]-bins[0]), bottom=0.0)
         for r, bar in zip(naz, bars):
-            bar.set_facecolor(plt.cm.jet(r/16.))
+            bar.set_facecolor(plt.cm.jet(r/norm_factor))
             bar.set_alpha(0.5)
             bar.set_linewidth(0.3)
         #ax.set_xticklabels([])
@@ -331,7 +345,4 @@ class PlotUtil(object):
             plt.show()
         else:
             plt.savefig(figurename)
-
-
-
 

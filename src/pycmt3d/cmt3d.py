@@ -525,6 +525,9 @@ class Cmt3D(object):
 
         logger.info("Total Variance Reduced from %e to %e ===== %f %%"
                     % (var_all, var_all_new, (var_all - var_all_new) / var_all * 100))
+        self.var_all = var_all
+        self.var_all_new = var_all_new
+        self.var_reduction = (var_all - var_all_new) / var_all
 
     def calculate_var_reduction_one_trace(self, obsd, synt, win_time):
         """
