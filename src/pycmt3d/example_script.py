@@ -3,6 +3,8 @@ from source import CMTSource
 from config import Config
 from window import *
 from const import PAR_LIST
+from plot_util import *
+from const import NREGIONS
 
 eventname = "010304A"
 cmt_suffix = ".cmt_input"
@@ -22,3 +24,9 @@ testcmt = Cmt3D(cmtsource, data_con, config)
 
 testcmt.source_inversion()
 
+#plot_stat = PlotUtil(data_container=data_con, cmtsource=cmtsource, nregions=NREGIONS,
+#                    new_cmtsource=testcmt.new_cmtsource, bootstrap_mean=testcmt.par_mean,
+#                    bootstrap_std=testcmt.par_std, var_reduction=testcmt.var_reduction)
+
+#plot_stat.plot_inversion_summary()
+testcmt.plot_summary(figurename="test.png")
