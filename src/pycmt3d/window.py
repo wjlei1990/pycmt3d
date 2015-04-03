@@ -6,6 +6,7 @@ import numpy as np
 from __init__ import logger
 from obspy import read
 import time
+import os
 from obspy.core.util.geodetics import gps2DistAzimuth
 
 
@@ -92,30 +93,47 @@ class DataContainer(object):
         """
         self.flexwin_file = flexwin_file
         self.par_list = par_list
+        self.load_from_asdf = load_from_asdf
+        self.asdf_file_dict = asdf_file_dict
+
         self.window = []
         self.npar = len(par_list)
         self.nfiles = 0
         self.nwins = 0
 
         time_stamp1 = time.time()
-        if load_from_asdf:
-            # check
-            if not isinstance(asdf_file_dict, dict):
-                raise ValueError("asdf_file_dict should be dictionary. Key from par_list and "
-                                 "value is the asdf file name")
-            if len(asdf_file_dict) != (self.npar+1):
-                raise ValueError("par_list is not consistent with asdf_file_dict")
-            for key in par_list:
-                if key not in asdf_file_dict.keys():
-                    raise ValueError("key in par_list is not in asdf_file_dict")
-            self.load_winfile_asdf()
-            self.load_data_asdf()
+        if self.load_from_asdf:
+            self.asdf_ds = None
+            self.check_and_load_asdf_file()
+            self.load_winfile()
         else:
             self.load_winfile()
+
         time_stamp2 = time.time()
         self.elapsed_time = time_stamp2 - time_stamp1
 
         self.print_summary()
+
+    def check_and_load_asdf_file(self):
+        from pyasdf import ASDFDataSet
+        if not isinstance(self.asdf_file_dict, dict):
+            raise ValueError("asdf_file_dict should be dictionary. Key from par_list and "
+                             "value is the asdf file name")
+        if len(self.asdf_file_dict) != (self.npar+2):
+            raise ValueError("par_list is not consistent with asdf_file_dict")
+        for key in self.par_list:
+            if key not in self.asdf_file_dict.keys():
+                raise ValueError("key in par_list is not in asdf_file_dict")
+        if 'obsd' not in self.asdf_file_dict.keys():
+            raise ValueError("No obsd asdf file found in asdf_file_dict")
+        if 'synt' not in self.asdf_file_dict.keys():
+            raise ValueError("No synt asdf file found in asdf_file_dict")
+        dataset = {}
+        dataset['obsd'] = ASDFDataSet(self.asdf_file_dict['obsd'])
+        dataset['synt'] = ASDFDataSet(self.asdf_file_dict['synt'])
+        for deriv_par in self.par_list:
+            dataset[deriv_par] = ASDFDataSet(self.asdf_file_dict[deriv_par])
+        self.asdf_ds = dataset
 
     def load_winfile(self):
         """
@@ -138,7 +156,10 @@ class DataContainer(object):
                 win_obj = Window(num_wins=num_wins, win_time=win_time,
                                  obsd_fn=obsd_fn, synt_fn=synt_fn)
                 # load all data, observed and synthetics into the object
-                self.load_data(win_obj)
+                if self.load_from_asdf:
+                    self.load_data_from_asdf(win_obj)
+                else:
+                    self.load_data_from_sac(win_obj)
                 self.window.append(win_obj)
 
         # count the total number of files and windows
@@ -148,7 +169,7 @@ class DataContainer(object):
             nwins += window.win_time.shape[0]
         self.nwins = nwins
 
-    def load_data(self, win_obj):
+    def load_data_from_sac(self, win_obj):
         """
         Old way of loading obsd and synt data...
 
@@ -172,21 +193,25 @@ class DataContainer(object):
             synt_dev_fn = synt_fn + "." + deriv_par
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
 
-    def load_winfile_asdf(self):
-        """
-        load window file for asdf file
-
-        :return:
-        """
-        pass
-
-    def load_data_asdf(self):
+    def load_data_from_asdf(self, win_obj):
         """
         load data from asdf file
 
         :return:
         """
-        pass
+        win_obj.datalist['obsd'] = self.get_obsd_trace_from_asdf(win_obj.obsd_fn, self.asdf_ds['obsd'])
+        win_obj.datalist['synt'] = self.get_synt_trace_from_asdf(win_obj.synt_fn, self.asdf_ds['synt'])
+        for deriv_par in self.par_list:
+            win_obj.datalist[deriv_par] = self.get_synt_trace_from_asdf(win_obj.synt_fn, self.asdf_file_dict[deriv_par])
+
+    def get_obsd_trace_from_asdf(self, obsd_fn, dataset):
+        obsd_fn = os.path.basename(obsd_fn)
+        sta, network, loc, comp, type = obsd_fn.split(".")
+        
+
+
+    def get_synt_trace_from_asdf(self, synt_fn, dataset):
+        return 0
 
     def print_summary(self):
         """
