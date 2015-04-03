@@ -8,6 +8,7 @@ from obspy.core.util.geodetics import gps2DistAzimuth
 import const
 from __init__ import logger
 import util
+from plot_util import *
 
 
 class Cmt3D(object):
@@ -525,6 +526,9 @@ class Cmt3D(object):
 
         logger.info("Total Variance Reduced from %e to %e ===== %f %%"
                     % (var_all, var_all_new, (var_all - var_all_new) / var_all * 100))
+        self.var_all = var_all
+        self.var_all_new = var_all_new
+        self.var_reduction = (var_all - var_all_new) / var_all
 
     def calculate_var_reduction_one_trace(self, obsd, synt, win_time):
         """
@@ -787,3 +791,10 @@ class Cmt3D(object):
             logger.info("hdr:  %15.3f  %15.3f  %15.3f  %15.3f   %10.2f%%" % (
                 self.cmtsource.half_duration, self.new_cmtsource.half_duration,
                 self.par_mean[10], self.par_std[10], self.std_over_mean[10] * 100))
+
+    def plot_summary(self, figurename=None):
+        plot_stat = PlotUtil(data_container=self.data_container, cmtsource=self.cmtsource, nregions=const.NREGIONS,
+                             new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
+                             bootstrap_std=self.par_std, var_reduction=self.var_reduction)
+        plot_stat.plot_inversion_summary(figurename=figurename)
+
