@@ -18,7 +18,7 @@ class Window(object):
 
     def __init__(self, station=None, network=None, location=None, component=None, num_wins=0,
                  win_time=None, weight=None, obsd_fn=None, synt_fn=None,
-                 datalist=None):
+                 datalist=None, tag=None):
         self.station = station
         self.network = network
         self.location = location
@@ -41,6 +41,9 @@ class Window(object):
         self.azimuth = None
         self.dist_in_km = None
         self.energy = np.zeros(num_wins)
+
+        # Provenance information
+        self.tag = tag
 
     def win_energy(self, mode='data_and_synt'):
         """
@@ -84,64 +87,100 @@ class DataContainer(object):
     """
     Class that contains methods that load data and window information
     """
-    def __init__(self, flexwin_file, par_list, load_from_asdf=False, asdf_file_dict=None):
+    def __init__(self, par_list):
         """
         :param flexwin_file: old way of flexwin output file for cmt3d
         :param par_list: derivative parameter name list
         :param load_from_asdf: bool whether load from asdf file
         :param asdf_file_dict: asdf file dictionary.
         """
-        self.flexwin_file = flexwin_file
         self.par_list = par_list
-        self.load_from_asdf = load_from_asdf
-        self.asdf_file_dict = asdf_file_dict
 
         self.window = []
         self.npar = len(par_list)
         self.nfiles = 0
         self.nwins = 0
 
-        time_stamp1 = time.time()
-        if self.load_from_asdf:
-            self.asdf_ds = None
-            self.check_and_load_asdf_file()
-            self.load_winfile()
-        else:
-            self.load_winfile()
+        self.elapse_time = 0.0
 
-        time_stamp2 = time.time()
-        self.elapsed_time = time_stamp2 - time_stamp1
+    def add_measurements_from_sac(self, flexwinfile, tag=None):
+        """
+        Add measurments(window and data) from the given flexwinfile and the data format should be sac
 
-        self.print_summary()
+        :param flexwinfile:
+        :return:
+        """
+        win_list = self.load_winfile(flexwinfile)
+        for win_obj in win_list:
+            self.load_data_from_sac(win_obj, tag=tag)
+        self.window += win_list
+        # count the total number of files and windows
+        nfiles = len(win_list)
+        self.nfiles += nfiles
+        nwins = 0
+        for window in win_list:
+            nwins += window.win_time.shape[0]
+        self.nwins += nwins
 
-    def check_and_load_asdf_file(self):
+    def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict=None, obsd_tag=None, synt_tag=None):
+        """
+        Add measurments(window and data) from the given flexwinfile and the data format should be asdf.
+        Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in
+        asdf file.
+
+        :param flexwinfile:
+        :param asdf_file_dict:
+        :param tag:
+        :return:
+        """
+        # load window information
+        win_list = self.load_winfile(flexwinfile)
+        # load in the asdf data
+        asdf_dataset = self.check_and_load_asdf_file(asdf_file_dict)
+        # load data for each window
+        for win_obj in win_list:
+            self.load_data_from_asdf(win_obj, asdf_dataset, obsd_tag=obsd_tag, synt_tag=synt_tag)
+
+        self.window += win_list
+        # count the total number of files and windows
+        nfiles = len(win_list)
+        self.nfiles += nfiles
+        nwins = 0
+        for window in win_list:
+            nwins += window.win_time.shape[0]
+        self.nwins += nwins
+
+    def check_and_load_asdf_file(self, asdf_file_dict):
         from pyasdf import ASDFDataSet
-        if not isinstance(self.asdf_file_dict, dict):
+        if not isinstance(asdf_file_dict, dict):
             raise ValueError("asdf_file_dict should be dictionary. Key from par_list and "
                              "value is the asdf file name")
-        if len(self.asdf_file_dict) != (self.npar+2):
+        if len(asdf_file_dict) != (self.npar+2):
             raise ValueError("par_list is not consistent with asdf_file_dict")
         for key in self.par_list:
-            if key not in self.asdf_file_dict.keys():
+            if key not in asdf_file_dict.keys():
                 raise ValueError("key in par_list is not in asdf_file_dict")
-        if 'obsd' not in self.asdf_file_dict.keys():
+        if 'obsd' not in asdf_file_dict.keys():
             raise ValueError("No obsd asdf file found in asdf_file_dict")
-        if 'synt' not in self.asdf_file_dict.keys():
+        if 'synt' not in asdf_file_dict.keys():
             raise ValueError("No synt asdf file found in asdf_file_dict")
         dataset = {}
-        dataset['obsd'] = ASDFDataSet(self.asdf_file_dict['obsd'])
-        dataset['synt'] = ASDFDataSet(self.asdf_file_dict['synt'])
+        dataset['obsd'] = ASDFDataSet(asdf_file_dict['obsd'])
+        dataset['synt'] = ASDFDataSet(asdf_file_dict['synt'])
         for deriv_par in self.par_list:
-            dataset[deriv_par] = ASDFDataSet(self.asdf_file_dict[deriv_par])
-        self.asdf_ds = dataset
+            dataset[deriv_par] = ASDFDataSet(asdf_file_dict[deriv_par])
+        return dataset
 
-    def load_winfile(self):
+    @staticmethod
+    def load_winfile(flexwin_file):
         """
         old way of loading flexwin outputfile
         """
-        with open(self.flexwin_file, "r") as f:
+        win_list = []
+        with open(flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
             if num_file == 0:
+                logger.warnning("Nothing in flexwinfile: %s" %flexwin_file)
                 return
             for idx in range(num_file):
                 # keep the old format of cmt3d input
@@ -153,23 +192,12 @@ class DataContainer(object):
                     [left, right] = f.readline().strip().split()
                     win_time[iwin, 0] = float(left)
                     win_time[iwin, 1] = float(right)
-                win_obj = Window(num_wins=num_wins, win_time=win_time,
+                    win_obj = Window(num_wins=num_wins, win_time=win_time,
                                  obsd_fn=obsd_fn, synt_fn=synt_fn)
-                # load all data, observed and synthetics into the object
-                if self.load_from_asdf:
-                    self.load_data_from_asdf(win_obj)
-                else:
-                    self.load_data_from_sac(win_obj)
-                self.window.append(win_obj)
+                    win_list.append(win_obj)
+        return win_list
 
-        # count the total number of files and windows
-        self.nfiles = len(self.window)
-        nwins = 0
-        for window in self.window:
-            nwins += window.win_time.shape[0]
-        self.nwins = nwins
-
-    def load_data_from_sac(self, win_obj):
+    def load_data_from_sac(self, win_obj, tag=None):
         """
         Old way of loading obsd and synt data...
 
@@ -177,41 +205,70 @@ class DataContainer(object):
         :return:
         """
         win_obj.datalist = {}
+        win_obj.tag = {}
         obsd_fn = win_obj.obsd_fn
         synt_fn = win_obj.synt_fn
         # obsd
         obsd = read(obsd_fn)[0]
         win_obj.datalist['obsd'] = obsd
+        win_obj.tag['obsd'] =tag
         win_obj.station = obsd.stats.station
         win_obj.network = obsd.stats.network
         win_obj.component = obsd.stats.channel
         win_obj.location = obsd.stats.location
         # synt
         win_obj.datalist['synt'] = read(synt_fn)[0]
+        win_obj.tag['synt'] = tag
         # other synt data will be referred as key value: Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, dep, lat, lon, ctm, hdr
         for deriv_par in self.par_list:
             synt_dev_fn = synt_fn + "." + deriv_par
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
+            win_obj.tag[deriv_par] = tag
 
-    def load_data_from_asdf(self, win_obj):
+    def load_data_from_asdf(self, win, asdf_ds, obsd_tag=None, synt_tag=None):
         """
         load data from asdf file
 
         :return:
         """
-        win_obj.datalist['obsd'] = self.get_obsd_trace_from_asdf(win_obj.obsd_fn, self.asdf_ds['obsd'])
-        win_obj.datalist['synt'] = self.get_synt_trace_from_asdf(win_obj.synt_fn, self.asdf_ds['synt'])
+        win.datalist = {}
+        win.tag = {}
+        win.datalist['obsd'], win.tag['obsd'] = self.get_trace_from_asdf(win.obsd_fn, asdf_ds['obsd'], obsd_tag)
+        win.datalist['synt'], win.tag['synt'] = self.get_trace_from_asdf(win.synt_fn, asdf_ds['synt'], synt_tag)
         for deriv_par in self.par_list:
-            win_obj.datalist[deriv_par] = self.get_synt_trace_from_asdf(win_obj.synt_fn, self.asdf_file_dict[deriv_par])
+            win.datalist[deriv_par], win.tag[deriv_par] = self.get_trace_from_asdf(win.synt_fn, asdf_ds[deriv_par], synt_tag)
 
-    def get_obsd_trace_from_asdf(self, obsd_fn, dataset):
-        obsd_fn = os.path.basename(obsd_fn)
-        sta, network, loc, comp, type = obsd_fn.split(".")
-        
+    def get_trace_from_asdf(self, station_string, asdf_handle, tag):
+        """
+        Used to extract a specific trace out of an asdf file.
 
+        :param station_string:
+        :param asdf_handle:
+        :param tag:
+        :return:
+        """
+        # just in case people put the whole path, which has no meaning if asdf is used
+        station_string = os.path.basename(station_string)
+        network, station, loc, comp, type = station_string.split(".")
+        if len(network) >= 3 and len(station) <=2:
+            # in case people have different naming conventions
+            temp_string = network
+            network = station
+            station = temp_string
 
-    def get_synt_trace_from_asdf(self, synt_fn, dataset):
-        return 0
+        station_name = network + "_" + station
+        # get the tag
+        st = getattr(asdf_handle.waveforms, station_name)
+        attr_list = dir(st)
+        stream_attr = attr_list.remove('StationXML')
+        if tag is None or tag == "":
+            if len(stream_attr) != 1:
+                raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag")
+            stream = getattr(st, stream_attr[0])
+        else:
+            stream = getattr(st, tag)
+        tr = stream.select(network=network, station=station, channel=comp, location=loc)
+        return tr, tag
 
     def print_summary(self):
         """
