@@ -108,10 +108,10 @@ class Config(object):
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
                  weight_data=True, weight_function=None,
-                 normalize_window=False, norm_mode="data_only",
+                 normalize_window=True, norm_mode="data_only",
                  station_correction=True, zero_trace=True,
                  double_couple=False, lamda_damping=0.0,
-                 bootstrap=False, bootstrap_repeat=100):
+                 bootstrap=True, bootstrap_repeat=300):
 
         self.npar = npar
         if self.npar not in [6, 7, 9, 10, 11]:

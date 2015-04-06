@@ -152,7 +152,7 @@ class PlotUtil(object):
     def plot_table(self):
         par_mean = self.bootstrap_mean
         par_std = self.bootstrap_std
-        std_over_mean = par_std/par_mean
+        std_over_mean = par_std/np.abs(par_mean)
         fontsize = 9
         incre = 0.07
         pos = 0.80
@@ -265,6 +265,8 @@ class PlotUtil(object):
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
         ax.set_rmax(1.0)
+        ax.set_theta_zero_location('N')
+        ax.set_theta_direction(-1)
 
     def plot_sta_azi(self):
         # set plt.subplot(***, polar=True)
@@ -284,6 +286,9 @@ class PlotUtil(object):
         #ax.set_yticklabels([])
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
+        ax = plt.gca()
+        ax.set_theta_zero_location('N')
+        ax.set_theta_direction(-1)
 
     def plot_win_azi(self):
         # set plt.subplot(***, polar=True)
@@ -303,6 +308,9 @@ class PlotUtil(object):
         #ax.set_yticklabels([])
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
+        ax = plt.gca()
+        ax.set_theta_zero_location('N')
+        ax.set_theta_direction(-1)
 
     def plot_all_stat(self, figurename=None):
         plt.figure(figsize=(10, 7), facecolor='w', edgecolor='k')

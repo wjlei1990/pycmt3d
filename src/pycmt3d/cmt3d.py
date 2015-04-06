@@ -425,7 +425,7 @@ class Cmt3D(object):
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
-        self.std_over_mean = self.par_std / np.abs(self.par_mean)
+        self.std_over_mean = np.abs(self.par_std / self.par_mean)
 
     def source_inversion(self):
         self.setup_matrix()

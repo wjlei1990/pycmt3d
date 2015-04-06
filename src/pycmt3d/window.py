@@ -8,6 +8,7 @@ from obspy import read
 import time
 import os
 from obspy.core.util.geodetics import gps2DistAzimuth
+from obspy import read_inventory
 
 
 class Window(object):
@@ -18,7 +19,7 @@ class Window(object):
 
     def __init__(self, station=None, network=None, location=None, component=None, num_wins=0,
                  win_time=None, weight=None, obsd_fn=None, synt_fn=None,
-                 datalist=None, tag=None):
+                 datalist=None, tag=None, source=None):
         self.station = station
         self.network = network
         self.location = location
@@ -44,6 +45,7 @@ class Window(object):
 
         # Provenance information
         self.tag = tag
+        self.source = source
 
     def win_energy(self, mode='data_and_synt'):
         """
@@ -76,8 +78,8 @@ class Window(object):
         self.event_latitude = cmtsource.latitude
         self.event_longitude = cmtsource.longitude
         # calculate location
-        self.latitude = self.datalist['synt'].stats.sac['stla']
-        self.longitude = self.datalist['synt'].stats.sac['stlo']
+        #self.latitude = self.datalist['synt'].stats.sac['stla']
+        #self.longitude = self.datalist['synt'].stats.sac['stlo']
         dist_in_m, az, baz = gps2DistAzimuth(self.event_latitude, self.event_longitude, self.latitude, self.longitude)
         self.dist_in_km = dist_in_m / 1000.0
         self.azimuth = az
@@ -122,7 +124,7 @@ class DataContainer(object):
             nwins += window.win_time.shape[0]
         self.nwins += nwins
 
-    def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict=None, obsd_tag=None, synt_tag=None):
+    def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be asdf.
         Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in
@@ -133,6 +135,7 @@ class DataContainer(object):
         :param tag:
         :return:
         """
+        t1 = time.time()
         # load window information
         win_list = self.load_winfile(flexwinfile)
         # load in the asdf data
@@ -149,6 +152,11 @@ class DataContainer(object):
         for window in win_list:
             nwins += window.win_time.shape[0]
         self.nwins += nwins
+        t2 = time.time()
+        logger.info("="*10 + " Measurements Loading " + "="*10)
+        logger.info("Data loaded in asdf format: %s" % flexwinfile)
+        logger.info("Elapsed time: %5.2f s" %(t2-t1))
+        logger.info("Number of files and window added: [%d, %d]" %(nfiles, nwins))
 
     def check_and_load_asdf_file(self, asdf_file_dict):
         from pyasdf import ASDFDataSet
@@ -225,18 +233,65 @@ class DataContainer(object):
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
             win_obj.tag[deriv_par] = tag
 
+        # station information
+        win_obj.longitude = win_obj.datalist['synt'].stats.sac['stlo']
+        win_obj.latitude = win_obj.datalist['synt'].stats.sac['stla']
+        
+        # specify metadata infor
+        win_obj.source = "sac"
+
     def load_data_from_asdf(self, win, asdf_ds, obsd_tag=None, synt_tag=None):
         """
         load data from asdf file
 
         :return:
         """
+        # trace
         win.datalist = {}
         win.tag = {}
         win.datalist['obsd'], win.tag['obsd'] = self.get_trace_from_asdf(win.obsd_fn, asdf_ds['obsd'], obsd_tag)
         win.datalist['synt'], win.tag['synt'] = self.get_trace_from_asdf(win.synt_fn, asdf_ds['synt'], synt_tag)
         for deriv_par in self.par_list:
             win.datalist[deriv_par], win.tag[deriv_par] = self.get_trace_from_asdf(win.synt_fn, asdf_ds[deriv_par], synt_tag)
+
+        win.station = win.datalist['obsd'].stats.station
+        win.network = win.datalist['obsd'].stats.network
+        win.component = win.datalist['obsd'].stats.channel
+        win.location = win.datalist['obsd'].stats.location
+
+        # station information
+        inv = self.get_stationxml_from_asdf(win.obsd_fn, asdf_ds['obsd'])
+        win.latitude = float(inv[0][0].latitude)
+        win.longitude = float(inv[0][0].longitude)
+
+        # specify metadata infor
+        win.source = "asdf"
+
+    def get_stationxml_from_asdf(self, station_string, asdf_handle):
+        """
+        Used to extrace station location information from stationxml in asdf
+
+        """
+        station_string = os.path.basename(station_string)
+        station_info = station_string.split(".")
+        if len(station_info) == 5:
+            [network, station, loc, comp, type] = station_info
+        elif len(station_info) == 4:
+            [network, station, comp, type] = station_info
+        else:
+            raise ValueError("station string not correct:%s" %station_info)
+
+        if len(network) >= 3 and len(station) <=2:
+            # in case people have different naming conventions
+            temp_string = network
+            network = station
+            station = temp_string
+
+        station_name = network + "_" + station
+        # get the tag
+        st = getattr(asdf_handle.waveforms, station_name)
+        inv = getattr(st,'StationXML')
+        return inv
 
     def get_trace_from_asdf(self, station_string, asdf_handle, tag):
         """
@@ -247,9 +302,16 @@ class DataContainer(object):
         :param tag:
         :return:
         """
-        # just in case people put the whole path, which has no meaning if asdf is used
+        # just in case people put the whole path, which has no meaning if asy14ydf is used
         station_string = os.path.basename(station_string)
-        network, station, loc, comp, type = station_string.split(".")
+        station_info = station_string.split(".")
+        if len(station_info) == 5:
+            [network, station, loc, comp, type] = station_info
+        elif len(station_info) == 4:
+            [network, station, comp, type] = station_info
+        else:
+            raise ValueError("station string not correct:%s" %station_info)
+
         if len(network) >= 3 and len(station) <=2:
             # in case people have different naming conventions
             temp_string = network
@@ -260,16 +322,21 @@ class DataContainer(object):
         # get the tag
         st = getattr(asdf_handle.waveforms, station_name)
         attr_list = dir(st)
-        stream_attr = attr_list.remove('StationXML')
+        attr_list.remove('StationXML')
         if tag is None or tag == "":
-            if len(stream_attr) != 1:
-                raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag")
-            stream = getattr(st, stream_attr[0])
+            if len(attr_list) != 1:
+                raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s" 
+                                % attr_list)
+            stream = getattr(st, attr_list[0])
         else:
             stream = getattr(st, tag)
-        tr = stream.select(network=network, station=station, channel=comp, location=loc)
-        return tr, tag
+        if len(station_info) == 5:
+            tr = stream.select(network=network, station=station, channel=comp, location=loc)[0]
+        else:
+            tr = stream.select(network=network, station=station, channel=comp)[0]
 
+        return tr, tag
+    
     def print_summary(self):
         """
         Print summary of data container
