@@ -112,9 +112,11 @@ class DataContainer(object):
         :param flexwinfile:
         :return:
         """
+        t1 = time.time()
         win_list = self.load_winfile(flexwinfile)
         for win_obj in win_list:
             self.load_data_from_sac(win_obj, tag=tag)
+
         self.window += win_list
         # count the total number of files and windows
         nfiles = len(win_list)
@@ -123,6 +125,11 @@ class DataContainer(object):
         for window in win_list:
             nwins += window.win_time.shape[0]
         self.nwins += nwins
+        t2 = time.time()
+        logger.info("="*10 + " Measurements Loading " + "="*10)
+        logger.info("Data loaded in sac format: %s" % flexwinfile)
+        logger.info("Elapsed time: %5.2f s" %(t2-t1))
+        logger.info("Number of files and window added: [%d, %d]" %(nfiles, nwins))
 
     def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None):
         """
