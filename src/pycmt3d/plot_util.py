@@ -11,7 +11,7 @@ from obspy.imaging.beachball import Beach
 import matplotlib.gridspec as gridspec
 
 # earth half circle
-EARTH_HC, _, _ = gps2DistAzimuth(0,0,0, 180)
+EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
 
 
 class PlotUtil(object):
@@ -89,7 +89,7 @@ class PlotUtil(object):
         :return:
         """
         delta = 2*np.pi/self.nregions
-        bins = [ delta*i for i in range(self.nregions)]
+        bins = [delta*i for i in range(self.nregions)]
 
         naz_wins = np.zeros(self.nregions)
         for azimuth in azimuth_array:
@@ -105,17 +105,17 @@ class PlotUtil(object):
         b = Beach(mt, linewidth=1, xy=(0, 0.6), width=1.5, size=2, facecolor='r')
         ax.add_collection(b)
         # set axis
-        ax.set_xlim([-1,1])
-        ax.set_ylim([-1,1.5])
+        ax.set_xlim([-1, 1])
+        ax.set_ylim([-1, 1.5])
         ax.set_aspect('equal')
         # magnitude
-        text = "Mw=%4.3f" %cmt.moment_magnitude
+        text = "Mw=%4.3f" % cmt.moment_magnitude
         plt.text(-0.9, -0.3, text, fontsize=7)
         # lat and lon
-        text = "lat=%6.3f$^\circ$; lon=%6.3f$^\circ$" %(cmt.latitude, cmt.longitude)
+        text = "lat=%6.3f$^\circ$; lon=%6.3f$^\circ$" % (cmt.latitude, cmt.longitude)
         plt.text(-0.9, -0.5, text, fontsize=7)
-        #depth
-        text = "dep=%6.3f km;" %(cmt.depth_in_m/1000.0)
+        # depth
+        text = "dep=%6.3f km;" % (cmt.depth_in_m/1000.0)
         plt.text(-0.9, -0.7, text, fontsize=7)
         ax.set_xticks([])
         ax.set_yticks([])
@@ -131,23 +131,22 @@ class PlotUtil(object):
         b = Beach(mt, linewidth=1, xy=(0, 0.6), width=1.5, size=2, facecolor='r')
         ax.add_collection(b)
         # set axis
-        ax.set_xlim([-1,1])
-        ax.set_ylim([-1,1.5])
+        ax.set_xlim([-1, 1])
+        ax.set_ylim([-1, 1.5])
         ax.set_aspect('equal')
         # magnitude
-        text = r"$\Delta$Mw=%4.3f" %(cmt.moment_magnitude-cmt_init.moment_magnitude)
+        text = r"$\Delta$Mw=%4.3f" % (cmt.moment_magnitude-cmt_init.moment_magnitude)
         plt.text(-0.9, -0.3, text, fontsize=7)
         # lat and lon
-        text = r"$\Delta$lat=%6.3f$^\circ$; $\Delta$lon=%6.3f$^\circ$" %(cmt.latitude-cmt_init.latitude, cmt.longitude-cmt_init.longitude)
+        text = r"$\Delta$lat=%6.3f$^\circ$; $\Delta$lon=%6.3f$^\circ$" % (cmt.latitude-cmt_init.latitude, cmt.longitude-cmt_init.longitude)
         plt.text(-0.9, -0.5, text, fontsize=7)
-        #depth
-        text = r"$\Delta$dep=%6.3f km;" %((cmt.depth_in_m-cmt_init.depth_in_m)/1000.0)
+        # depth
+        text = r"$\Delta$dep=%6.3f km;" % ((cmt.depth_in_m-cmt_init.depth_in_m)/1000.0)
         plt.text(-0.9, -0.7, text, fontsize=7)
         ax.set_xticks([])
         ax.set_yticks([])
         text = tag
         plt.text(-0.9, 1.3, text, fontsize=7)
-
 
     def plot_table(self):
         par_mean = self.bootstrap_mean
@@ -159,73 +158,67 @@ class PlotUtil(object):
         format1 = "%15.4e  %15.4e  %15.4e  %15.4e   %10.2f%%"
         format2 = "%16.3f  %16.3f  %20.3f  %20.3f   %15.2f%%"
 
-        text = "Number of stations: %d          Number of widnows: %d" %(len(self.sta_lat), self.data_container.nwins)
+        text = "Number of stations: %d          Number of widnows: %d" % (len(self.sta_lat), self.data_container.nwins)
         plt.text(0, 0.93, text, fontsize=10)
 
         energy_change = (self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0
-        text = "Energy Change: %6.2f%%         Variance Reduction: %6.2f%%" %(energy_change*100, self.var_reduction*100)
+        text = "Energy Change: %6.2f%%         Variance Reduction: %6.2f%%" % (energy_change*100, self.var_reduction*100)
         plt.text(0, 0.86, text, fontsize=10)
 
         text = "======================   Summary Table    ========================="
         plt.text(0, pos, text, fontsize=fontsize)
-        
+
         pos -= incre
         text = " PAR         Old_CMT          New_CMT       Bootstrap_Mean      Bootstrap_STD     STD/Mean"
         plt.text(0, pos, text, fontsize=fontsize)
 
         pos -= incre
         text = "Mrr:" + format1 % (self.cmtsource.m_rr, self.new_cmtsource.m_rr,
-                                                                    par_mean[0], par_std[0],
-                                                                    std_over_mean[0] * 100)
+                                   par_mean[0], par_std[0], std_over_mean[0] * 100)
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mtt:" + format1 % (self.cmtsource.m_tt, self.new_cmtsource.m_tt,
-                                                                    par_mean[1], par_std[1],
-                                                                    std_over_mean[1] * 100)
+                                   par_mean[1], par_std[1], std_over_mean[1] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mpp:" + format1 % (self.cmtsource.m_pp, self.new_cmtsource.m_pp,
-                                                                    par_mean[2], par_std[2],
-                                                                    std_over_mean[2] * 100)
+                                   par_mean[2], par_std[2], std_over_mean[2] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mrt:" + format1 % (self.cmtsource.m_rt, self.new_cmtsource.m_rt,
-                                                                    par_mean[3], par_std[3],
-                                                                    std_over_mean[3] * 100)
+                                   par_mean[3], par_std[3], std_over_mean[3] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mrp:" + format1 % (self.cmtsource.m_rp, self.new_cmtsource.m_rp,
-                                                                    par_mean[4], par_std[4],
-                                                                    std_over_mean[4] * 100)
+                                   par_mean[4], par_std[4], std_over_mean[4] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mtp:" + format1 % (self.cmtsource.m_tp, self.new_cmtsource.m_tp,
-                                                                    par_mean[5], par_std[5],
-                                                                    std_over_mean[5] * 100)
+                                   par_mean[5], par_std[5], std_over_mean[5] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "DEP:  " + format2 % (
-                self.cmtsource.depth_in_m / 1000.0, self.new_cmtsource.depth_in_m / 1000.0,
-                par_mean[6], par_std[6], std_over_mean[6] * 100)
+               self.cmtsource.depth_in_m / 1000.0, self.new_cmtsource.depth_in_m / 1000.0,
+               par_mean[6], par_std[6], std_over_mean[6] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "LON:" + format2 % (
-                self.cmtsource.longitude, self.new_cmtsource.longitude,
-                par_mean[7], par_std[7], std_over_mean[7] * 100)
+               self.cmtsource.longitude, self.new_cmtsource.longitude,
+               par_mean[7], par_std[7], std_over_mean[7] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "LAT:  " + format2 % (
-                self.cmtsource.latitude, self.new_cmtsource.latitude,
-                par_mean[8], par_std[8], std_over_mean[8] * 100)
+               self.cmtsource.latitude, self.new_cmtsource.latitude,
+               par_mean[8], par_std[8], std_over_mean[8] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "CMT:   " + format2 % (
-                self.cmtsource.time_shift, self.new_cmtsource.time_shift,
-                par_mean[9], par_std[9], std_over_mean[9] * 100)
+               self.cmtsource.time_shift, self.new_cmtsource.time_shift,
+               par_mean[9], par_std[9], std_over_mean[9] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "HDR:   " + format2 % (
-                self.cmtsource.half_duration, self.new_cmtsource.half_duration,
-                par_mean[10], par_std[10], std_over_mean[10] * 100)
+               self.cmtsource.half_duration, self.new_cmtsource.half_duration,
+               par_mean[10], par_std[10], std_over_mean[10] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         plt.axis('off')
@@ -234,7 +227,7 @@ class PlotUtil(object):
         """
         Plot global map of event and stations
         """
-        #ax = plt.subplot(211)
+        # ax = plt.subplot(211)
         plt.title(self.cmtsource.eventname)
         m = Basemap(projection='cyl', lon_0=142.36929, lat_0=0.0,
                     resolution='c')
@@ -282,8 +275,8 @@ class PlotUtil(object):
             bar.set_facecolor(plt.cm.jet(r/norm_factor))
             bar.set_alpha(0.5)
             bar.set_linewidth(0.3)
-        #ax.set_xticklabels([])
-        #ax.set_yticklabels([])
+        # ax.set_xticklabels([])
+        # ax.set_yticklabels([])
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
         ax = plt.gca()
@@ -304,8 +297,8 @@ class PlotUtil(object):
             bar.set_facecolor(plt.cm.jet(r/norm_factor))
             bar.set_alpha(0.5)
             bar.set_linewidth(0.3)
-        #ax.set_xticklabels([])
-        #ax.set_yticklabels([])
+        # ax.set_xticklabels([])
+        # ax.set_yticklabels([])
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
         ax = plt.gca()
@@ -315,15 +308,15 @@ class PlotUtil(object):
     def plot_all_stat(self, figurename=None):
         plt.figure(figsize=(10, 7), facecolor='w', edgecolor='k')
         G = gridspec.GridSpec(2, 3)
-        ax = plt.subplot(G[0,:-1])
+        ax = plt.subplot(G[0, :-1])
         self.plot_global_map()
-        ax = plt.subplot(G[1,0],  polar=True)
+        ax = plt.subplot(G[1, 0],  polar=True)
         self.plot_sta_dist_azi()
-        ax = plt.subplot(G[1,1], polar=True)
+        ax = plt.subplot(G[1, 1], polar=True)
         self.plot_sta_azi()
-        ax = plt.subplot(G[1,2], polar=True)
+        ax = plt.subplot(G[1, 2], polar=True)
         self.plot_win_azi()
-        ax = plt.subplot(G[0,2])
+        ax = plt.subplot(G[0, 2])
         self.plot_si_bb(ax, self.cmtsource)
         if figurename is None:
             plt.show()
@@ -331,26 +324,25 @@ class PlotUtil(object):
             plt.savefig(figurename)
 
     def plot_inversion_summary(self, figurename=None):
-        if self.new_cmtsource == None:
+        if self.new_cmtsource is None:
             raise ValueError("No new cmtsource...Can't plot summary")
         plt.figure(figsize=(12, 12), facecolor='w', edgecolor='k')
         G = gridspec.GridSpec(3, 3)
-        ax = plt.subplot(G[0,:-1])
+        ax = plt.subplot(G[0, :-1])
         self.plot_global_map()
-        ax = plt.subplot(G[1,0],  polar=True)
+        ax = plt.subplot(G[1, 0],  polar=True)
         self.plot_sta_dist_azi()
-        ax = plt.subplot(G[1,1], polar=True)
+        ax = plt.subplot(G[1, 1], polar=True)
         self.plot_sta_azi()
-        ax = plt.subplot(G[1,2], polar=True)
+        ax = plt.subplot(G[1, 2], polar=True)
         self.plot_win_azi()
-        ax = plt.subplot(G[0,2])
+        ax = plt.subplot(G[0, 2])
         self.plot_si_bb(ax, self.cmtsource)
-        ax = plt.subplot(G[2,2])
+        ax = plt.subplot(G[2, 2])
         self.plot_si_bb_comp(ax, self.new_cmtsource, self.cmtsource, "Inversion")
-        ax = plt.subplot(G[2,:-1])
+        ax = plt.subplot(G[2, :-1])
         self.plot_table()
         if figurename is None:
             plt.show()
         else:
             plt.savefig(figurename)
-

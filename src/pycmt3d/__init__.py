@@ -4,7 +4,7 @@ import os
 
 # setup the logger
 logger = logging.getLogger("pycmt3d")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logger.propagate = 0
 
 if os.path.exists("log.txt"):

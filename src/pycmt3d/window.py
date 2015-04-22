@@ -78,8 +78,6 @@ class Window(object):
         self.event_latitude = cmtsource.latitude
         self.event_longitude = cmtsource.longitude
         # calculate location
-        #self.latitude = self.datalist['synt'].stats.sac['stla']
-        #self.longitude = self.datalist['synt'].stats.sac['stlo']
         dist_in_m, az, baz = gps2DistAzimuth(self.event_latitude, self.event_longitude, self.latitude, self.longitude)
         self.dist_in_km = dist_in_m / 1000.0
         self.azimuth = az
@@ -128,8 +126,8 @@ class DataContainer(object):
         t2 = time.time()
         logger.info("="*10 + " Measurements Loading " + "="*10)
         logger.info("Data loaded in sac format: %s" % flexwinfile)
-        logger.info("Elapsed time: %5.2f s" %(t2-t1))
-        logger.info("Number of files and window added: [%d, %d]" %(nfiles, nwins))
+        logger.info("Elapsed time: %5.2f s" % (t2-t1))
+        logger.info("Number of files and window added: [%d, %d]" % (nfiles, nwins))
 
     def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None):
         """
@@ -162,8 +160,8 @@ class DataContainer(object):
         t2 = time.time()
         logger.info("="*10 + " Measurements Loading " + "="*10)
         logger.info("Data loaded in asdf format: %s" % flexwinfile)
-        logger.info("Elapsed time: %5.2f s" %(t2-t1))
-        logger.info("Number of files and window added: [%d, %d]" %(nfiles, nwins))
+        logger.info("Elapsed time: %5.2f s" % (t2-t1))
+        logger.info("Number of files and window added: [%d, %d]" % (nfiles, nwins))
 
     def check_and_load_asdf_file(self, asdf_file_dict):
         from pyasdf import ASDFDataSet
@@ -195,7 +193,7 @@ class DataContainer(object):
         with open(flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
             if num_file == 0:
-                logger.warnning("Nothing in flexwinfile: %s" %flexwin_file)
+                logger.warnning("Nothing in flexwinfile: %s" % flexwin_file)
                 return
             for idx in range(num_file):
                 # keep the old format of cmt3d input
@@ -208,7 +206,7 @@ class DataContainer(object):
                     win_time[iwin, 0] = float(left)
                     win_time[iwin, 1] = float(right)
                     win_obj = Window(num_wins=num_wins, win_time=win_time,
-                                 obsd_fn=obsd_fn, synt_fn=synt_fn)
+                                     obsd_fn=obsd_fn, synt_fn=synt_fn)
                     win_list.append(win_obj)
         return win_list
 
@@ -226,7 +224,7 @@ class DataContainer(object):
         # obsd
         obsd = read(obsd_fn)[0]
         win_obj.datalist['obsd'] = obsd
-        win_obj.tag['obsd'] =tag
+        win_obj.tag['obsd'] = tag
         win_obj.station = obsd.stats.station
         win_obj.network = obsd.stats.network
         win_obj.component = obsd.stats.channel
@@ -243,7 +241,6 @@ class DataContainer(object):
         # station information
         win_obj.longitude = win_obj.datalist['synt'].stats.sac['stlo']
         win_obj.latitude = win_obj.datalist['synt'].stats.sac['stla']
-        
         # specify metadata infor
         win_obj.source = "sac"
 
@@ -286,9 +283,9 @@ class DataContainer(object):
         elif len(station_info) == 4:
             [network, station, comp, type] = station_info
         else:
-            raise ValueError("station string not correct:%s" %station_info)
+            raise ValueError("station string not correct:%s" % station_info)
 
-        if len(network) >= 3 and len(station) <=2:
+        if len(network) >= 3 and len(station) <= 2:
             # in case people have different naming conventions
             temp_string = network
             network = station
@@ -297,7 +294,7 @@ class DataContainer(object):
         station_name = network + "_" + station
         # get the tag
         st = getattr(asdf_handle.waveforms, station_name)
-        inv = getattr(st,'StationXML')
+        inv = getattr(st, 'StationXML')
         return inv
 
     def get_trace_from_asdf(self, station_string, asdf_handle, tag):
@@ -317,9 +314,9 @@ class DataContainer(object):
         elif len(station_info) == 4:
             [network, station, comp, type] = station_info
         else:
-            raise ValueError("station string not correct:%s" %station_info)
+            raise ValueError("station string not correct:%s" % station_info)
 
-        if len(network) >= 3 and len(station) <=2:
+        if len(network) >= 3 and len(station) <= 2:
             # in case people have different naming conventions
             temp_string = network
             network = station
@@ -332,8 +329,8 @@ class DataContainer(object):
         attr_list.remove('StationXML')
         if tag is None or tag == "":
             if len(attr_list) != 1:
-                raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s" 
-                                % attr_list)
+                raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s"
+                                 % attr_list)
             stream = getattr(st, attr_list[0])
         else:
             stream = getattr(st, tag)
@@ -343,7 +340,7 @@ class DataContainer(object):
             tr = stream.select(network=network, station=station, channel=comp)[0]
 
         return tr, tag
-    
+
     def print_summary(self):
         """
         Print summary of data container

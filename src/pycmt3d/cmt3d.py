@@ -479,8 +479,8 @@ class Cmt3D(object):
         moment_tensor = np.array([[m[0], m[3], m[4]], [m[3], m[1], m[5]], [m[4], m[5], m[2]]])
         f0[npar + 1] = np.linalg.det(moment_tensor)
         f0[npar + 1] = m[0] * (m[1] * m[2] - m[5] ** 2) \
-                     - m[3] * (m[3] * m[2] - m[5] * m[4]) \
-                     + m[4] * (m[3] * m[5] - m[4] * m[1])
+            - m[3] * (m[3] * m[2] - m[5] * m[4]) \
+            + m[4] * (m[3] * m[5] - m[4] * m[1])
 
         # Y_jk
         dc2_dmi_dmj = np.zeros([6, 6])
@@ -797,4 +797,3 @@ class Cmt3D(object):
                              new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
                              bootstrap_std=self.par_std, var_reduction=self.var_reduction)
         plot_stat.plot_inversion_summary(figurename=figurename)
-
