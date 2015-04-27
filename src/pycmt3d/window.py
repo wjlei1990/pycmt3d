@@ -335,9 +335,9 @@ class DataContainer(object):
         else:
             stream = getattr(st, tag)
         if len(station_info) == 5:
-            tr = stream.select(network=network, station=station, channel=comp, location=loc)[0]
+            tr = stream.select(network=network, station=station, channel="*%s" %comp[-1:], location=loc)[0]
         else:
-            tr = stream.select(network=network, station=station, channel=comp)[0]
+            tr = stream.select(network=network, station=station, channel="*%s" %comp[-1:])[0]
 
         return tr, tag
 
