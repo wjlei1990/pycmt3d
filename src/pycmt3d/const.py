@@ -51,7 +51,7 @@ NREGIONS = 12
 REF_DIST = 100.0
 
 # Earth's radius for depth scaling
-R_EARTH=6371  # km
+R_EARTH = 6371  # km
 
 # Max step in non-linear solvoer
 NMAX_NL_ITER = 30
