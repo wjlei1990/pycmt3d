@@ -646,6 +646,12 @@ class Cmt3D(object):
                                        m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3], m_rp=newcmt[4],
                                        m_tp=newcmt[5])
 
+    def write_new_cmtfile(self, cmtfile):
+        """
+        Write new_cmtsource into a file
+        """
+        self.new_cmtsource.write_CMTSOLUTION_file(cmtfile)
+
     @staticmethod
     def _xcorr_win_(obsd, synt):
         cc = np.correlate(obsd, synt, mode="full")

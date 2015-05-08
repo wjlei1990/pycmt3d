@@ -129,7 +129,8 @@ class DataContainer(object):
         logger.info("Elapsed time: %5.2f s" % (t2-t1))
         logger.info("Number of files and window added: [%d, %d]" % (nfiles, nwins))
 
-    def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None):
+    def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None,
+                                   stationfile=None):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be asdf.
         Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in
@@ -145,9 +146,14 @@ class DataContainer(object):
         win_list = self.load_winfile(flexwinfile)
         # load in the asdf data
         asdf_dataset = self.check_and_load_asdf_file(asdf_file_dict)
+        if stationfile is not None:
+            station_info = self.load_station_from_text(stationfile)
+        else:
+            station_info = None
         # load data for each window
         for win_obj in win_list:
-            self.load_data_from_asdf(win_obj, asdf_dataset, obsd_tag=obsd_tag, synt_tag=synt_tag)
+            self.load_data_from_asdf(win_obj, asdf_dataset, obsd_tag=obsd_tag, synt_tag=synt_tag,
+                                     station_dict = station_info)
 
         self.window += win_list
         # count the total number of files and windows
@@ -193,7 +199,7 @@ class DataContainer(object):
         with open(flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
             if num_file == 0:
-                logger.warnning("Nothing in flexwinfile: %s" % flexwin_file)
+                logger.warning("Nothing in flexwinfile: %s" % flexwin_file)
                 return
             for idx in range(num_file):
                 # keep the old format of cmt3d input
@@ -205,9 +211,9 @@ class DataContainer(object):
                     [left, right] = f.readline().strip().split()
                     win_time[iwin, 0] = float(left)
                     win_time[iwin, 1] = float(right)
-                    win_obj = Window(num_wins=num_wins, win_time=win_time,
+                win_obj = Window(num_wins=num_wins, win_time=win_time,
                                      obsd_fn=obsd_fn, synt_fn=synt_fn)
-                    win_list.append(win_obj)
+                win_list.append(win_obj)
         return win_list
 
     def load_data_from_sac(self, win_obj, tag=None):
@@ -244,7 +250,7 @@ class DataContainer(object):
         # specify metadata infor
         win_obj.source = "sac"
 
-    def load_data_from_asdf(self, win, asdf_ds, obsd_tag=None, synt_tag=None):
+    def load_data_from_asdf(self, win, asdf_ds, obsd_tag=None, synt_tag=None, station_dict=None):
         """
         load data from asdf file
 
@@ -264,9 +270,14 @@ class DataContainer(object):
         win.location = win.datalist['obsd'].stats.location
 
         # station information
-        inv = self.get_stationxml_from_asdf(win.obsd_fn, asdf_ds['obsd'])
-        win.latitude = float(inv[0][0].latitude)
-        win.longitude = float(inv[0][0].longitude)
+        if station_dict is None:
+            inv = self.get_stationxml_from_asdf(win.obsd_fn, asdf_ds['obsd'])
+            win.latitude = float(inv[0][0].latitude)
+            win.longitude = float(inv[0][0].longitude)
+        else:
+            key = "_".join([win.network, win.station])
+            win.latitude = station_dict[key][0]
+            win.longitude = station_dict[key][1]
 
         # specify metadata infor
         win.source = "asdf"
@@ -340,6 +351,19 @@ class DataContainer(object):
             tr = stream.select(network=network, station=station, channel="*%s" %comp[-1:])[0]
 
         return tr, tag
+
+    @staticmethod
+    def load_station_from_text(stationfile):
+        station_dict = {}
+        with open(stationfile, 'r') as f:
+            content = f.readlines()
+            content = [ line.rstrip('\n') for line in content ]
+            for line in content:
+                info = line.split()
+                key = "_".join([info[1], info[0]])
+                #print key
+                station_dict[key] = [float(info[2]), float(info[3]), float(info[4])]
+        return station_dict
 
     def print_summary(self):
         """
