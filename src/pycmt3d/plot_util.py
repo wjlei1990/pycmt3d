@@ -46,10 +46,11 @@ class PlotUtil(object):
         self.sta_lon = []
         for key, sta in sta_dict.iteritems():
             self.sta_lat.append(sta[0])
-            if sta[1] < 0:
-                self.sta_lon.append(sta[1]+360.0)
-            else:
-                self.sta_lon.append(sta[1])
+            self.sta_lon.append(sta[1])
+            #if sta[1] < 0:
+            #    self.sta_lon.append(sta[1]+360.0)
+            #else:
+            #    self.sta_lon.append(sta[1])
 
         self.calc_sta_dist_azi()
 
@@ -229,7 +230,7 @@ class PlotUtil(object):
         """
         # ax = plt.subplot(211)
         plt.title(self.cmtsource.eventname)
-        m = Basemap(projection='cyl', lon_0=142.36929, lat_0=0.0,
+        m = Basemap(projection='cyl', lon_0=0.0, lat_0=0.0,
                     resolution='c')
         m.drawcoastlines()
         m.fillcontinents()
@@ -242,8 +243,8 @@ class PlotUtil(object):
 
         cmt_lat = self.cmtsource.latitude
         cmt_lon = self.cmtsource.longitude
-        if cmt_lon < 0:
-            cmt_lon += 360
+        #if cmt_lon < 0:
+        #    cmt_lon += 360
         focmecs = self.moment_tensor
         ax = plt.gca()
         bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=10, linewidth=1)

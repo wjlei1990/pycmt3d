@@ -208,9 +208,9 @@ class DataContainer(object):
                 num_wins = int(f.readline().strip())
                 win_time = np.zeros((num_wins, 2))
                 for iwin in range(num_wins):
-                    [left, right] = f.readline().strip().split()
-                    win_time[iwin, 0] = float(left)
-                    win_time[iwin, 1] = float(right)
+                    content = f.readline().strip().split()
+                    win_time[iwin, 0] = float(content[0])
+                    win_time[iwin, 1] = float(content[1])
                 win_obj = Window(num_wins=num_wins, win_time=win_time,
                                      obsd_fn=obsd_fn, synt_fn=synt_fn)
                 win_list.append(win_obj)
@@ -259,9 +259,12 @@ class DataContainer(object):
         # trace
         win.datalist = {}
         win.tag = {}
+        #print "obsd"
         win.datalist['obsd'], win.tag['obsd'] = self.get_trace_from_asdf(win.obsd_fn, asdf_ds['obsd'], obsd_tag)
+        #print "synt"
         win.datalist['synt'], win.tag['synt'] = self.get_trace_from_asdf(win.synt_fn, asdf_ds['synt'], synt_tag)
         for deriv_par in self.par_list:
+            #print deriv_par
             win.datalist[deriv_par], win.tag[deriv_par] = self.get_trace_from_asdf(win.synt_fn, asdf_ds[deriv_par], synt_tag)
 
         win.station = win.datalist['obsd'].stats.station
@@ -340,6 +343,10 @@ class DataContainer(object):
         attr_list.remove('StationXML')
         if tag is None or tag == "":
             if len(attr_list) != 1:
+                print st
+                print dir(st)
+                print station_name
+                print attr_list
                 raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s"
                                  % attr_list)
             stream = getattr(st, attr_list[0])
