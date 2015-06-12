@@ -1,11 +1,9 @@
 Introduction
 ==============================
 
-This is python version of `cmt3d <https://github.com/QuLogic/GRD_CMT3D>`_ package(originally developed by Qinya Liu and Carl Tape).
+This is python version of `cmt3d <https://github.com/QuLogic/GRD_CMT3D>`_ package(originally developed by Qinya Liu and Carl Tape), which is used to provide more precise source solution in 3D earth model.
 
-This pycmt3d uses the perturbed method to calculate the gradient of the source. Currently, 11 parameters inversion are supported: **[Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, half duration]**
-
-In this package, the default function is waveform differnce. 
+This pycmt3d uses the perturbed method to calculate the gradient of the source. Currently, 11 parameters inversion are supported: **[Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, half duration]**. The paper is published on `here <http://www.bssaonline.org/content/94/5/1748.abstract>`_. If you want to know the basic theory of this method, please read the paper. 
 
 The pacakge runs currently on one core(no parallel support) because most of the time is spend on I/O but not calculation.
 
@@ -25,20 +23,18 @@ New features
 
 4. ASDF supported
 
-  ASDF data I/O supported.
+  ASDF data I/O supported while also keep supports for the SAC data.
+
+5. Plotting utils
+
+  Add plotting methods to visulize the result.
 
 Potential difference
-###########################################
+####################
 1. Cross-correlation measurements
 
-   The cross-correlation measurements is inheritated from `pyflex <https://github.com/krischer/pyflex>` to make the measurements in the workflow consistent. It utilizes the numpy.correlate method.
+   The cross-correlation measurements is inheritated from `pyflex <https://github.com/krischer/pyflex>`_ to make the measurements in the workflow consistent. It utilizes the numpy.correlate method.
 
 2. The linear solver
 
   The linear solver in pycmt3d utilized numpy.linalg method.
-
-To be continue
-#####################################
-1. More statistical analysis tools should be provided.
-
-   For example, data coverage and azimuth distribution. I have some scripts written up for it and would add it to the package later.

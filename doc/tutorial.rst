@@ -10,37 +10,87 @@ To run the inversion, one need to prepare:
   
 3. Inversion shema: how to inversion is done(Ref :ref:`my-config-label`)
 
-CMTSource
-#########
-Source instance could be loaded as::
+1. CMTSource
+################
+Pycmt3d needs a source solution as the beginning solution. Source instance could be loaded as::
 
   from pycmt3d.source import CMTSource 
   cmtfile = "path/to/your/cmtfile"
   cmtsource = CMTSource.from_CMTSOLUTION_file(cmtfile)
 
-Data
-####
-The pycmt3d pacakge takes two kinds of data.
+2. Data
+##########
+The data that pycmt3d needs includes two part: 1) seismic data; 2) window information associated with the data.
 
-1. sac format data
+2.1 Window information
+------------------------
+The window will provide the window time information. For example, the window file should be formatted like as following::
 
-  Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows. Another thing it needs to know is how many number of deriv synthetic files you want to read. The deriv parameter is listed as [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, hald duration].
-  Data could be loaded as::
+  number_of_total_data_paris
+  /path/to/observed_data_1
+  /path/to/synthetic_data_1
+  number_of_windows_of_pair_1
+  window_1_begin_time window_1_end_time
+  window_2_begin_time window_2_end_time
+  ...
+
+A more specific example would be::
+
+  2
+  /home/james/Data/obsd/II.AAK.00.BHZ.sac
+  /home/james/Data/synt/II.AAK.00.MHZ.sem
+  3
+  601.00   712.00
+  879.00   956.00
+  1200.00  1421.00
+  /home/james/Data/obsd/II.ABKT..BHZ.sac
+  /home/james/Data/synt/II.ABKT..MHZ.sem
+  1
+  1600.00 1785.00
+
+If the window file is intended for ASDF, then change the "path/to/file" to station indentification id. The indentification id is specified by "network.station.location.channel".
+
+2.2 Seismic Data
+-----------------------
+
+The data container object could be initialized as::
 
     from pycmt3d.window import DataContainer
     from pycmt3d.const import PAR_LIST
-    npar = 6
-    flexwin_output = "path/to/your/flexwin_output"
-    data = DataContainer(flexwin_output, PAR_LIST[:npar])
+    npar = 6  # how many perturbed seismograms to be read in
+    data_con = DataContainer(PAR_LIST[:npar])
 
-  if npar is 6, only the first 6 deriv parameters will be read in, i.e, [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp]. If you want to try different Inversion shema, a larger number of npar is expected. Thus, you can read all necessary deriv synthetic data into the memory and don't need to load it again. For example, I usually choose npar to be 9, which contains moment tensor, depth, longitude and latitude.
+Another thing it needs to know is how many number of deriv synthetic files you want to read. The deriv parameter is listed as [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, hald duration].
+ 
+If *npar* is set as 6, then only the first 6 types of perturbed seismograms will be read in, i.e, the seismograms related to the 6 components of moment tensor[Mrr, Mtt, Mpp, Mrt, Mrp, Mtp]. If *npar* is set as 7, the depth will be added in. If *npar* is set as 9, then the longitude and latitude will be added in.
+  
+If you want to try different Inversion shema, a larger number of npar is preferred. Thus, you can read all necessary deriv synthetic data into the memory and don't need to load it again.
+
+To really add the data and measurements, there are 2 different methods:
+
+1. sac format data
+
+  Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows.
+  Data could be loaded as::
+
+    flexwin_file = "path/to/your/flexwin_output"
+    data_con.add_measurements_from_sac(flexwin_file)
 
 2. ASDF format data
 
-   it will be added later on...
+  Data could be loaded as::
 
-Inversion schema
-################
+    asdf_file_dict={"obsd":"/path/to/obsd_asdf_file", "synt":"/path/to/synt_asdf_file",
+      "Mrr":"/path/to/Mrr_asdf", "Mtt":"/path/to/Mtt_asdf", "Mpp":"/path/to/Mpp_asdf", 
+      "Mrt":"/path/to/Mrt_asdf", "Mrp":"/path/to/Mrp_asdf", "Mtp":"/path/to/Mrp_asdf"}
+    flexwin_file = "path/to/your/flexwin_output"
+    data_con.add_measurements_from_asdf(flexwin_file, asdf_file_dict)
+
+The length of *asdf_file_dict* should be consistent with *napr*. If the *npar* is set as 9, 3 more keys should be added, ["dep":"/path/to/dep_asdf", "lon":"/path/to/lon_asdf", "lat":"/path/to/lat_asdf"]
+
+
+3. Inversion schema
+#####################
 Works partially as the INVERSION.PAR file as the fortran version.
 
 One config example is to 
@@ -69,35 +119,39 @@ Code example as following::
     1. norm_mode="data_and_synt"
     2. norm_mode="data_only"
 
-Source Inversion
-################
+4. Source Inversion
+#####################
 After get the CMTSource, Data and Inversion scheme ready, the source inversion can then be conducted::
 
   from pycmt3d.cmt3d import Cmt3D
   srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
 
-Workflow Example
-################
-The complete workflow example is shown below::
+if you want to plot the result of the inversion, use the plot methods::
+
+  srcinv.plot_summary(figurename="/path/to/output_figure")
+
+5. Workflow Example
+#####################
+The complete workflow(SAC version) example is shown below::
 
   from pycmt3d.source import CMTSource
   from pycmt3d.window import *
   from pycmt3d.config import Config
   from pycmt3d.cmt3d import Cmt3D
+  from pycmt3d.const import PAR_LIST
 
   # load cmtsource
   cmtfile = "path/to/your/cmtfile"
   cmtsource = CMTSource.from_CMTSOLUTION_file(cmtfile)
 
   # load data and window from flexwin output file
-  from const import PAR_LIST
-  data_npar = 9 # read 9 deriv synthetic
+  npar = 9 # read 9 deriv synthetic
+  data_con = DataContainer(PAR_LIST[:npar])
   flexwin_output = "path/to/your/flexwin_output"
-  data = DataContainer(flexwin_output, PAR_LIST[:data_npar])
+  data_con.add_measurements_from_sac(flexwin_output)
   
   # inversion shema
-  npar = 9   # 9 paramter inversion
   config = Config(npar, dlocation=0.03, ddepth=3.0, dmoment=2.0e+23,
       weight_data=True, weight_function=None, station_correction=True, 
       zero_trace=True, double_couple=False, lamda_damping=0.0, 
@@ -106,4 +160,22 @@ The complete workflow example is shown below::
   # source inversion
   srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
+
+  # plot result
+  srcinv.plot_summary(figurename="/path/to/output_fig")
+
+If it is the ASDF workflow, just replace the data loading part::
+  
+  # load data and window from flexwin output file
+  npar = 9 # read 9 deriv synthetic
+  data_con = DataContainer(PAR_LIST[:npar])
+  flexwin_output = "path/to/your/flexwin_output"
+  asdf_file_dict={"obsd":"/path/to/obsd_asdf_file", "synt":"/path/to/synt_asdf_file",
+    "Mrr":"/path/to/Mrr_asdf", "Mtt":"/path/to/Mtt_asdf", "Mpp":"/path/to/Mpp_asdf", 
+    "Mrt":"/path/to/Mrt_asdf", "Mrp":"/path/to/Mrp_asdf", "Mtp":"/path/to/Mrp_asdf",
+    "dep":"/path/to/Mrt_asdf", "lon":"/path/to/Mrp_asdf", "lat":"/path/to/Mrp_asdf"}
+  data_con.add_measurements_from_asdf(flexwin_file, asdf_file_dict)
+
+Other parts would be exactly the same.
+
 
