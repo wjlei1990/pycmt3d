@@ -54,9 +54,8 @@
             
   <div class="section" id="introduction">
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
-<p>This is python version of <a class="reference external" href="https://github.com/QuLogic/GRD_CMT3D">cmt3d</a> package(originally developed by Qinya Liu and Carl Tape).</p>
-<p>This pycmt3d uses the perturbed method to calculate the gradient of the source. Currently, 11 parameters inversion are supported: <strong>[Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, half duration]</strong></p>
-<p>In this package, the default function is waveform differnce.</p>
+<p>This is python version of <a class="reference external" href="https://github.com/QuLogic/GRD_CMT3D">cmt3d</a> package(originally developed by Qinya Liu and Carl Tape), which is used to provide more precise source solution in 3D earth model.</p>
+<p>This pycmt3d uses the perturbed method to calculate the gradient of the source. Currently, 11 parameters inversion are supported: <strong>[Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, longitude, latitude, time shift, half duration]</strong>. The paper is published on <a class="reference external" href="http://www.bssaonline.org/content/94/5/1748.abstract">here</a>. If you want to know the basic theory of this method, please read the paper.</p>
 <p>The pacakge runs currently on one core(no parallel support) because most of the time is spend on I/O but not calculation.</p>
 <div class="section" id="new-features">
 <h2>New features<a class="headerlink" href="#new-features" title="Permalink to this headline">¶</a></h2>
@@ -79,27 +78,24 @@
 <li>ASDF supported</li>
 </ol>
 <blockquote>
-<div>ASDF data I/O supported.</div></blockquote>
+<div>ASDF data I/O supported while also keep supports for the SAC data.</div></blockquote>
+<ol class="arabic simple" start="5">
+<li>Plotting utils</li>
+</ol>
+<blockquote>
+<div>Add plotting methods to visulize the result.</div></blockquote>
 </div>
 <div class="section" id="potential-difference">
 <h2>Potential difference<a class="headerlink" href="#potential-difference" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic">
 <li><p class="first">Cross-correlation measurements</p>
-<p>The cross-correlation measurements is inheritated from <cite>pyflex &lt;https://github.com/krischer/pyflex&gt;</cite> to make the measurements in the workflow consistent. It utilizes the numpy.correlate method.</p>
+<p>The cross-correlation measurements is inheritated from <a class="reference external" href="https://github.com/krischer/pyflex">pyflex</a> to make the measurements in the workflow consistent. It utilizes the numpy.correlate method.</p>
 </li>
 <li><p class="first">The linear solver</p>
 </li>
 </ol>
 <blockquote>
 <div>The linear solver in pycmt3d utilized numpy.linalg method.</div></blockquote>
-</div>
-<div class="section" id="to-be-continue">
-<h2>To be continue<a class="headerlink" href="#to-be-continue" title="Permalink to this headline">¶</a></h2>
-<ol class="arabic">
-<li><p class="first">More statistical analysis tools should be provided.</p>
-<p>For example, data coverage and azimuth distribution. I have some scripts written up for it and would add it to the package later.</p>
-</li>
-</ol>
 </div>
 </div>
 
@@ -114,7 +110,6 @@
 <li><a class="reference internal" href="#">Introduction</a><ul>
 <li><a class="reference internal" href="#new-features">New features</a></li>
 <li><a class="reference internal" href="#potential-difference">Potential difference</a></li>
-<li><a class="reference internal" href="#to-be-continue">To be continue</a></li>
 </ul>
 </li>
 </ul>
