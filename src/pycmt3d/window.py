@@ -57,16 +57,21 @@ class Window(object):
         obsd = self.datalist['obsd']
         synt = self.datalist['synt']
         dt = obsd.stats.delta
-        if mode.lower() not in ['data_and_synt', 'data_only']:
-            raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only")
+        if mode.lower() not in ['data_and_synt', 'data_only', 'data_average_only']:
+            raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only "
+                             "3) data_average_only")
         for _idx in range(self.num_wins):
             istart_d = int(self.win_time[_idx, 0]/dt)
             iend_d = int(self.win_time[_idx, 1]/dt)
+            if iend_d - istart_d <= 1:
+                raise ValueError("Window length < 1, incorrect!")
             if mode.lower() == "data_and_synt":
                 self.energy[_idx] = np.sqrt(np.sum(obsd.data[istart_d:iend_d]**2*dt) *
                                             np.sum(synt.data[istart_d:iend_d]**2*dt))
             elif mode.lower() == "data_only":
                 self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
+            elif mode.lower() == "data_average_only":
+                self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt/(iend_d - istart_d))
 
     def get_location_info(self, cmtsource):
         """
@@ -103,7 +108,7 @@ class DataContainer(object):
 
         self.elapse_time = 0.0
 
-    def add_measurements_from_sac(self, flexwinfile, tag=None):
+    def add_measurements_from_sac(self, flexwinfile, tag=None, initial_weight=1.0):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be sac
 
@@ -111,7 +116,7 @@ class DataContainer(object):
         :return:
         """
         t1 = time.time()
-        win_list = self.load_winfile(flexwinfile)
+        win_list = self.load_winfile(flexwinfile, initial_weight=initial_weight)
         for win_obj in win_list:
             self.load_data_from_sac(win_obj, tag=tag)
 
@@ -130,7 +135,7 @@ class DataContainer(object):
         logger.info("Number of files and window added: [%d, %d]" % (nfiles, nwins))
 
     def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict, obsd_tag=None, synt_tag=None,
-                                   stationfile=None):
+                                   stationfile=None, initial_weight=1.0):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be asdf.
         Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in
@@ -143,7 +148,7 @@ class DataContainer(object):
         """
         t1 = time.time()
         # load window information
-        win_list = self.load_winfile(flexwinfile)
+        win_list = self.load_winfile(flexwinfile, initial_weight=initial_weight)
         # load in the asdf data
         asdf_dataset = self.check_and_load_asdf_file(asdf_file_dict)
         if stationfile is not None:
@@ -191,7 +196,7 @@ class DataContainer(object):
         return dataset
 
     @staticmethod
-    def load_winfile(flexwin_file):
+    def load_winfile(flexwin_file, initial_weight=1.0):
         """
         old way of loading flexwin outputfile
         """
@@ -211,8 +216,10 @@ class DataContainer(object):
                     content = f.readline().strip().split()
                     win_time[iwin, 0] = float(content[0])
                     win_time[iwin, 1] = float(content[1])
+                win_weight = initial_weight * np.ones(num_wins)
                 win_obj = Window(num_wins=num_wins, win_time=win_time,
-                                     obsd_fn=obsd_fn, synt_fn=synt_fn)
+                                 obsd_fn=obsd_fn, synt_fn=synt_fn,
+                                 weight=win_weight)
                 win_list.append(win_obj)
         return win_list
 

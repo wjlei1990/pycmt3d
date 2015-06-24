@@ -64,44 +64,38 @@ class Cmt3D(object):
             # first calculate azimuth and distance for each data pair
             self.prepare_for_weighting()
             # then calculate azimuth weighting
-            naz_files, naz_wins = self.calculate_azimuth_bin()
-            logger.info("Azimuth file bin: [%s]" % (', '.join(map(str, naz_files))))
-            logger.info("Azimuth win bin: [%s]" % (', '.join(map(str, naz_wins))))
             for idx, window in enumerate(self.window):
-                idx_naz = self.get_azimuth_bin_number(window.azimuth)
-                naz = naz_files[idx_naz]
-                logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network,
-                             window.component,
-                             window.num_wins, window.dist_in_km, naz)
-
-                if self.config.normalize_window:
-                    mode = "damping"
-                else:
-                    mode = "exponential"
-                # weighting on compoent, distance and azimuth
-                window.weight = self.config.weight_function(window.component, window.dist_in_km, naz, window.num_wins,
-                                                            dist_weight_mode=mode)
+                self.setup_weight_for_location(window, self.naz_files)
 
                 if self.config.normalize_window:
                     # normalize each window's measurement by energy
                     window.weight = window.weight/window.energy
 
             # normalization of data weights
-            # Attention: the code here might be tedious but I just do not know how to make it bette
-            # without changing previous codes
             self.normalize_weight()
 
-            self.weight_array = np.zeros([self.data_container.nwins])
-            _idx = 0
-            for window in self.window:
-                for win_idx in range(window.num_wins):
-                    self.weight_array[_idx] = window.weight[win_idx]
-                    _idx += 1
+        self.weight_array = np.zeros([self.data_container.nwins])
+        _idx = 0
+        for window in self.window:
+            for win_idx in range(window.num_wins):
+                self.weight_array[_idx] = window.weight[win_idx]
+                _idx += 1
 
+    def setup_weight_for_location(self, window, naz_bin):
+        idx_naz = self.get_azimuth_bin_number(window.azimuth)
+        naz = naz_bin[idx_naz]
+        logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network,
+                    window.component,
+                    window.num_wins, window.dist_in_km, naz)
+
+        if self.config.normalize_window:
+            mode = "damping"
         else:
-            for idx, window in enumerate(self.window):
-                # set even weighting
-                window.weight = np.ones(window.num_wins)
+            # if the weight is not normalized by energy, then use the old weighting method(exponential)
+            mode = "exponential"
+            # weighting on compoent, distance and azimuth
+        window.weight = window.weight * self.config.weight_function(window.component, window.dist_in_km,
+                                                                    naz, window.num_wins, dist_weight_mode=mode)
 
     def prepare_for_weighting(self):
         """
@@ -115,6 +109,10 @@ class Cmt3D(object):
             window.win_energy(mode=self.config.norm_mode)
             # calculate location
             window.get_location_info(self.cmtsource)
+
+        self.naz_files, self.naz_wins = self.calculate_azimuth_bin()
+        logger.info("Azimuth file bin: [%s]" % (', '.join(map(str, self.naz_files))))
+        logger.info("Azimuth win bin: [%s]" % (', '.join(map(str, self.naz_wins))))
 
     @staticmethod
     def get_azimuth_bin_number(azimuth):
@@ -227,23 +225,51 @@ class Cmt3D(object):
         istart = int(max(math.floor(win[0] / obsd.stats.delta), 1))
         iend = int(min(math.ceil(win[1] / obsd.stats.delta), npts))
         if istart > iend:
-            raise ValueError("Check window for %s.%s.%s.%s" % (window.station,
-                                                               window.network, window.location, window.component))
+            raise ValueError("Check window for %s.%s.%s.%s" %
+                             (window.station, window.network, window.location, window.component))
 
-        if self.config.station_correction:
-            [nshift, cc, dlna] = self.calculate_criteria(obsd, synt, istart, iend)
-            # print "shift:", nshift
-            istart_d = max(1, istart + nshift)
-            iend_d = min(npts, iend + nshift)
-            istart_s = istart_d - nshift
-            iend_s = iend_d - nshift
-        else:
-            istart_d = istart
-            iend_d = iend
-            istart_s = istart
-            iend_s = iend
-        # print "debug, shift", istart, iend, istart_s, iend_s, nshift
+        # station correction
+        istart_d, iend_d, istart_s, iend_s = \
+            self.apply_station_correction(obsd, synt, istart, iend)
 
+        # dsyn matrix
+        dsyn = self.calculate_dsyn(datalist)
+
+        dt_synt = datalist['synt'].stats.delta
+        dt_obsd = datalist['obsd'].stats.delta
+        if abs(dt_synt - dt_obsd) > 0.0001:
+            raise ValueError("Delta in synthetic and observed no the same")
+        dt = dt_synt
+
+        # hanning taper
+        taper = self.construct_hanning_taper(iend_s - istart_s)
+
+        A1 = np.zeros((npar, npar))
+        b1 = np.zeros(npar)
+        # compute A and b
+        for j in range(npar):
+            for i in range(0, j + 1):
+                A1[i, j] = np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j, istart_s:iend_s]) * dt
+            b1[j] = np.sum(taper * (obsd.data[istart_d:iend_d] -
+                                    synt.data[istart_s:iend_s]) * dsyn[j, istart_s:iend_s]) * dt
+        for j in range(npar):
+            for i in range(j + 1, npar):
+                A1[i, j] = A1[j, i]
+        # print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
+        # print "debug, distance", window.dist_in_km
+        # print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), \
+        #               np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
+        # print "b1:", b1, np.sum(b1)
+
+        return [A1, b1]
+
+    def calculate_dsyn(self, datalist):
+        par_list = self.config.par_name
+        npar = self.config.npar
+        dcmt_par = self.config.dcmt_par
+        obsd = datalist['obsd']
+        synt = datalist['synt']
+        npts = min(obsd.stats.npts, synt.stats.npts)
         dsyn = np.zeros((npar, npts))
         for itype in range(npar):
             type_name = par_list[itype]
@@ -267,28 +293,23 @@ class Cmt3D(object):
                 dsyn[itype, 0:npts - 1] = -0.5 * self.cmt_par[itype] * (
                     dsyn[const.NML, 1:npts] - dsyn[const.NML, 0:npts - 1]) / dt
                 dsyn[itype, npts - 1] = dsyn[itype, npts - 2]
+        return dsyn
 
-        # hanning taper
-        taper = self.construct_hanning_taper(iend_s - istart_s)
-        A1 = np.zeros((npar, npar))
-        b1 = np.zeros(npar)
-        # compute A and b by taking into account data weights
-        for j in range(npar):
-            for i in range(0, j + 1):
-                A1[i, j] = np.sum(taper * dsyn[i, istart_s:iend_s] * dsyn[j, istart_s:iend_s]) * dt
-            b1[j] = np.sum(taper * (obsd.data[istart_d:iend_d] -
-                                    synt.data[istart_s:iend_s]) * dsyn[j, istart_s:iend_s]) * dt
-        for j in range(npar):
-            for i in range(j + 1, npar):
-                A1[i, j] = A1[j, i]
-
-        # print "debug, idx:", nshift, istart_s, iend_s, istart_d, iend_d, window.weight[win_idx]
-        # print "debug, distance", window.dist_in_km
-        # print "obsd sum, synt sum, dsyn sum:", np.sum(np.abs(obsd.data[istart_d:iend_d])), \
-        #               np.sum(np.abs(synt.data[istart_s:iend_s])), np.sum(np.abs(dsyn[j, istart_s:iend_s]))
-        # print "b1:", b1, np.sum(b1)
-
-        return [A1, b1]
+    def apply_station_correction(self, obsd, synt, istart, iend):
+        npts = min(obsd.stats.npts, synt.stats.npts)
+        if self.config.station_correction:
+            [nshift, cc, dlna] = self.calculate_criteria(obsd, synt, istart, iend)
+            # print "shift:", nshift
+            istart_d = max(1, istart + nshift)
+            iend_d = min(npts, iend + nshift)
+            istart_s = istart_d - nshift
+            iend_s = iend_d - nshift
+        else:
+            istart_d = istart
+            iend_d = iend
+            istart_s = istart
+            iend_s = iend
+        return istart_d, iend_d, istart_s, iend_s
 
     def invert_solver(self, A, b):
         """
@@ -296,7 +317,7 @@ class Cmt3D(object):
         based on different constraints.
 
         :param A: basic Hessian matrix
-        :param b: basid misfit vector
+        :param b: basic misfit vector
         :return:
         """
 
@@ -326,59 +347,65 @@ class Cmt3D(object):
         np.fill_diagonal(damp_matrix, trace * self.config.lamda_damping)
         A = A + damp_matrix
 
-        # setup new matrix based on constraints
-        AA = np.zeros([na, na])
-        bb = np.zeros(na)
         if linear_inversion:
-            # if invert for moment tensor with zero-trace constraints or no constraint
-            # logger.info("Linear Inversion")
-            AA[0:npar, 0:npar] = A
-            bb[0:npar] = b
-            if self.config.zero_trace:
-                bb[na - 1] = - np.sum(old_par[0:3])
-                AA[0:6, na - 1] = np.array([1, 1, 1, 0, 0, 0])
-                AA[na - 1, 0:6] = np.array([1, 1, 1, 0, 0, 0])
-                AA[na - 1, na - 1] = 0.0
-            # use linear solver
-            try:
-                dm = np.linalg.solve(AA, bb)
-            except:
-                logger.error('Matrix is singular...LinearAlgError')
-                raise ValueError("Check Matrix Singularity")
-            # check here
-            new_par = old_par[0:npar] + dm[0:npar]
-
+            new_par = self.linear_solver(old_par, A, b, npar, na)
         else:
-            # if invert for moment tensor with double couple constraints
-            # setup starting solution, solve directly for moment instead
-            # of dm, exact implementation of (A16)
-            # logger.info('Non-linear Inversion')
-            mstart = np.copy(old_par)
-            m1 = np.copy(mstart)
-            lam = np.zeros(2)
-
-            # nolinear solver. Maybe there are already existing code.
-            # check later
-            error = np.zeros([const.NMAX_NL_ITER, na])
-            for iter_idx in range(const.NMAX_NL_ITER):
-                self.get_f_df(A, b, m1, lam, mstart, AA, bb)
-                # logger.info("Inversion Matrix AA is as follows:")
-                # logger.info("\n%s" %('\n'.join(map(str, AA))))
-                # logger.info("Inversion vector bb is as follows:")
-                # logger.info("[%s]" %(', '.join(map(str, bb))))
-                bb = - bb
-                xout = np.linalg.solve(AA, bb)
-                # logger.debug("xout: [%s]" %(', '.join(map(str, xout))))
-                m1 = m1 + xout[0:npar]
-                lam = lam + xout[npar:na]
-                error[iter_idx, :] = np.dot(AA, xout) - bb
-            # dm = m1 - mstart
-            new_par = m1
+            new_par = self.nonlinear_solver(old_par, A, b, npar, na)
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
 
         return new_cmt_par
+
+    def linear_solver(self, old_par, A, b, npar, na):
+        AA = np.zeros([na, na])
+        bb = np.zeros(na)
+        # if invert for moment tensor with zero-trace constraints or no constraint
+        # logger.info("Linear Inversion")
+        AA[0:npar, 0:npar] = A
+        bb[0:npar] = b
+        if self.config.zero_trace:
+            bb[na - 1] = - np.sum(old_par[0:3])
+            AA[0:6, na - 1] = np.array([1, 1, 1, 0, 0, 0])
+            AA[na - 1, 0:6] = np.array([1, 1, 1, 0, 0, 0])
+            AA[na - 1, na - 1] = 0.0
+            # use linear solver
+        try:
+            dm = np.linalg.solve(AA, bb)
+        except:
+            logger.error('Matrix is singular...LinearAlgError')
+            raise ValueError("Check Matrix Singularity")
+        new_par = old_par[0:npar] + dm[0:npar]
+        return new_par
+
+    def nonlinear_solver(self, old_par, A, b, npar, na):
+        # if invert for moment tensor with double couple constraints
+        # setup starting solution, solve directly for moment instead
+        # of dm, exact implementation of (A16)
+        # logger.info('Non-linear Inversion')
+        mstart = np.copy(old_par)
+        m1 = np.copy(mstart)
+        lam = np.zeros(2)
+        AA = np.zeros([na, na])
+        bb = np.zeros(na)
+
+        # nolinear solver. Maybe there are already existing code.
+        # check later
+        error = np.zeros([const.NMAX_NL_ITER, na])
+        for iter_idx in range(const.NMAX_NL_ITER):
+            self._get_f_df_(A, b, m1, lam, mstart, AA, bb)
+            # logger.info("Inversion Matrix AA is as follows:")
+            # logger.info("\n%s" %('\n'.join(map(str, AA))))
+            # logger.info("Inversion vector bb is as follows:")
+            # logger.info("[%s]" %(', '.join(map(str, bb))))
+            bb = - bb
+            xout = np.linalg.solve(AA, bb)
+            # logger.debug("xout: [%s]" %(', '.join(map(str, xout))))
+            m1 = m1 + xout[0:npar]
+            lam = lam + xout[npar:na]
+            error[iter_idx, :] = np.dot(AA, xout) - bb
+        # dm = m1 - mstart
+        return m1
 
     def invert_cmt(self):
         """
@@ -432,7 +459,6 @@ class Cmt3D(object):
         self.setup_weight()
         self.invert_cmt()
 
-        # convert it to CMTSource instance
         self.calculate_variance()
 
         if self.config.bootstrap:
@@ -440,7 +466,7 @@ class Cmt3D(object):
 
         self.print_inversion_summary()
 
-    def get_f_df(self, A, b, m, lam, mstart, fij, f0):
+    def _get_f_df_(self, A, b, m, lam, mstart, fij, f0):
         """
         Iterative solver for Non-linear case(double-couple constraint)
 
@@ -517,9 +543,9 @@ class Cmt3D(object):
             self.compute_new_syn(window.datalist, dm)
             new_synt = window.datalist['new_synt']
             # calculate old variance
-            [v1, d1] = self.calculate_var_reduction_one_trace(obsd, synt, window.win_time)
+            [v1, d1] = self.calculate_var_one_trace(obsd, synt, window.win_time)
             # calculate new variance
-            [v2, d2] = self.calculate_var_reduction_one_trace(obsd, new_synt, window.win_time)
+            [v2, d2] = self.calculate_var_one_trace(obsd, new_synt, window.win_time)
 
             var_all += np.sum(0.5 * v1 * window.weight * obsd.stats.delta)
             var_all_new += np.sum(0.5 * v2 * window.weight * obsd.stats.delta)
@@ -530,7 +556,7 @@ class Cmt3D(object):
         self.var_all_new = var_all_new
         self.var_reduction = (var_all - var_all_new) / var_all
 
-    def calculate_var_reduction_one_trace(self, obsd, synt, win_time):
+    def calculate_var_one_trace(self, obsd, synt, win_time):
         """
         Calculate the variance reduction on a pair of obsd and synt and windows
 
@@ -552,18 +578,9 @@ class Cmt3D(object):
             tend = win_time[_win_idx, 1]
             idx_start = int(max(math.floor(tstart / obsd.stats.delta), 1))
             idx_end = int(min(math.ceil(tend / obsd.stats.delta), obsd.stats.npts))
-            if self.config.station_correction:
-                [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, idx_start, idx_end)
-                # print "shift:", nshift
-                istart_d = max(1, idx_start + nshift)
-                iend_d = min(npts, idx_end + nshift)
-                istart = istart_d - nshift
-                iend = iend_d - nshift
-            else:
-                istart_d = idx_start
-                istart = idx_start
-                iend_d = idx_end
-                iend = idx_end
+
+            istart_d, iend_d, istart, iend = \
+                self.apply_station_correction(obsd, synt, idx_start, idx_end)
 
             taper = self.construct_hanning_taper(iend - istart)
             v1[_win_idx] = np.sum(taper * (synt.data[istart:iend] - obsd.data[istart_d:iend_d]) ** 2)
