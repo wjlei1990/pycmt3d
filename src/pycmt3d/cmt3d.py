@@ -452,7 +452,14 @@ class Cmt3D(object):
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
-        self.std_over_mean = np.abs(self.par_std / self.par_mean)
+        self.std_over_mean = np.zeros(self.par_mean.shape)
+        for _ii in range(self.par_mean.shape[0]):
+            if self.par_mean[_ii] != 0:
+            # in case of 0 value
+                self.std_over_mean[_ii] = \
+                        np.abs(self.par_std[_ii] / self.par_mean[_ii])
+            else:
+                self.std_over_mean[_ii] = 0.
 
     def source_inversion(self):
         self.setup_matrix()
