@@ -17,9 +17,9 @@ from __init__ import logger
 
 
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
-                            comp_r_weight=2.0, comp_t_weight=1.5, comp_z_weight=2.0,
-                            az_exp_weight=0.5, pnl_dist_weight=0.75, rayleigh_dist_weight=0.55,
-                            love_dist_weight=0.55, dist_weight_mode="exponential"):
+                            comp_r_weight=2.0, comp_t_weight=2.0, comp_z_weight=2.0,
+                            az_exp_weight=0.5, pnl_dist_weight=1.15, rayleigh_dist_weight=0.55,
+                            love_dist_weight=0.78, dist_weight_mode="exponential"):
 
     """
     Defualt weighting function
@@ -132,6 +132,9 @@ class Config(object):
         else:
             self.weight_function = default_weight_function
         self.normalize_window = normalize_window
+        if norm_mode.lower() not in ['data_and_synt', 'data_only', 'data_average_only', 'data_abs_only']:
+            raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only; "
+                            "3) data_avergage_only; 4) data_abs_only")
         self.norm_mode = norm_mode.lower()
         self.station_correction = station_correction
         self.zero_trace = zero_trace

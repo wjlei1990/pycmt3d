@@ -69,6 +69,9 @@ class Cmt3D(object):
 
                 if self.config.normalize_window:
                     # normalize each window's measurement by energy
+                    print "info:", window.station, window.network, window.component
+                    print "weight:", window.weight
+                    print "energy:", window.energy
                     window.weight = window.weight/window.energy
 
             # normalization of data weights
@@ -89,7 +92,7 @@ class Cmt3D(object):
                     window.num_wins, window.dist_in_km, naz)
 
         if self.config.normalize_window:
-            mode = "damping"
+            mode = "uniform"
         else:
             # if the weight is not normalized by energy, then use the old weighting method(exponential)
             mode = "exponential"
@@ -229,7 +232,7 @@ class Cmt3D(object):
                              (window.station, window.network, window.location, window.component))
 
         # station correction
-        istart_d, iend_d, istart_s, iend_s = \
+        istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA = \
             self.apply_station_correction(obsd, synt, istart, iend)
 
         # dsyn matrix
@@ -298,7 +301,7 @@ class Cmt3D(object):
     def apply_station_correction(self, obsd, synt, istart, iend):
         npts = min(obsd.stats.npts, synt.stats.npts)
         if self.config.station_correction:
-            [nshift, cc, dlna] = self.calculate_criteria(obsd, synt, istart, iend)
+            [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, istart, iend)
             # print "shift:", nshift
             istart_d = max(1, istart + nshift)
             iend_d = min(npts, iend + nshift)
@@ -309,7 +312,7 @@ class Cmt3D(object):
             iend_d = iend
             istart_s = istart
             iend_s = iend
-        return istart_d, iend_d, istart_s, iend_s
+        return istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA
 
     def invert_solver(self, A, b):
         """
@@ -542,6 +545,13 @@ class Cmt3D(object):
         npar = self.config.npar
         dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
 
+        self.nshift_before = []
+        self.cc_before = []
+        self.dlnA_before = []
+        self.nshift_after = []
+        self.cc_after = []
+        self.dlnA_after = []
+
         var_all = 0.0
         var_all_new = 0.0
         for _idx, window in enumerate(self.window):
@@ -550,18 +560,32 @@ class Cmt3D(object):
             self.compute_new_syn(window.datalist, dm)
             new_synt = window.datalist['new_synt']
             # calculate old variance
-            [v1, d1] = self.calculate_var_one_trace(obsd, synt, window.win_time)
+            [v1, d1, nshift1, cc1, dlnA1] = self.calculate_var_one_trace(obsd, synt, window.win_time)
             # calculate new variance
-            [v2, d2] = self.calculate_var_one_trace(obsd, new_synt, window.win_time)
+            [v2, d2, nshift2, cc2, dlnA2] = self.calculate_var_one_trace(obsd, new_synt, window.win_time)
 
             var_all += np.sum(0.5 * v1 * window.weight * obsd.stats.delta)
             var_all_new += np.sum(0.5 * v2 * window.weight * obsd.stats.delta)
+            self.nshift_before.append(nshift1)
+            self.cc_before.append(cc1)
+            self.dlnA_before.append(dlnA1)
+            self.nshift_after.append(nshift2)
+            self.cc_after.append(cc2)
+            self.dlnA_after.append(dlnA2)
 
         logger.info("Total Variance Reduced from %e to %e ===== %f %%"
                     % (var_all, var_all_new, (var_all - var_all_new) / var_all * 100))
         self.var_all = var_all
         self.var_all_new = var_all_new
         self.var_reduction = (var_all - var_all_new) / var_all
+
+        if not self.config.normalize_window:
+            file_prefix = "%dp" %self.config.npar + "_no_norm"
+        else:
+            file_prefix = "%dp_%s" %(self.config.npar, self.config.norm_mode)
+        print file_prefix
+        self._write_log_file_(file_prefix + "_before.log", self.nshift_before, self.cc_before, self.dlnA_before)
+        self._write_log_file_(file_prefix + "_after.log",  self.nshift_after,  self.cc_after,  self.dlnA_after)
 
     def calculate_var_one_trace(self, obsd, synt, win_time):
         """
@@ -579,6 +603,9 @@ class Cmt3D(object):
         num_wins = win_time.shape[0]
         v1 = np.zeros(num_wins)
         d1 = np.zeros(num_wins)
+        nshift_array = np.zeros(num_wins)
+        cc_array = np.zeros(num_wins)
+        dlnA_array = np.zeros(num_wins)
         npts = min(obsd.stats.npts, synt.stats.npts)
         for _win_idx in range(win_time.shape[0]):
             tstart = win_time[_win_idx, 0]
@@ -586,14 +613,17 @@ class Cmt3D(object):
             idx_start = int(max(math.floor(tstart / obsd.stats.delta), 1))
             idx_end = int(min(math.ceil(tend / obsd.stats.delta), obsd.stats.npts))
 
-            istart_d, iend_d, istart, iend = \
+            istart_d, iend_d, istart, iend, nshift, cc, dlnA = \
                 self.apply_station_correction(obsd, synt, idx_start, idx_end)
 
             taper = self.construct_hanning_taper(iend - istart)
             v1[_win_idx] = np.sum(taper * (synt.data[istart:iend] - obsd.data[istart_d:iend_d]) ** 2)
             d1[_win_idx] = np.sum(taper * obsd.data[istart_d:iend_d] ** 2)
+            nshift_array[_win_idx] = nshift
+            cc_array[_win_idx] = cc
+            dlnA_array[_win_idx] = dlnA
             # print "v1, idx:", v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift
-        return [v1, d1]
+        return [v1, d1, nshift, cc, dlnA]
 
     def compute_new_syn(self, datalist, dm):
         """
@@ -738,6 +768,16 @@ class Cmt3D(object):
             string += "%10.3e  " % ele
         string += "]"
         return string
+
+    @staticmethod
+    def _write_log_file_(filename,nshift_list, cc_list, dlnA_list):
+        print len(nshift_list)
+        with open(filename, 'w') as f:
+            for i in range(len(nshift_list)):
+                nshift = nshift_list[i]
+                cc = cc_list[i]
+                dlnA = dlnA_list[i]
+                f.write("%5d %10.3f %10.3f\n" %(nshift, cc, dlnA))
 
     def print_inversion_summary(self):
         """
