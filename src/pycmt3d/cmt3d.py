@@ -9,6 +9,7 @@ import const
 from __init__ import logger
 import util
 from plot_util import *
+import os
 
 
 class Cmt3D(object):
@@ -886,3 +887,20 @@ class Cmt3D(object):
                              new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
                              bootstrap_std=self.par_std, var_reduction=self.var_reduction)
         plot_stat.plot_inversion_summary(figurename=figurename)
+
+    def plot_stats_histogram(self, outputdir="."):
+        plt.close()
+        if not self.config.normalize_window:
+            prefix = "%dp" %self.config.npar + "_no_norm"
+        else:
+            prefix = "%dp_%s" %(self.config.npar, self.config.norm_mode)
+        figname = "%s.%s.dlnA.png" %(self.cmtsource.eventname, prefix)
+        figname = os.path.join(outputdir, figname)
+        num_bins = 15
+        #before
+        n, bins, patches = plt.hist(self.dlnA_before, num_bins, facecolor='blue', alpha=0.5)
+        #after
+        n, bins, patches = plt.hist(self.dlnA_after, num_bins, facecolor='green', alpha=0.5)
+
+        plt.savefig(figname)
+
