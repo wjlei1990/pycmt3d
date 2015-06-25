@@ -67,6 +67,9 @@ class Cmt3D(object):
             for idx, window in enumerate(self.window):
                 self.setup_weight_for_location(window, self.naz_files)
 
+                if self.config.normalize_category:
+                    self.setup_weight_for_category(window)
+
                 if self.config.normalize_window:
                     # normalize each window's measurement by energy
                     window.weight = window.weight/window.energy
@@ -97,6 +100,11 @@ class Cmt3D(object):
         window.weight = window.weight * self.config.weight_function(window.component, window.dist_in_km,
                                                                     naz, window.num_wins, dist_weight_mode=mode)
 
+    def setup_weight_for_category(self, window):
+        tag = window.tag['obsd']
+        num_cat = self.bin_category[tag]
+        window.weight = window.weight/num_cat
+
     def prepare_for_weighting(self):
         """
         Prepare necessary information for weighting, e.x., calculating azimuth and distance
@@ -113,6 +121,17 @@ class Cmt3D(object):
         self.naz_files, self.naz_wins = self.calculate_azimuth_bin()
         logger.info("Azimuth file bin: [%s]" % (', '.join(map(str, self.naz_files))))
         logger.info("Azimuth win bin: [%s]" % (', '.join(map(str, self.naz_wins))))
+
+        # stat different category
+        bin_category = {}
+        for window in self.window:
+            tag = window.tag['obsd']
+            if tag in bin_category.keys():
+                bin_category[tag] += window.num_wins
+            else:
+                bin_category[tag] = window.num_wins
+            print tag, window.num_wins, bin_category
+        self.bin_category = bin_category
 
     @staticmethod
     def get_azimuth_bin_number(azimuth):

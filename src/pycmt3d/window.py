@@ -350,13 +350,10 @@ class DataContainer(object):
         attr_list.remove('StationXML')
         if tag is None or tag == "":
             if len(attr_list) != 1:
-                print st
-                print dir(st)
-                print station_name
-                print attr_list
                 raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s"
                                  % attr_list)
             stream = getattr(st, attr_list[0])
+            tag = attr_list[0]
         else:
             stream = getattr(st, tag)
         if len(station_info) == 5:
