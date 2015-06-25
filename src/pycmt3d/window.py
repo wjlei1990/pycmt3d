@@ -57,9 +57,6 @@ class Window(object):
         obsd = self.datalist['obsd']
         synt = self.datalist['synt']
         dt = obsd.stats.delta
-        if mode.lower() not in ['data_and_synt', 'data_only', 'data_average_only']:
-            raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only "
-                             "3) data_average_only")
         for _idx in range(self.num_wins):
             istart_d = int(self.win_time[_idx, 0]/dt)
             iend_d = int(self.win_time[_idx, 1]/dt)
@@ -72,7 +69,11 @@ class Window(object):
                 self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt)
             elif mode.lower() == "data_average_only":
                 self.energy[_idx] = np.sum(obsd.data[istart_d:iend_d]**2*dt/(iend_d - istart_d))
-
+            elif mode.lower() == "data_abs_only":
+                self.energy[_idx] = np.sum(np.abs(obsd.data[istart_d:iend_d]))
+            else:
+                raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only "
+                                "3) data_average_only; 4) data_abs_only")
     def get_location_info(self, cmtsource):
         """
         calculating azimuth and distance, and then store it
@@ -108,17 +109,21 @@ class DataContainer(object):
 
         self.elapse_time = 0.0
 
-    def add_measurements_from_sac(self, flexwinfile, tag=None, initial_weight=1.0):
+    def add_measurements_from_sac(self, flexwinfile, tag=None, initial_weight=1.0, load_mode="obsolute_time"):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be sac
 
         :param flexwinfile:
         :return:
         """
+        load_mode = load_mode.lower()
+        if load_mode not in ["obsolute_time", "relative_time"]:
+            raise ValueError("load_winfile mode incorrect: 1)obsolute_time 2)relative_time")
+
         t1 = time.time()
         win_list = self.load_winfile(flexwinfile, initial_weight=initial_weight)
         for win_obj in win_list:
-            self.load_data_from_sac(win_obj, tag=tag)
+            self.load_data_from_sac(win_obj, tag=tag, mode=load_mode)
 
         self.window += win_list
         # count the total number of files and windows
@@ -223,7 +228,7 @@ class DataContainer(object):
                 win_list.append(win_obj)
         return win_list
 
-    def load_data_from_sac(self, win_obj, tag=None):
+    def load_data_from_sac(self, win_obj, tag=None, mode=None):
         """
         Old way of loading obsd and synt data...
 
@@ -242,6 +247,16 @@ class DataContainer(object):
         win_obj.network = obsd.stats.network
         win_obj.component = obsd.stats.channel
         win_obj.location = obsd.stats.location
+
+        #calibrate window time if needed
+        if mode == "relative_time":
+            b_tshift = obsd.stats.sac['b']
+            for _ii in range(win_obj.win_time.shape[0]):
+                for _jj in range(win_obj.win_time.shape[1]):
+                    win_obj.win_time[_ii, _jj] -= b_tshift
+                    # WJL: not a good way
+                    win_obj.win_time[_ii, _jj] = max(win_obj.win_time[_ii, _jj], 0.0)
+
         # synt
         win_obj.datalist['synt'] = read(synt_fn)[0]
         win_obj.tag['synt'] = tag
