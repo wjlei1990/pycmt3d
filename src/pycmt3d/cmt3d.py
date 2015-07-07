@@ -46,10 +46,10 @@ class Cmt3D(object):
         self.new_cmtsource = None
 
         # bootstrap stat var
-        self.par_mean = None
-        self.par_std = None
-        self.par_var = None
-        self.std_over_mean = None
+        self.par_mean = np.zeros(const.NPARMAX)
+        self.par_std = np.zeros(const.NPARMAX)
+        self.par_var = np.zeros(const.NPARMAX)
+        self.std_over_mean = np.zeros(self.par_mean.shape)
 
         self.print_cmtsource_summary(self.cmtsource)
 
@@ -66,21 +66,24 @@ class Cmt3D(object):
             self.prepare_for_weighting()
             # then calculate azimuth weighting
             for idx, window in enumerate(self.window):
-                self.setup_weight_for_location(window, self.naz_files)
+                self.setup_weight_for_location(window, self.naz_wins, self.naz_wins_all)
 
                 if self.config.normalize_category:
                     self.setup_weight_for_category(window)
 
                 if self.config.normalize_window:
                     # normalize each window's measurement by energy
-                    print "info:", window.station, window.network, window.component
-                    print "weight:", window.weight
-                    print "energy:", window.energy
+                    #print "info:", window.station, window.network, window.component
+                    #print "weight:", window.weight
+                    #print "energy:", window.energy
                     window.weight = window.weight/window.energy
 
             # normalization of data weights
             self.normalize_weight()
 
+            #self._write_weight_log_("weight.log")
+
+        # prepare the weight array
         self.weight_array = np.zeros([self.data_container.nwins])
         _idx = 0
         for window in self.window:
@@ -88,9 +91,13 @@ class Cmt3D(object):
                 self.weight_array[_idx] = window.weight[win_idx]
                 _idx += 1
 
-    def setup_weight_for_location(self, window, naz_bin):
+    def setup_weight_for_location(self, window, naz_bin, naz_bin_all):
         idx_naz = self.get_azimuth_bin_number(window.azimuth)
-        naz = naz_bin[idx_naz]
+        if self.config.normalize_category:
+            tag = window.tag['obsd']
+            naz = naz_bin[tag][idx_naz]
+        else:
+            naz = naz_bin_all[idx_naz]
         logger.debug("%s.%s.%s, num_win, dist, naz: %d, %.2f, %d", window.station, window.network,
                     window.component,
                     window.num_wins, window.dist_in_km, naz)
@@ -105,9 +112,11 @@ class Cmt3D(object):
                                                                     naz, window.num_wins, dist_weight_mode=mode)
 
     def setup_weight_for_category(self, window):
-        tag = window.tag['obsd']
-        num_cat = self.bin_category[tag]
-        window.weight = window.weight/num_cat
+        # window_weight = window_weight / N_windows_in_category
+        if self.config.normalize_category:
+            tag = window.tag['obsd']
+            num_cat = self.bin_category[tag]
+            window.weight = window.weight/num_cat
 
     def prepare_for_weighting(self):
         """
@@ -123,8 +132,16 @@ class Cmt3D(object):
             window.get_location_info(self.cmtsource)
 
         self.naz_files, self.naz_wins = self.calculate_azimuth_bin()
-        logger.info("Azimuth file bin: [%s]" % (', '.join(map(str, self.naz_files))))
-        logger.info("Azimuth win bin: [%s]" % (', '.join(map(str, self.naz_wins))))
+        # add all category together
+        # if not weighted by category, then use total number
+        self.naz_files_all = np.zeros(const.NREGIONS)
+        self.naz_wins_all = np.zeros(const.NREGIONS)
+        for key in self.naz_files.keys():
+            self.naz_files_all += self.naz_files[key]
+            self.naz_wins_all += self.naz_wins[key]
+            logger.info("Category: %s" %key)
+            logger.info("Azimuth file bin: [%s]" % (', '.join(map(str, self.naz_files[key]))))
+            logger.info("Azimuth win bin: [%s]" % (', '.join(map(str, self.naz_wins[key]))))
 
         # stat different category
         bin_category = {}
@@ -134,7 +151,6 @@ class Cmt3D(object):
                 bin_category[tag] += window.num_wins
             else:
                 bin_category[tag] = window.num_wins
-            print tag, window.num_wins, bin_category
         self.bin_category = bin_category
 
     @staticmethod
@@ -162,12 +178,16 @@ class Cmt3D(object):
 
         :return:
         """
-        naz_files = np.zeros(const.NREGIONS)
-        naz_wins = np.zeros(const.NREGIONS)
+        naz_files = {}
+        naz_wins = {}
         for window in self.window:
+            tag = window.tag['obsd']
             bin_idx = self.get_azimuth_bin_number(window.azimuth)
-            naz_files[bin_idx] += 1
-            naz_wins[bin_idx] += window.num_wins
+            if tag not in naz_files.keys():
+                naz_files[tag] = np.zeros(const.NREGIONS)
+                naz_wins[tag] = np.zeros(const.NREGIONS)
+            naz_files[tag][bin_idx] += 1
+            naz_wins[tag][bin_idx] += window.num_wins
         return naz_files, naz_wins
 
     def normalize_weight(self):
@@ -217,14 +237,15 @@ class Cmt3D(object):
 
         for window in self.window:
             # loop over pair of data
+            dsyn = self.calculate_dsyn(window.datalist)
             for win_idx in range(window.num_wins):
                 # loop over each window
                 # here, A and b are exact measurements and no weightings are applied
-                [A1, b1] = self.compute_A_b(window, win_idx)
+                [A1, b1] = self.compute_A_b(window, win_idx, dsyn)
                 self.A1_all.append(A1)
                 self.b1_all.append(b1)
 
-    def compute_A_b(self, window, win_idx):
+    def compute_A_b(self, window, win_idx, dsyn):
         """
         Calculate the matrix A and vector b based on one pair of observed data and
         synthetic data on a given window.
@@ -252,11 +273,11 @@ class Cmt3D(object):
                              (window.station, window.network, window.location, window.component))
 
         # station correction
-        istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA = \
+        istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA, cc_amp_value = \
             self.apply_station_correction(obsd, synt, istart, iend)
 
         # dsyn matrix
-        dsyn = self.calculate_dsyn(datalist)
+        #dsyn = self.calculate_dsyn(datalist)
 
         dt_synt = datalist['synt'].stats.delta
         dt_obsd = datalist['obsd'].stats.delta
@@ -320,21 +341,23 @@ class Cmt3D(object):
 
     def apply_station_correction(self, obsd, synt, istart, iend):
         npts = min(obsd.stats.npts, synt.stats.npts)
+        [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, istart, iend)
         if self.config.station_correction:
-            [nshift, cc, dlnA] = self.calculate_criteria(obsd, synt, istart, iend)
-            # print "shift:", nshift
             istart_d = max(1, istart + nshift)
             iend_d = min(npts, iend + nshift)
             istart_s = istart_d - nshift
             iend_s = iend_d - nshift
+            # recalculate the dlnA and cc_amp_value(considering the shift)
+            dlnA = self._dlnA_win_(obsd[istart_d:iend_d], synt[istart_s:iend_s])
+            cc_amp_value = 10*np.log10(np.sum(obsd[istart_d:iend_d] * synt[istart_s:iend_s]) / (synt[istart_s:iend_s] ** 2).sum())
         else:
             istart_d = istart
             iend_d = iend
             istart_s = istart
             iend_s = iend
-        return istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA
+        return istart_d, iend_d, istart_s, iend_s, nshift, cc, dlnA, cc_amp_value
 
-    def invert_solver(self, A, b):
+    def invert_solver(self, A, b, print_mode=False):
         """
         Solver part. Hession matrix A and misfit vector b will be reconstructed here
         based on different constraints.
@@ -365,10 +388,14 @@ class Cmt3D(object):
             na = npar
 
         # add damping
+        #print "old A cond:", np.linalg.cond(A)
         trace = np.matrix.trace(A)
         damp_matrix = np.zeros([npar, npar])
         np.fill_diagonal(damp_matrix, trace * self.config.lamda_damping)
         A = A + damp_matrix
+        if print_mode:
+            logger.info("Condition number of new A: %10.2f" %(np.linalg.cond(A)))
+        #print "new A cond:", np.linalg.cond(A)
 
         if linear_inversion:
             new_par = self.linear_solver(old_par, A, b, npar, na)
@@ -394,6 +421,8 @@ class Cmt3D(object):
             AA[na - 1, na - 1] = 0.0
             # use linear solver
         try:
+            # try pre-condition
+            #precond_m = 
             dm = np.linalg.solve(AA, bb)
         except:
             logger.error('Matrix is singular...LinearAlgError')
@@ -437,16 +466,20 @@ class Cmt3D(object):
 
         :return:
         """
+        logger.info("*"*15)
+        logger.info("CMT Inversion")
+        logger.info("*"*15)
         # ensemble A and b
         A = util.sum_matrix(self.weight_array, self.A1_all)
         b = util.sum_matrix(self.weight_array, self.b1_all)
         logger.info("Inversion Matrix A is as follows:")
         logger.info("\n%s" % ('\n'.join(map(self._float_array_to_str, A))))
+        logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A)))
         logger.info("RHS vector b is as follows:")
         logger.info("[%s]" % (self._float_array_to_str(b)))
 
         # source inversion
-        self.new_cmt_par = self.invert_solver(A, b)
+        self.new_cmt_par = self.invert_solver(A, b, print_mode=True)
         self.convert_new_cmt_par()
 
     def invert_bootstrap(self):
@@ -475,7 +508,6 @@ class Cmt3D(object):
         self.par_mean = np.mean(new_par_array, axis=0)
         self.par_std = np.std(new_par_array, axis=0)
         self.par_var = np.var(new_par_array, axis=0)
-        self.std_over_mean = np.zeros(self.par_mean.shape)
         for _ii in range(self.par_mean.shape[0]):
             if self.par_mean[_ii] != 0:
             # in case of 0 value
@@ -574,24 +606,38 @@ class Cmt3D(object):
 
         var_all = 0.0
         var_all_new = 0.0
+
+        self.stats_before = {}
+        self.stats_after = {}
         for _idx, window in enumerate(self.window):
             obsd = window.datalist['obsd']
             synt = window.datalist['synt']
             self.compute_new_syn(window.datalist, dm)
             new_synt = window.datalist['new_synt']
             # calculate old variance
-            [v1, d1, nshift1, cc1, dlnA1] = self.calculate_var_one_trace(obsd, synt, window.win_time)
+            [v1, d1, nshift1, cc1, dlnA1, cc_amp_value1] = self.calculate_var_one_trace(obsd, synt, window.win_time)
             # calculate new variance
-            [v2, d2, nshift2, cc2, dlnA2] = self.calculate_var_one_trace(obsd, new_synt, window.win_time)
+            [v2, d2, nshift2, cc2, dlnA2, cc_amp_value2] = self.calculate_var_one_trace(obsd, new_synt, window.win_time)
 
             var_all += np.sum(0.5 * v1 * window.weight * obsd.stats.delta)
             var_all_new += np.sum(0.5 * v2 * window.weight * obsd.stats.delta)
-            self.nshift_before.append(nshift1)
-            self.cc_before.append(cc1)
-            self.dlnA_before.append(dlnA1)
-            self.nshift_after.append(nshift2)
-            self.cc_after.append(cc2)
-            self.dlnA_after.append(dlnA2)
+            
+            # prepare stats
+            tag = window.tag['obsd']
+            if tag not in self.stats_before.keys():
+                self.stats_before[tag] = []
+            if tag not in self.stats_after.keys():
+                self.stats_after[tag] = []
+            for _i in range(window.num_wins):
+                #print _idx, _i, tag, nshift1[_i], nshift2[_i]
+                self.stats_before[tag].append([nshift1[_i], cc1[_i], dlnA1[_i], cc_amp_value1[_i], v1[_i]/d1[_i]])
+                self.stats_after[tag].append([nshift2[_i], cc2[_i], dlnA2[_i], cc_amp_value2[_i], v2[_i]/d2[_i]])
+
+        for tag in self.stats_before.keys():
+            self.stats_before[tag] = np.array(self.stats_before[tag])
+            self.stats_after[tag] = np.array(self.stats_after[tag])
+        #print "stat before:", self.stats_before
+        #print "stat after:", self.stats_after
 
         logger.info("Total Variance Reduced from %e to %e ===== %f %%"
                     % (var_all, var_all_new, (var_all - var_all_new) / var_all * 100))
@@ -599,13 +645,21 @@ class Cmt3D(object):
         self.var_all_new = var_all_new
         self.var_reduction = (var_all - var_all_new) / var_all
 
-        if not self.config.normalize_window:
-            file_prefix = "%dp" %self.config.npar + "_no_norm"
-        else:
-            file_prefix = "%dp_%s" %(self.config.npar, self.config.norm_mode)
-        print file_prefix
-        self._write_log_file_(file_prefix + "_before.log", self.nshift_before, self.cc_before, self.dlnA_before)
-        self._write_log_file_(file_prefix + "_after.log",  self.nshift_after,  self.cc_after,  self.dlnA_after)
+        #if not self.config.normalize_window:
+        #    file_prefix = "%dp" %self.config.npar + "_no_norm"
+        #else:
+        #    file_prefix = "%dp_%s" %(self.config.npar, self.config.norm_mode)
+        #self._write_log_file_(file_prefix + "_before.log", self.nshift_before, self.cc_before, self.dlnA_before)
+        #self._write_log_file_(file_prefix + "_after.log",  self.nshift_after,  self.cc_after,  self.dlnA_after)
+
+    def calculate_kai_value(self):
+        kai_before = {}
+        kai_after = {}
+        for tag in self.stats_before.keys():
+            #print self.stats_before[tag].shape
+            kai_before[tag] = np.sum(self.stats_before[tag][:, -1])
+            kai_after[tag] = np.sum(self.stats_after[tag][:, -1])
+            #print tag, kai_before[tag], kai_after[tag], self.bin_category[tag]
 
     def calculate_var_one_trace(self, obsd, synt, win_time):
         """
@@ -626,6 +680,7 @@ class Cmt3D(object):
         nshift_array = np.zeros(num_wins)
         cc_array = np.zeros(num_wins)
         dlnA_array = np.zeros(num_wins)
+        cc_amp_value_array = np.zeros(num_wins)
         npts = min(obsd.stats.npts, synt.stats.npts)
         for _win_idx in range(win_time.shape[0]):
             tstart = win_time[_win_idx, 0]
@@ -633,7 +688,7 @@ class Cmt3D(object):
             idx_start = int(max(math.floor(tstart / obsd.stats.delta), 1))
             idx_end = int(min(math.ceil(tend / obsd.stats.delta), obsd.stats.npts))
 
-            istart_d, iend_d, istart, iend, nshift, cc, dlnA = \
+            istart_d, iend_d, istart, iend, nshift, cc, dlnA, cc_amp_value = \
                 self.apply_station_correction(obsd, synt, idx_start, idx_end)
 
             taper = self.construct_hanning_taper(iend - istart)
@@ -642,8 +697,9 @@ class Cmt3D(object):
             nshift_array[_win_idx] = nshift
             cc_array[_win_idx] = cc
             dlnA_array[_win_idx] = dlnA
+            cc_amp_value_array[_win_idx] = cc_amp_value
             # print "v1, idx:", v1[_win_idx], istart, iend, istart_d, iend_d, _win_idx, nshift
-        return [v1, d1, nshift, cc, dlnA]
+        return [v1, d1, nshift_array, cc_array, dlnA_array, cc_amp_value_array]
 
     def compute_new_syn(self, datalist, dm):
         """
@@ -696,7 +752,7 @@ class Cmt3D(object):
         obsd_trace = obsd.data[istart:iend]
         synt_trace = synt.data[istart:iend]
         max_cc, nshift = self._xcorr_win_(obsd_trace, synt_trace)
-        dlnA = self._dlnA_win(obsd_trace, synt_trace)
+        dlnA = self._dlnA_win_(obsd_trace, synt_trace)
 
         return [nshift, max_cc, dlnA]
 
@@ -735,8 +791,8 @@ class Cmt3D(object):
         return max_cc_value, nshift
 
     @staticmethod
-    def _dlnA_win(obsd, synt):
-        return 0.5 * np.log(np.sum(obsd ** 2) / np.sum(synt ** 2))
+    def _dlnA_win_(obsd, synt):
+        return 10 * np.log10(np.sum(obsd ** 2) / np.sum(synt ** 2))
 
     @staticmethod
     def construct_hanning_taper(npts):
@@ -747,6 +803,8 @@ class Cmt3D(object):
         :return:
         """
         taper = np.zeros(npts)
+        taper = np.ones(npts)
+        return taper
         for i in range(npts):
             taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts - 1))))
         return taper
@@ -791,7 +849,6 @@ class Cmt3D(object):
 
     @staticmethod
     def _write_log_file_(filename,nshift_list, cc_list, dlnA_list):
-        print len(nshift_list)
         with open(filename, 'w') as f:
             for i in range(len(nshift_list)):
                 nshift = nshift_list[i]
@@ -889,18 +946,71 @@ class Cmt3D(object):
         plot_stat.plot_inversion_summary(figurename=figurename)
 
     def plot_stats_histogram(self, outputdir="."):
-        plt.close()
+        nrows = len(self.stats_before.keys())
+        ncols = self.stats_before[self.stats_before.keys()[0]].shape[1]
         if not self.config.normalize_window:
-            prefix = "%dp" %self.config.npar + "_no_norm"
+            prefix = "%dp" %self.config.npar + ".no_normwin"
         else:
             prefix = "%dp_%s" %(self.config.npar, self.config.norm_mode)
+        if not self.config.normalize_category:
+            prefix += ".no_normcat"
+        else:
+            prefix += ".normcat"
         figname = "%s.%s.dlnA.png" %(self.cmtsource.eventname, prefix)
         figname = os.path.join(outputdir, figname)
-        num_bins = 15
-        #before
-        n, bins, patches = plt.hist(self.dlnA_before, num_bins, facecolor='blue', alpha=0.5)
-        #after
-        n, bins, patches = plt.hist(self.dlnA_after, num_bins, facecolor='green', alpha=0.5)
 
+        plt.figure(figsize=(5*ncols,5*nrows))
+        G = gridspec.GridSpec(nrows, ncols)
+        irow = 0
+        for cat in self.stats_before.keys():
+            self._plot_stats_histogram_per_cat_(G, irow, cat, self.stats_before[cat], self.stats_after[cat])
+            irow += 1
         plt.savefig(figname)
 
+    def _plot_stats_histogram_per_cat_(self, G, irow, cat, data_before, data_after):
+        num_bins = [10, 10, 15, 15, 15]
+        vtype_list = ['nshift', 'cc', 'Power_Ratio(dB)', 'CC Amplitude Ratio(dB)', 'Kai']
+        # plot order
+        var_index = [0, 1, 2, 3, 4]
+        for _idx, var_idx in enumerate(var_index):
+            vtype = vtype_list[var_idx]
+            self._plot_stats_histogram_one_(G[irow, _idx], cat, vtype, data_before[:, var_idx], data_after[:, var_idx],
+                    num_bins[var_idx]) 
+
+    def _plot_stats_histogram_one_(self, pos, cat, vtype, data_b, data_a, num_bin):
+        ax = plt.subplot(pos)
+        plt.xlabel(vtype)
+        plt.ylabel(cat)
+        if vtype == "cc":
+            ax_min = min(min(data_b), min(data_a))
+            ax_max = max(max(data_b), max(data_a))
+        elif vtype == "Kai":
+            ax_min = 0.0;
+            ax_max = max(max(data_b), max(data_a))
+        else:
+            ax_min = min(min(data_b), min(data_a))
+            ax_max = max(max(data_b), max(data_a))
+            abs_max = max(abs(ax_min), abs(ax_max))
+            ax_min = -abs_max
+            ax_max = abs_max
+        binwidth = (ax_max - ax_min) / num_bin
+        print vtype, ax_min, ax_max
+        n, bins, patches = plt.hist(data_b, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
+                                    facecolor='blue', alpha=0.3)
+        #after
+        #print min(data_a), min(data_b), max(data_a), max(data_b)
+        n, bins, patches = plt.hist(data_a, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
+                                    facecolor='green', alpha=0.5)
+        #n, bins, patches = plt.hist(self.dlnA_after, num_bins, facecolor='green', alpha=0.5)
+
+    def _write_weight_log_(self, filename):
+        with open(filename, 'w') as f:
+            for window in self.window:
+                sta = window.station
+                nw = window.network
+                component = window.component
+                location = window.location
+                sta_info = "%s.%s.%s.%s" %(sta, nw, location,component)
+                f.write("%s\n" %sta_info)
+                for _idx in range(window.weight.shape[0]):
+                    f.write("%10.5e %10.5e\n" %(window.weight[_idx],window.energy[_idx]))
