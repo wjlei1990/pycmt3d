@@ -109,7 +109,7 @@ class DataContainer(object):
 
         self.elapse_time = 0.0
 
-    def add_measurements_from_sac(self, flexwinfile, tag=None, initial_weight=1.0, load_mode="obsolute_time"):
+    def add_measurements_from_sac(self, flexwinfile, tag="untaged", initial_weight=1.0, load_mode="obsolute_time"):
         """
         Add measurments(window and data) from the given flexwinfile and the data format should be sac
 
@@ -390,6 +390,46 @@ class DataContainer(object):
                 #print key
                 station_dict[key] = [float(info[2]), float(info[3]), float(info[4])]
         return station_dict
+
+    def write_new_syn_file(self, format="sac", outputdir="."):
+        """
+        Write out new synthetic file based on new cmtsolution
+        :return:
+        """
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir)
+
+        # sort the new synthetic data
+        new_synt_dict = {}
+        for window in self.window:
+            tag = window.tag['synt']
+            if tag not in new_synt_dict.keys():
+                new_synt_dict[tag] = []
+            new_synt_dict[tag].append(window)
+
+        if format.upper() == "SAC":
+            for tag, win_array in new_synt_dict.iteritems():
+                targetdir = os.path.join(outputdir, tag)
+                if not os.path.exists(targetdir):
+                    os.makedirs(targetdir)
+                for window in win_array:
+                    sta = window.station
+                    nw = window.network
+                    component = window.component
+                    location = window.location
+                    filename = "%s.%s.%s.%s.sac" % (sta, nw, location, component)
+                    outputfn = os.path.join(targetdir, filename)
+                    new_synt = window.datalist['new_synt']
+                    new_synt.write(outputfn, format='SAC')
+        elif format.upper() == "ASDF":
+            from pyasdf import ASDFDataSet
+            for tag, win_array in new_synt_dict.iteritems():
+                outputfn = os.path.join(outputdir, "new_synt.%s.h5" % tag)
+                if os.path.exists(outputfn):
+                    os.remove(outputfn)
+                ds = ASDFDataSet(outputfn)
+                for window in win_array:
+                    ds.add_waveforms(window.datalist['new_synt'], tag=tag)
 
     def print_summary(self):
         """

@@ -7,11 +7,12 @@ logger = logging.getLogger("pycmt3d")
 logger.setLevel(logging.INFO)
 logger.propagate = 0
 
-if os.path.exists("log.txt"):
-    os.remove("log.txt")
+logfilename = "log.txt"
+if os.path.exists(logfilename):
+    os.remove(logfilename)
 
 # ch = logging.StreamHandler()
-ch = logging.FileHandler("log.txt", mode='w')
+ch = logging.FileHandler(logfilename, mode='w')
 # Add formatter
 FORMAT = "%(name)s - %(levelname)s: %(message)s"
 formatter = logging.Formatter(FORMAT)

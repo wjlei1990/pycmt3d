@@ -18,7 +18,7 @@ class PlotUtil(object):
 
     def __init__(self, data_container=None, cmtsource=None, nregions=12,
                  new_cmtsource=None, bootstrap_mean=None, bootstrap_std=None,
-                 var_reduction=0.0):
+                 var_reduction=0.0, mode="regional"):
         self.data_container = data_container
         self.cmtsource = cmtsource
         self.window = data_container.window
@@ -31,6 +31,10 @@ class PlotUtil(object):
 
         self.moment_tensor = [cmtsource.m_rr, cmtsource.m_tt, cmtsource.m_pp, cmtsource.m_rt, cmtsource.m_rp,
                               cmtsource.m_tp]
+
+        if mode.lower() not in ["global", "regional"]:
+            raise ValueError("Plot mode: 1) global; 2) regional")
+        self.mode = mode.lower()
 
         self.prepare_array()
 
@@ -63,7 +67,12 @@ class PlotUtil(object):
                                             self.sta_lat[i], self.sta_lon[i])
             self.sta_azi.append(az)
             self.sta_theta.append(az/180.0*np.pi)
-            self.sta_dist.append(dist/EARTH_HC)
+            if self.mode == "regional":
+                # if regional, then use original distance(in km)
+                self.sta_dist.append(dist/1000.0)
+            elif self.mode == "global":
+                # if global, then use degree as unit
+                self.sta_dist.append(dist/EARTH_HC)
 
     def get_azimuth_bin_number(self, azimuth):
         """
@@ -152,7 +161,12 @@ class PlotUtil(object):
     def plot_table(self):
         par_mean = self.bootstrap_mean
         par_std = self.bootstrap_std
-        std_over_mean = par_std/np.abs(par_mean)
+        std_over_mean = np.zeros(par_mean.shape)
+        for _i in range(par_mean.shape[0]):
+            if par_mean[_i] != 0:
+                std_over_mean[_i] = par_std[_i]/np.abs(par_mean[_i])
+            else:
+                std_over_mean[_i] = 0.0
         fontsize = 9
         incre = 0.07
         pos = 0.80
@@ -247,7 +261,7 @@ class PlotUtil(object):
         #    cmt_lon += 360
         focmecs = self.moment_tensor
         ax = plt.gca()
-        bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=10, linewidth=1)
+        bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1, alpha=0.9)
         bb.set_zorder(10)
         ax.add_collection(bb)
 
@@ -258,7 +272,10 @@ class PlotUtil(object):
         c.set_alpha(0.75)
         plt.xticks(fontsize=8)
         plt.yticks(fontsize=6)
-        ax.set_rmax(1.0)
+        if self.mode == "regional":
+            ax.set_rmax(1.10 * max(self.sta_dist))
+        elif self.mode == "global":
+            ax.set_rmax(1.0)
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
 

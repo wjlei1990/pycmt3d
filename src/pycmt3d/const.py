@@ -25,15 +25,6 @@ SCALE_HDUR = 1.0         # seconds
 # Maximum number of parameters
 NPARMAX = 11
 
-# Maximum npts for records
-NDATAMAX = 30000
-
-# Maximum number of records (NRECMAX < NWINMAX)
-NRECMAX = 1200
-
-# Maximum number of windows
-NWINMAX = 1800
-
 # Number of pars for moment only
 NM = 6
 
@@ -54,4 +45,7 @@ REF_DIST = 100.0
 R_EARTH = 6371  # km
 
 # Max step in non-linear solvoer
-NMAX_NL_ITER = 30
+NMAX_NL_ITER = 60
+
+# subset ratio of bootstrap
+BOOTSTRAP_SUBSET_RATIO = 0.4
