@@ -72,7 +72,7 @@ class Cmt3D(object):
 
         self.print_cmtsource_summary(self.cmtsource)
 
-    def setup_weight(self):
+    def setup_weight(self, weight_mode="num_files"):
         """
         Use Window information to setup weight.
 
@@ -85,7 +85,12 @@ class Cmt3D(object):
             self.prepare_for_weighting()
             # then calculate azimuth weighting
             for idx, window in enumerate(self.window):
-                self.setup_weight_for_location(window, self.naz_wins, self.naz_wins_all)
+                if weight_mode.lower() == "num_files":
+                    # weighted by the number of files in each azimuth bin
+                    self.setup_weight_for_location(window, self.naz_files, self.naz_files_all)
+                else:
+                    # weighted by the number of windows in each azimuth bin
+                    self.setup_weight_for_location(window, self.naz_wins, self.naz_wins_all)
 
                 if self.config.normalize_category:
                     self.setup_weight_for_category(window)
@@ -433,11 +438,11 @@ class Cmt3D(object):
 
         if linear_inversion:
             if print_mode:
-                logger.info("Linear Inversion")
+                logger.info("Linear Inversion...")
             new_par = self.linear_solver(old_par, A, b, npar, na)
         else:
             if print_mode:
-                logger.info("Nonlinear Inversion")
+                logger.info("Nonlinear Inversion...")
             new_par = self.nonlinear_solver(old_par, A, b, npar, na)
 
         new_cmt_par = np.copy(self.cmt_par)
@@ -558,7 +563,7 @@ class Cmt3D(object):
         print "*"*40 + "\nSee detailed output in %s\n" % logfilename
 
         self.setup_matrix()
-        self.setup_weight()
+        self.setup_weight(weight_mode="num_files")
         self.invert_cmt()
 
         self.calculate_variance()
@@ -851,8 +856,8 @@ class Cmt3D(object):
         :return:
         """
         taper = np.zeros(npts)
-        taper = np.ones(npts)
-        return taper
+        #taper = np.ones(npts)
+        #return taper
         for i in range(npts):
             taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts - 1))))
         return taper
@@ -918,7 +923,7 @@ class Cmt3D(object):
         logger.info("New CMT par: [%s]" % (', '.join(map(str, self.new_cmt_par))))
 
         logger.info("Trace: %e" % (np.sum(self.new_cmt_par[0:3])))
-        logger.info("Energy change: %5.2f%%" % ((self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0 * 100.0))
+        logger.info("Energy change(scalar moment): %5.2f%%" % ((self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0 * 100.0))
 
         self.inversion_result_table()
 
@@ -1008,7 +1013,8 @@ class Cmt3D(object):
 
         print "Source inversion summary figure: %s" % figurename
 
-        plot_stat = PlotUtil(data_container=self.data_container, cmtsource=self.cmtsource, nregions=const.NREGIONS,
+        plot_stat = PlotUtil(data_container=self.data_container, config=self.config, cmtsource=self.cmtsource, 
+                             nregions=const.NREGIONS,
                              new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
                              bootstrap_std=self.par_std, var_reduction=self.var_reduction)
         plot_stat.plot_inversion_summary(figurename=figurename)

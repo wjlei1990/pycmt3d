@@ -16,12 +16,13 @@ EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
 
 class PlotUtil(object):
 
-    def __init__(self, data_container=None, cmtsource=None, nregions=12,
+    def __init__(self, data_container=None, cmtsource=None, config=None, nregions=12,
                  new_cmtsource=None, bootstrap_mean=None, bootstrap_std=None,
                  var_reduction=0.0, mode="regional"):
         self.data_container = data_container
         self.cmtsource = cmtsource
         self.window = data_container.window
+        self.config = config
         self.nregions = nregions
 
         self.new_cmtsource = new_cmtsource
@@ -148,7 +149,8 @@ class PlotUtil(object):
         text = r"$\Delta$Mw=%4.3f" % (cmt.moment_magnitude-cmt_init.moment_magnitude)
         plt.text(-0.9, -0.3, text, fontsize=7)
         # lat and lon
-        text = r"$\Delta$lat=%6.3f$^\circ$; $\Delta$lon=%6.3f$^\circ$" % (cmt.latitude-cmt_init.latitude, cmt.longitude-cmt_init.longitude)
+        text = r"$\Delta$lat=%6.3f$^\circ$; $\Delta$lon=%6.3f$^\circ$" \
+               % (cmt.latitude-cmt_init.latitude, cmt.longitude-cmt_init.longitude)
         plt.text(-0.9, -0.5, text, fontsize=7)
         # depth
         text = r"$\Delta$dep=%6.3f km;" % ((cmt.depth_in_m-cmt_init.depth_in_m)/1000.0)
@@ -168,18 +170,32 @@ class PlotUtil(object):
             else:
                 std_over_mean[_i] = 0.0
         fontsize = 9
-        incre = 0.07
-        pos = 0.80
+        incre = 0.06
+        pos = 1.00
         format1 = "%15.4e  %15.4e  %15.4e  %15.4e   %10.2f%%"
         format2 = "%16.3f  %16.3f  %20.3f  %20.3f   %15.2f%%"
 
-        text = "Number of stations: %d          Number of widnows: %d" % (len(self.sta_lat), self.data_container.nwins)
-        plt.text(0, 0.93, text, fontsize=10)
+        text = "Number of stations: %d          Number of widnows: %d" \
+               % (len(self.sta_lat), self.data_container.nwins)
+        plt.text(0, pos, text, fontsize=fontsize)
 
+        pos -= incre
+        text = "Number of Parameter:%3d         Zero-Trace:%6s                  Double-couple:%6s " \
+               % (self.config.npar, self.config.zero_trace, self.config.double_couple)
+        plt.text(0, pos, text, fontsize=fontsize)
+
+        pos -= incre
+        text = "Station Correction:%6s         Norm_window:%6s              Norm_Category:%6s" \
+               % (self.config.station_correction, self.config.normalize_window, self.config.normalize_category)
+        plt.text(0, pos, text, fontsize=fontsize)
+
+        pos -= incre
         energy_change = (self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0
-        text = "Energy Change: %6.2f%%         Variance Reduction: %6.2f%%" % (energy_change*100, self.var_reduction*100)
-        plt.text(0, 0.86, text, fontsize=10)
+        text = "Inversion Damping:%6.3f       Energy Change: %6.2f%%       Variance Reduction: %6.2f%%" \
+               % (self.config.lamda_damping, energy_change*100, self.var_reduction*100)
+        plt.text(0, pos, text, fontsize=fontsize)
 
+        pos -= incre
         text = "======================   Summary Table    ========================="
         plt.text(0, pos, text, fontsize=fontsize)
 
