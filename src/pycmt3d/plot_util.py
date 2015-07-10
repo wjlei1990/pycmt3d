@@ -277,7 +277,7 @@ class PlotUtil(object):
         #    cmt_lon += 360
         focmecs = self.moment_tensor
         ax = plt.gca()
-        bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1, alpha=0.9)
+        bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1, alpha=1.0)
         bb.set_zorder(10)
         ax.add_collection(bb)
 

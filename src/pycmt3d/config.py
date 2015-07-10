@@ -37,7 +37,7 @@ class Config(object):
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 weight_data=True, weight_function=None,
+                 weight_data=True, weight_function=None, weight_azi_mode="num_files",
                  normalize_window=True, norm_mode="data_only",
                  normalize_category=False,
                  station_correction=True, zero_trace=True,
@@ -62,6 +62,7 @@ class Config(object):
             self.weight_function = weight_function
         else:
             self.weight_function = default_weight_function
+        self.weight_azi_mode = weight_azi_mode.lower()
         self.normalize_window = normalize_window
         self.normalize_category = normalize_category
         if norm_mode.lower() not in ['data_and_synt', 'data_only', 'data_average_only', 'data_abs_only']:
