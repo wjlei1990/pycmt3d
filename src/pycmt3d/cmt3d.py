@@ -72,7 +72,7 @@ class Cmt3D(object):
 
         self.print_cmtsource_summary(self.cmtsource)
 
-    def setup_weight(self, weight_mode="num_files"):
+    def setup_weight(self, weight_mode="num_wins"):
         """
         Use Window information to setup weight.
 
@@ -563,7 +563,7 @@ class Cmt3D(object):
         print "*"*40 + "\nSee detailed output in %s\n" % logfilename
 
         self.setup_matrix()
-        self.setup_weight(weight_mode="num_files")
+        self.setup_weight(weight_mode=self.config.weight_azi_mode)
         self.invert_cmt()
 
         self.calculate_variance()
