@@ -93,7 +93,7 @@ class DataContainer(object):
     """
     Class that contains methods that load data and window information
     """
-    def __init__(self, par_list):
+    def __init__(self, par_list=[]):
         """
         :param flexwin_file: old way of flexwin output file for cmt3d
         :param par_list: derivative parameter name list
@@ -163,7 +163,7 @@ class DataContainer(object):
         # load data for each window
         for win_obj in win_list:
             self.load_data_from_asdf(win_obj, asdf_dataset, obsd_tag=obsd_tag, synt_tag=synt_tag,
-                                     station_dict = station_info)
+                                     station_dict=station_info)
 
         self.window += win_list
         # count the total number of files and windows
@@ -418,6 +418,7 @@ class DataContainer(object):
                     component = window.component
                     location = window.location
                     filename = "%s.%s.%s.%s.sac" % (sta, nw, location, component)
+                    #filename = "%s.%s.BH%s" % (sta, nw, component[2:3])
                     outputfn = os.path.join(targetdir, filename)
                     new_synt = window.datalist['new_synt']
                     new_synt.write(outputfn, format='SAC')
