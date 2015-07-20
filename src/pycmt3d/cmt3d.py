@@ -650,6 +650,7 @@ class Cmt3D(object):
         for _idx, window in enumerate(self.window):
             obsd = window.datalist['obsd']
             synt = window.datalist['synt']
+            dt = obsd.stats.delta
             self.compute_new_syn(window.datalist, dm)
             new_synt = window.datalist['new_synt']
             # calculate old variance
@@ -667,8 +668,8 @@ class Cmt3D(object):
             if tag not in self.stats_after.keys():
                 self.stats_after[tag] = []
             for _i in range(window.num_wins):
-                self.stats_before[tag].append([nshift1[_i], cc1[_i], dlnA1[_i], cc_amp_value1[_i], v1[_i]/d1[_i]])
-                self.stats_after[tag].append([nshift2[_i], cc2[_i], dlnA2[_i], cc_amp_value2[_i], v2[_i]/d2[_i]])
+                self.stats_before[tag].append([nshift1[_i]*dt, cc1[_i], dlnA1[_i], cc_amp_value1[_i], v1[_i]/d1[_i]])
+                self.stats_after[tag].append([nshift2[_i]*dt, cc2[_i], dlnA2[_i], cc_amp_value2[_i], v2[_i]/d2[_i]])
 
         for tag in self.stats_before.keys():
             self.stats_before[tag] = np.array(self.stats_before[tag])
@@ -766,9 +767,9 @@ class Cmt3D(object):
 
         datalist['new_synt'].data = datalist['synt'].data + np.dot(dsyn, dm_scaled)
 
-    def write_new_syn(self, format="sac", outputdir="."):
+    def write_new_syn(self, outputdir, format="sac"):
         # check first
-        print "New synt output dir: %s" %outputdir
+        print "New synt output dir: %s" % outputdir
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 
@@ -1050,7 +1051,7 @@ class Cmt3D(object):
 
         print "Inversion histogram figure: %s" % figname
 
-        plt.figure(figsize=(5*ncols,5*nrows))
+        plt.figure(figsize=(5*ncols, 5*nrows))
         G = gridspec.GridSpec(nrows, ncols)
         irow = 0
         for cat in self.stats_before.keys():
@@ -1059,8 +1060,8 @@ class Cmt3D(object):
         plt.savefig(figname)
 
     def _plot_stats_histogram_per_cat_(self, G, irow, cat, data_before, data_after):
-        num_bins = [10, 10, 15, 15, 15]
-        vtype_list = ['nshift', 'cc', 'Power_Ratio(dB)', 'CC Amplitude Ratio(dB)', 'Kai']
+        num_bins = [15, 15, 15, 15, 15]
+        vtype_list = ['time shift', 'cc', 'Power_Ratio(dB)', 'CC Amplitude Ratio(dB)', 'Kai']
         # plot order
         var_index = [0, 1, 2, 3, 4]
         for _idx, var_idx in enumerate(var_index):
@@ -1077,7 +1078,7 @@ class Cmt3D(object):
             ax_min = min(min(data_b), min(data_a))
             ax_max = max(max(data_b), max(data_a))
         elif vtype == "Kai":
-            ax_min = 0.0;
+            ax_min = 0.0
             ax_max = max(max(data_b), max(data_a))
         else:
             ax_min = min(min(data_b), min(data_a))
@@ -1086,7 +1087,6 @@ class Cmt3D(object):
             ax_min = -abs_max
             ax_max = abs_max
         binwidth = (ax_max - ax_min) / num_bin
-        #print vtype, ax_min, ax_max
         n, bins, patches = plt.hist(data_b, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
                                     facecolor='blue', alpha=0.3)
         n, bins, patches = plt.hist(data_a, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
