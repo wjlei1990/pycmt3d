@@ -74,7 +74,12 @@ To really add the data and measurements, there are 2 different methods:
   Data could be loaded as::
 
     flexwin_file = "path/to/your/flexwin_output"
-    data_con.add_measurements_from_sac(flexwin_file)
+    data_con.add_measurements_from_sac(flexwin_file, tag="user_defined_tag", initial_weight=1.0, load_mode="relative_time")
+
+
+  In this function, *tag* is user defined tag for the data. For example, if you window selection for two period band, such as 2s-30s and 6s-30s, you can tag the data with "2s-30s" and "6s-30s" ans so they will be treated as two different measurements. Also, you can assign differnt *initial_weight* to these two categories. 
+  
+  The *load_mode* is the way how to treat the window time in flexwin file. If *load_mode=="relative_time"*, then the reference time(zero time point) would be the event time(old version of FLEXWIN). If *load_mode=="absolute_time"*, then the reference time(zero time point) would be the beginning of the trace. In this case, the window time could not be smaller than 0.
 
 2. ASDF format data
 
@@ -101,23 +106,31 @@ One config example is to
 5. Damping set to 0(no damping)
 6. Bootstrap will not be used.
 
-Code example as following::
+Code example as following:
+
+.. code-block:: python
 
   from pycmt3d.config import Config
   npar = 9   # 9 paramter inversion
   config = Config(npar, dlocation=0.03, ddepth=3.0, dmoment=2.0e+23,
-      weight_data=True, weight_function=None, normalize_window=False,
-      norm_mode="data_and_synt", station_correction=True,
-      zero_trace=True, double_couple=False, lamda_damping=0.0,
+      weight_data=True, weight_function=None, weight_azi_mode="num_files"
+      normalize_window=False, norm_mode="data_only", normalize_category=False,
+      station_correction=True, zero_trace=True, double_couple=False, lamda_damping=0.0,
       bootstrap=False, bootstrap_repeat=100)
 
 * Bootstrap
-    If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation.
+    If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting "boostrap = True" in the config. It will provide the mean value and the standard deviation. Using this function is encouraged because: 1) it doesn't cost a lot of extra calculation; 2) give you good estimate how stable is your inversion.
 
 * Window energy normalization
     If you want the measurement from each window normalized by it's energy, you can set the flag "normalize_window = True" in config. There are two normalization mode you can choose.
-    1. norm_mode="data_and_synt"
-    2. norm_mode="data_only"
+    1. norm_mode="data_only"
+    2. norm_mode="data_and_synt"(don't choose this one; bad normalization factor)
+
+* Window Category normalization
+    If you want to normalize the measurements from differnt categories, for example, you have window selection from two period bands, 2s-30s and 10s-50s and you want to combine them together in the source inversion, you can turn this flag one to make their contributions equal(all normalize to 1). This flag is usually turned on with window energy normalization on(set both to True).
+
+* Azimuth weighting
+    There are two options: 1) "num_files"; 2) "num_wins". In the old fortran version of cmt3d code, the default is "num_files" and you will use the number of files in each azimuth bin as the weighting term. But you might want to change it to "num_wins" to truely reflect the number of measurements.
 
 4. Source Inversion
 #####################
@@ -127,9 +140,34 @@ After get the CMTSource, Data and Inversion scheme ready, the source inversion c
   srcinv = Cmt3D(cmtsource, data, config)
   srcinv.source_inversion()
 
-if you want to plot the result of the inversion, use the plot methods::
+If you want to write out the new synthetic data for the new source and new CMT Solution file::
 
-  srcinv.plot_summary(figurename="/path/to/output_figure")
+  srcinv.write_new_syn(outputdir="./new_syn")
+  srcinv.write_new_cmtfile(outputdir=".")
+
+5. Visualization tools
+######################
+if you want to plot the result of the inversion, use the plotting methods::
+
+  srcinv.plot_summary(outputdir=".", format="png") 
+
+.. figure:: _img/srcinv_summary.png
+    :width: 500px
+    :align: center
+    :alt: Source Inversion Summary 
+    :figclass: align-center
+
+If you want to plot the statistic histogram, for example, how the time shift, energy or waveform misfit(in windows) are changed, you can use::
+
+  srcinv.plot_stats_histogram(outputdir=".", format="png")
+
+.. figure:: _img/srcinv_histogram.png
+    :width: 500px
+    :align: center
+    :alt: Source Inversion Summary 
+    :figclass: align-center
+
+The *format* could be any as long as it is supported by matplotlib.
 
 5. Workflow Example
 #####################
