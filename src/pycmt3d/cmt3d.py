@@ -767,7 +767,7 @@ class Cmt3D(object):
 
         datalist['new_synt'].data = datalist['synt'].data + np.dot(dsyn, dm_scaled)
 
-    def write_new_syn(self, outputdir, format="sac"):
+    def write_new_syn(self, outputdir=".", format="sac"):
         # check first
         print "New synt output dir: %s" % outputdir
         if not os.path.exists(outputdir):
@@ -1020,7 +1020,7 @@ class Cmt3D(object):
                              bootstrap_std=self.par_std, var_reduction=self.var_reduction)
         plot_stat.plot_inversion_summary(figurename=figurename)
 
-    def plot_stats_histogram(self, outputdir="."):
+    def plot_stats_histogram(self, outputdir=".", format="png"):
         """
         Plot inversion histogram
 
@@ -1046,7 +1046,7 @@ class Cmt3D(object):
             prefix += ".no_normcat"
         else:
             prefix += ".normcat"
-        figname = "%s.%s.dlnA.png" % (self.cmtsource.eventname, prefix)
+        figname = "%s.%s.dlnA.%s" % (self.cmtsource.eventname, prefix, format)
         figname = os.path.join(outputdir, figname)
 
         print "Inversion histogram figure: %s" % figname
