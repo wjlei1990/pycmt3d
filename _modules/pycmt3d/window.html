@@ -106,17 +106,23 @@
         <span class="n">obsd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;obsd&#39;</span><span class="p">]</span>
         <span class="n">synt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span>
         <span class="n">dt</span> <span class="o">=</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span>
-        <span class="k">if</span> <span class="n">mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;data_and_synt&#39;</span><span class="p">,</span> <span class="s">&#39;data_only&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Weight mode incorrect: 1) data_and_synt; 2) data_only&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_wins</span><span class="p">):</span>
             <span class="n">istart_d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">_idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span>
             <span class="n">iend_d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">_idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">iend_d</span> <span class="o">-</span> <span class="n">istart_d</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Window length &lt; 1, incorrect!&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;data_and_synt&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="p">[</span><span class="n">_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span>
                                             <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">synt</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">dt</span><span class="p">))</span>
             <span class="k">elif</span> <span class="n">mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;data_only&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="p">[</span><span class="n">_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">dt</span><span class="p">)</span>
-</div>
+            <span class="k">elif</span> <span class="n">mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;data_average_only&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="p">[</span><span class="n">_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">dt</span><span class="o">/</span><span class="p">(</span><span class="n">iend_d</span> <span class="o">-</span> <span class="n">istart_d</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;data_abs_only&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="p">[</span><span class="n">_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">obsd</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">istart_d</span><span class="p">:</span><span class="n">iend_d</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Weight mode incorrect: 1) data_and_synt; 2) data_only &quot;</span>
+                                <span class="s">&quot;3) data_average_only; 4) data_abs_only&quot;</span><span class="p">)</span></div>
 <div class="viewcode-block" id="Window.get_location_info"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.Window.get_location_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_location_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmtsource</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        calculating azimuth and distance, and then store it</span>
@@ -136,7 +142,7 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class that contains methods that load data and window information</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">par_list</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">par_list</span><span class="o">=</span><span class="p">[]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param flexwin_file: old way of flexwin output file for cmt3d</span>
 <span class="sd">        :param par_list: derivative parameter name list</span>
@@ -152,17 +158,21 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">elapse_time</span> <span class="o">=</span> <span class="mf">0.0</span>
 
-<div class="viewcode-block" id="DataContainer.add_measurements_from_sac"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.add_measurements_from_sac">[docs]</a>    <span class="k">def</span> <span class="nf">add_measurements_from_sac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flexwinfile</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="DataContainer.add_measurements_from_sac"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.add_measurements_from_sac">[docs]</a>    <span class="k">def</span> <span class="nf">add_measurements_from_sac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flexwinfile</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s">&quot;untaged&quot;</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">load_mode</span><span class="o">=</span><span class="s">&quot;obsolute_time&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add measurments(window and data) from the given flexwinfile and the data format should be sac</span>
 
 <span class="sd">        :param flexwinfile:</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">load_mode</span> <span class="o">=</span> <span class="n">load_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">load_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;obsolute_time&quot;</span><span class="p">,</span> <span class="s">&quot;relative_time&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;load_winfile mode incorrect: 1)obsolute_time 2)relative_time&quot;</span><span class="p">)</span>
+
         <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="n">win_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">(</span><span class="n">flexwinfile</span><span class="p">)</span>
+        <span class="n">win_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">(</span><span class="n">flexwinfile</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="n">initial_weight</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">win_obj</span> <span class="ow">in</span> <span class="n">win_list</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">load_data_from_sac</span><span class="p">(</span><span class="n">win_obj</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_data_from_sac</span><span class="p">(</span><span class="n">win_obj</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">load_mode</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">+=</span> <span class="n">win_list</span>
         <span class="c"># count the total number of files and windows</span>
@@ -179,7 +189,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of files and window added: [</span><span class="si">%d</span><span class="s">, </span><span class="si">%d</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">nfiles</span><span class="p">,</span> <span class="n">nwins</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="DataContainer.add_measurements_from_asdf"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.add_measurements_from_asdf">[docs]</a>    <span class="k">def</span> <span class="nf">add_measurements_from_asdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flexwinfile</span><span class="p">,</span> <span class="n">asdf_file_dict</span><span class="p">,</span> <span class="n">obsd_tag</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">synt_tag</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                   <span class="n">stationfile</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                                   <span class="n">stationfile</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add measurments(window and data) from the given flexwinfile and the data format should be asdf.</span>
 <span class="sd">        Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in</span>
@@ -192,7 +202,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="c"># load window information</span>
-        <span class="n">win_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">(</span><span class="n">flexwinfile</span><span class="p">)</span>
+        <span class="n">win_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_winfile</span><span class="p">(</span><span class="n">flexwinfile</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="n">initial_weight</span><span class="p">)</span>
         <span class="c"># load in the asdf data</span>
         <span class="n">asdf_dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_and_load_asdf_file</span><span class="p">(</span><span class="n">asdf_file_dict</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">stationfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -202,7 +212,7 @@
         <span class="c"># load data for each window</span>
         <span class="k">for</span> <span class="n">win_obj</span> <span class="ow">in</span> <span class="n">win_list</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_data_from_asdf</span><span class="p">(</span><span class="n">win_obj</span><span class="p">,</span> <span class="n">asdf_dataset</span><span class="p">,</span> <span class="n">obsd_tag</span><span class="o">=</span><span class="n">obsd_tag</span><span class="p">,</span> <span class="n">synt_tag</span><span class="o">=</span><span class="n">synt_tag</span><span class="p">,</span>
-                                     <span class="n">station_dict</span> <span class="o">=</span> <span class="n">station_info</span><span class="p">)</span>
+                                     <span class="n">station_dict</span><span class="o">=</span><span class="n">station_info</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">+=</span> <span class="n">win_list</span>
         <span class="c"># count the total number of files and windows</span>
@@ -240,7 +250,7 @@
         <span class="k">return</span> <span class="n">dataset</span>
 </div>
     <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="DataContainer.load_winfile"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_winfile">[docs]</a>    <span class="k">def</span> <span class="nf">load_winfile</span><span class="p">(</span><span class="n">flexwin_file</span><span class="p">):</span>
+<div class="viewcode-block" id="DataContainer.load_winfile"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_winfile">[docs]</a>    <span class="k">def</span> <span class="nf">load_winfile</span><span class="p">(</span><span class="n">flexwin_file</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        old way of loading flexwin outputfile</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -260,12 +270,14 @@
                     <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
                     <span class="n">win_time</span><span class="p">[</span><span class="n">iwin</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                     <span class="n">win_time</span><span class="p">[</span><span class="n">iwin</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">content</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">win_weight</span> <span class="o">=</span> <span class="n">initial_weight</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">num_wins</span><span class="p">)</span>
                 <span class="n">win_obj</span> <span class="o">=</span> <span class="n">Window</span><span class="p">(</span><span class="n">num_wins</span><span class="o">=</span><span class="n">num_wins</span><span class="p">,</span> <span class="n">win_time</span><span class="o">=</span><span class="n">win_time</span><span class="p">,</span>
-                                     <span class="n">obsd_fn</span><span class="o">=</span><span class="n">obsd_fn</span><span class="p">,</span> <span class="n">synt_fn</span><span class="o">=</span><span class="n">synt_fn</span><span class="p">)</span>
+                                 <span class="n">obsd_fn</span><span class="o">=</span><span class="n">obsd_fn</span><span class="p">,</span> <span class="n">synt_fn</span><span class="o">=</span><span class="n">synt_fn</span><span class="p">,</span>
+                                 <span class="n">weight</span><span class="o">=</span><span class="n">win_weight</span><span class="p">)</span>
                 <span class="n">win_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">win_obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">win_list</span>
 </div>
-<div class="viewcode-block" id="DataContainer.load_data_from_sac"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_data_from_sac">[docs]</a>    <span class="k">def</span> <span class="nf">load_data_from_sac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">win_obj</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="DataContainer.load_data_from_sac"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.load_data_from_sac">[docs]</a>    <span class="k">def</span> <span class="nf">load_data_from_sac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">win_obj</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Old way of loading obsd and synt data...</span>
 
@@ -284,6 +296,16 @@
         <span class="n">win_obj</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">network</span>
         <span class="n">win_obj</span><span class="o">.</span><span class="n">component</span> <span class="o">=</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span>
         <span class="n">win_obj</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">location</span>
+
+        <span class="c">#calibrate window time if needed</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&quot;relative_time&quot;</span><span class="p">:</span>
+            <span class="n">b_tshift</span> <span class="o">=</span> <span class="n">obsd</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sac</span><span class="p">[</span><span class="s">&#39;b&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">_ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">win_obj</span><span class="o">.</span><span class="n">win_time</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="k">for</span> <span class="n">_jj</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">win_obj</span><span class="o">.</span><span class="n">win_time</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                    <span class="n">win_obj</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">_ii</span><span class="p">,</span> <span class="n">_jj</span><span class="p">]</span> <span class="o">-=</span> <span class="n">b_tshift</span>
+                    <span class="c"># WJL: not a good way</span>
+                    <span class="n">win_obj</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">_ii</span><span class="p">,</span> <span class="n">_jj</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">win_obj</span><span class="o">.</span><span class="n">win_time</span><span class="p">[</span><span class="n">_ii</span><span class="p">,</span> <span class="n">_jj</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+
         <span class="c"># synt</span>
         <span class="n">win_obj</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">synt_fn</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">win_obj</span><span class="o">.</span><span class="n">tag</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tag</span>
@@ -392,13 +414,10 @@
         <span class="n">attr_list</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;StationXML&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">attr_list</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">print</span> <span class="n">st</span>
-                <span class="k">print</span> <span class="nb">dir</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
-                <span class="k">print</span> <span class="n">station_name</span>
-                <span class="k">print</span> <span class="n">attr_list</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:</span><span class="si">%s</span><span class="s">&quot;</span>
                                  <span class="o">%</span> <span class="n">attr_list</span><span class="p">)</span>
             <span class="n">stream</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">attr_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="n">attr_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">stream</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">station_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
@@ -420,6 +439,47 @@
                 <span class="c">#print key</span>
                 <span class="n">station_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">4</span><span class="p">])]</span>
         <span class="k">return</span> <span class="n">station_dict</span>
+</div>
+<div class="viewcode-block" id="DataContainer.write_new_syn_file"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.write_new_syn_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_new_syn_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">&quot;sac&quot;</span><span class="p">,</span> <span class="n">outputdir</span><span class="o">=</span><span class="s">&quot;.&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write out new synthetic file based on new cmtsolution</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">outputdir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outputdir</span><span class="p">)</span>
+
+        <span class="c"># sort the new synthetic data</span>
+        <span class="n">new_synt_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">tag</span><span class="p">[</span><span class="s">&#39;synt&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">new_synt_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">new_synt_dict</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">new_synt_dict</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">format</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;SAC&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">win_array</span> <span class="ow">in</span> <span class="n">new_synt_dict</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                <span class="n">targetdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outputdir</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">targetdir</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">targetdir</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">win_array</span><span class="p">:</span>
+                    <span class="n">sta</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">station</span>
+                    <span class="n">nw</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">network</span>
+                    <span class="n">component</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">component</span>
+                    <span class="n">location</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">location</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.sac&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sta</span><span class="p">,</span> <span class="n">nw</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">component</span><span class="p">)</span>
+                    <span class="c">#filename = &quot;%s.%s.BH%s&quot; % (sta, nw, component[2:3])</span>
+                    <span class="n">outputfn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">targetdir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="n">new_synt</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;new_synt&#39;</span><span class="p">]</span>
+                    <span class="n">new_synt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">outputfn</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">&#39;SAC&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">format</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;ASDF&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">pyasdf</span> <span class="kn">import</span> <span class="n">ASDFDataSet</span>
+            <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">win_array</span> <span class="ow">in</span> <span class="n">new_synt_dict</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                <span class="n">outputfn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outputdir</span><span class="p">,</span> <span class="s">&quot;new_synt.</span><span class="si">%s</span><span class="s">.h5&quot;</span> <span class="o">%</span> <span class="n">tag</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">outputfn</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">outputfn</span><span class="p">)</span>
+                <span class="n">ds</span> <span class="o">=</span> <span class="n">ASDFDataSet</span><span class="p">(</span><span class="n">outputfn</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">win_array</span><span class="p">:</span>
+                    <span class="n">ds</span><span class="o">.</span><span class="n">add_waveforms</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">datalist</span><span class="p">[</span><span class="s">&#39;new_synt&#39;</span><span class="p">],</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="DataContainer.print_summary"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.window.DataContainer.print_summary">[docs]</a>    <span class="k">def</span> <span class="nf">print_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>

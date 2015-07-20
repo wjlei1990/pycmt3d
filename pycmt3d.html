@@ -74,6 +74,29 @@
 </tbody>
 </table>
 <dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.apply_station_correction">
+<tt class="descname">apply_station_correction</tt><big>(</big><em>obsd</em>, <em>synt</em>, <em>istart</em>, <em>iend</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.apply_station_correction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.apply_station_correction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply station correction on windows based one cross-correlation time shift if config.station_correction</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>obsd</strong> &#8211; </li>
+<li><strong>synt</strong> &#8211; </li>
+<li><strong>istart</strong> &#8211; </li>
+<li><strong>iend</strong> &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.calculate_azimuth_bin">
 <tt class="descname">calculate_azimuth_bin</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.calculate_azimuth_bin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.calculate_azimuth_bin" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the azimuth and sort them into bins</p>
@@ -115,8 +138,38 @@
 </dd></dl>
 
 <dl class="method">
-<dt id="pycmt3d.cmt3d.Cmt3D.calculate_var_reduction_one_trace">
-<tt class="descname">calculate_var_reduction_one_trace</tt><big>(</big><em>obsd</em>, <em>synt</em>, <em>win_time</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.calculate_var_reduction_one_trace"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.calculate_var_reduction_one_trace" title="Permalink to this definition">¶</a></dt>
+<dt id="pycmt3d.cmt3d.Cmt3D.calculate_dsyn">
+<tt class="descname">calculate_dsyn</tt><big>(</big><em>datalist</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.calculate_dsyn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.calculate_dsyn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate dsyn matrix based on perturbed seismograms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>datalist</strong> &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.calculate_kai_total_value">
+<tt class="descname">calculate_kai_total_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.calculate_kai_total_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.calculate_kai_total_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the sum of kai value</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.calculate_var_one_trace">
+<tt class="descname">calculate_var_one_trace</tt><big>(</big><em>obsd</em>, <em>synt</em>, <em>win_time</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.calculate_var_one_trace"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.calculate_var_one_trace" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the variance reduction on a pair of obsd and synt and windows</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -155,7 +208,7 @@
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.compute_A_b">
-<tt class="descname">compute_A_b</tt><big>(</big><em>window</em>, <em>win_idx</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.compute_A_b"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.compute_A_b" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">compute_A_b</tt><big>(</big><em>window</em>, <em>win_idx</em>, <em>dsyn</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.compute_A_b"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.compute_A_b" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the matrix A and vector b based on one pair of observed data and
 synthetic data on a given window.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -165,6 +218,7 @@ synthetic data on a given window.</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>window</strong> (<tt class="xref py py-class docutils literal"><span class="pre">pycmt3d.Window</span></tt>) &#8211; data and window information</li>
 <li><strong>win_idx</strong> (<em>integer</em>) &#8211; window index(a specific window)</li>
+<li><strong>dsyn</strong> (<em>numpy.array</em>) &#8211; derivative synthetic data matrix</li>
 </ul>
 </td>
 </tr>
@@ -243,35 +297,10 @@ synthetic data on a given window.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="pycmt3d.cmt3d.Cmt3D.get_f_df">
-<tt class="descname">get_f_df</tt><big>(</big><em>A</em>, <em>b</em>, <em>m</em>, <em>lam</em>, <em>mstart</em>, <em>fij</em>, <em>f0</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.get_f_df"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.get_f_df" title="Permalink to this definition">¶</a></dt>
-<dd><p>Iterative solver for Non-linear case(double-couple constraint)</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>A</strong> &#8211; basic Hessian matrix</li>
-<li><strong>b</strong> &#8211; basic misfit vector</li>
-<li><strong>m</strong> &#8211; current source array</li>
-<li><strong>lam</strong> &#8211; constraints coefficient for zero-trace and double-couple constraints</li>
-<li><strong>mstart</strong> &#8211; starting source solution</li>
-<li><strong>fij</strong> &#8211; reconstructed Hessian Matrix AA</li>
-<li><strong>f0</strong> &#8211; reconstructed misfit vector bb</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.get_station_info">
 <tt class="descname">get_station_info</tt><big>(</big><em>datalist</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.get_station_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.get_station_info" title="Permalink to this definition">¶</a></dt>
-<dd><p>Using the event location and station information to calculate azimuth and distance</p>
+<dd><p>Using the event location and station information to calculate azimuth and distance
+!!! Obsolete, not used any more !!!</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -329,7 +358,7 @@ A is the Hessian Matrix and b is the misfit</p>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.invert_solver">
-<tt class="descname">invert_solver</tt><big>(</big><em>A</em>, <em>b</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.invert_solver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.invert_solver" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">invert_solver</tt><big>(</big><em>A</em>, <em>b</em>, <em>print_mode=False</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.invert_solver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.invert_solver" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solver part. Hession matrix A and misfit vector b will be reconstructed here
 based on different constraints.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -338,12 +367,36 @@ based on different constraints.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>A</strong> &#8211; basic Hessian matrix</li>
-<li><strong>b</strong> &#8211; basid misfit vector</li>
+<li><strong>b</strong> &#8211; basic misfit vector</li>
+<li><strong>print_mode</strong> &#8211; if True, then print out log information; if False, then no log information</li>
 </ul>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
 </td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.linear_solver">
+<tt class="descname">linear_solver</tt><big>(</big><em>old_par</em>, <em>A</em>, <em>b</em>, <em>npar</em>, <em>na</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.linear_solver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.linear_solver" title="Permalink to this definition">¶</a></dt>
+<dd><p>if invert for moment tensor with zero-trace constraints or no constraint</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.nonlinear_solver">
+<tt class="descname">nonlinear_solver</tt><big>(</big><em>old_par</em>, <em>A</em>, <em>b</em>, <em>npar</em>, <em>na</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.nonlinear_solver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.nonlinear_solver" title="Permalink to this definition">¶</a></dt>
+<dd><p>if invert for moment tensor with double couple constraints
+setup starting solution, solve directly for moment instead
+of dm, exact implementation of (A16)
+logger.info(&#8216;Non-linear Inversion&#8217;)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"></td>
 </tr>
 </tbody>
 </table>
@@ -364,15 +417,42 @@ based on different constraints.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.plot_stats_histogram">
+<tt class="descname">plot_stats_histogram</tt><big>(</big><em>outputdir='.'</em>, <em>format='png'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.plot_stats_histogram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.plot_stats_histogram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot inversion histogram</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>outputdir</strong> &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.plot_summary">
-<tt class="descname">plot_summary</tt><big>(</big><em>figurename=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.plot_summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.plot_summary" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descname">plot_summary</tt><big>(</big><em>outputdir='.'</em>, <em>format='png'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.plot_summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.plot_summary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot inversion summary</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>outputdir</strong> &#8211; output directory</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.prepare_for_weighting">
 <tt class="descname">prepare_for_weighting</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.prepare_for_weighting"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.prepare_for_weighting" title="Permalink to this definition">¶</a></dt>
-<dd><p>Prepare necessary information for weighting, e.x., calculating azimuth and distance
-and store it</p>
+<dd><p>Prepare necessary information for weighting, e.x., calculating azimuth, distance and energty of a window.
+Also, based on the tags, sort window into different categories.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -427,8 +507,8 @@ and store it</p>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.setup_weight">
-<tt class="descname">setup_weight</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.setup_weight"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.setup_weight" title="Permalink to this definition">¶</a></dt>
-<dd><p>Use Window and location information to setup weight</p>
+<tt class="descname">setup_weight</tt><big>(</big><em>weight_mode='num_wins'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.setup_weight"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.setup_weight" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use Window information to setup weight.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -440,15 +520,61 @@ and store it</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.setup_weight_for_category">
+<tt class="descname">setup_weight_for_category</tt><big>(</big><em>window</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.setup_weight_for_category"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.setup_weight_for_category" title="Permalink to this definition">¶</a></dt>
+<dd><p>Setup weight for each category if config.normalize_category
+window_weight = window_weight / N_windows_in_category</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>window</strong> &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.setup_weight_for_location">
+<tt class="descname">setup_weight_for_location</tt><big>(</big><em>window</em>, <em>naz_bin</em>, <em>naz_bin_all</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.setup_weight_for_location"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.setup_weight_for_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>setup weight from location information, including distance, component and azimuth</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>window</strong> &#8211; </li>
+<li><strong>naz_bin</strong> &#8211; </li>
+<li><strong>naz_bin_all</strong> &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.source_inversion">
 <tt class="descname">source_inversion</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.source_inversion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.source_inversion" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>the Source Inversion method
+:return:</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="pycmt3d.cmt3d.Cmt3D.write_new_cmtfile">
-<tt class="descname">write_new_cmtfile</tt><big>(</big><em>cmtfile</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.write_new_cmtfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.write_new_cmtfile" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">write_new_cmtfile</tt><big>(</big><em>outputdir='.'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.write_new_cmtfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.write_new_cmtfile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write new_cmtsource into a file</p>
 </dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.cmt3d.Cmt3D.write_new_syn">
+<tt class="descname">write_new_syn</tt><big>(</big><em>outputdir='.'</em>, <em>format='sac'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/cmt3d.html#Cmt3D.write_new_syn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.cmt3d.Cmt3D.write_new_syn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
@@ -458,7 +584,7 @@ and store it</p>
 <p>Configuration object for pycmt3d</p>
 <dl class="class">
 <dt id="pycmt3d.config.Config">
-<em class="property">class </em><tt class="descclassname">pycmt3d.config.</tt><tt class="descname">Config</tt><big>(</big><em>npar</em>, <em>dlocation=0.0</em>, <em>ddepth=0.0</em>, <em>dmoment=0.0</em>, <em>weight_data=True</em>, <em>weight_function=None</em>, <em>normalize_window=True</em>, <em>norm_mode='data_only'</em>, <em>station_correction=True</em>, <em>zero_trace=True</em>, <em>double_couple=False</em>, <em>lamda_damping=0.0</em>, <em>bootstrap=True</em>, <em>bootstrap_repeat=300</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#Config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.Config" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">pycmt3d.config.</tt><tt class="descname">Config</tt><big>(</big><em>npar</em>, <em>dlocation=0.0</em>, <em>ddepth=0.0</em>, <em>dmoment=0.0</em>, <em>weight_data=True</em>, <em>weight_function=None</em>, <em>weight_azi_mode='num_files'</em>, <em>normalize_window=True</em>, <em>norm_mode='data_only'</em>, <em>normalize_category=False</em>, <em>station_correction=True</em>, <em>zero_trace=True</em>, <em>double_couple=False</em>, <em>lamda_damping=0.0</em>, <em>bootstrap=True</em>, <em>bootstrap_repeat=300</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#Config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.Config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Configuration for source inversion</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -500,41 +626,6 @@ and store it</p>
 </dd></dl>
 
 </dd></dl>
-
-<dl class="function">
-<dt id="pycmt3d.config.default_weight_function">
-<tt class="descclassname">pycmt3d.config.</tt><tt class="descname">default_weight_function</tt><big>(</big><em>kcmpnm</em>, <em>dist_in_km</em>, <em>azi_count</em>, <em>nwins</em>, <em>comp_r_weight=2.0</em>, <em>comp_t_weight=1.5</em>, <em>comp_z_weight=2.0</em>, <em>az_exp_weight=0.5</em>, <em>pnl_dist_weight=0.75</em>, <em>rayleigh_dist_weight=0.55</em>, <em>love_dist_weight=0.55</em>, <em>dist_weight_mode='exponential'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#default_weight_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.default_weight_function" title="Permalink to this definition">¶</a></dt>
-<dd><p>Defualt weighting function</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>kcmpnm</strong> &#8211; </li>
-<li><strong>dist_in_km</strong> &#8211; </li>
-<li><strong>azi_count</strong> &#8211; </li>
-<li><strong>nwins</strong> &#8211; </li>
-<li><strong>comp_r_weight</strong> &#8211; </li>
-<li><strong>comp_t_weight</strong> &#8211; </li>
-<li><strong>comp_z_weight</strong> &#8211; </li>
-<li><strong>az_exp_weight</strong> &#8211; </li>
-<li><strong>pnl_dist_weight</strong> &#8211; </li>
-<li><strong>rayleigh_dist_weight</strong> &#8211; </li>
-<li><strong>love_dist_weight</strong> &#8211; </li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="pycmt3d.config.dist_damping_function">
-<tt class="descclassname">pycmt3d.config.</tt><tt class="descname">dist_damping_function</tt><big>(</big><em>dist_in_km</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/config.html#dist_damping_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.config.dist_damping_function" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 </div>
 <div class="section" id="module-pycmt3d.const">
@@ -645,12 +736,12 @@ notation:
 <span id="pycmt3d-window-module"></span><span id="my-window-label"></span><h2>pycmt3d.window module<a class="headerlink" href="#module-pycmt3d.window" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="pycmt3d.window.DataContainer">
-<em class="property">class </em><tt class="descclassname">pycmt3d.window.</tt><tt class="descname">DataContainer</tt><big>(</big><em>par_list</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">pycmt3d.window.</tt><tt class="descname">DataContainer</tt><big>(</big><em>par_list=[]</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class that contains methods that load data and window information</p>
 <dl class="method">
 <dt id="pycmt3d.window.DataContainer.add_measurements_from_asdf">
-<tt class="descname">add_measurements_from_asdf</tt><big>(</big><em>flexwinfile</em>, <em>asdf_file_dict</em>, <em>obsd_tag=None</em>, <em>synt_tag=None</em>, <em>stationfile=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.add_measurements_from_asdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.add_measurements_from_asdf" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_measurements_from_asdf</tt><big>(</big><em>flexwinfile</em>, <em>asdf_file_dict</em>, <em>obsd_tag=None</em>, <em>synt_tag=None</em>, <em>stationfile=None</em>, <em>initial_weight=1.0</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.add_measurements_from_asdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.add_measurements_from_asdf" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add measurments(window and data) from the given flexwinfile and the data format should be asdf.
 Usually, you can leave the obsd_tag=None and synt_tag=None unless if you have multiple tags in
 asdf file.</p>
@@ -674,7 +765,7 @@ asdf file.</p>
 
 <dl class="method">
 <dt id="pycmt3d.window.DataContainer.add_measurements_from_sac">
-<tt class="descname">add_measurements_from_sac</tt><big>(</big><em>flexwinfile</em>, <em>tag=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.add_measurements_from_sac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.add_measurements_from_sac" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_measurements_from_sac</tt><big>(</big><em>flexwinfile</em>, <em>tag='untaged'</em>, <em>initial_weight=1.0</em>, <em>load_mode='obsolute_time'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.add_measurements_from_sac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.add_measurements_from_sac" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add measurments(window and data) from the given flexwinfile and the data format should be sac</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -737,7 +828,7 @@ asdf file.</p>
 
 <dl class="method">
 <dt id="pycmt3d.window.DataContainer.load_data_from_sac">
-<tt class="descname">load_data_from_sac</tt><big>(</big><em>win_obj</em>, <em>tag=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_data_from_sac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_data_from_sac" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">load_data_from_sac</tt><big>(</big><em>win_obj</em>, <em>tag=None</em>, <em>mode=None</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_data_from_sac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_data_from_sac" title="Permalink to this definition">¶</a></dt>
 <dd><p>Old way of loading obsd and synt data...</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -758,7 +849,7 @@ asdf file.</p>
 
 <dl class="staticmethod">
 <dt id="pycmt3d.window.DataContainer.load_winfile">
-<em class="property">static </em><tt class="descname">load_winfile</tt><big>(</big><em>flexwin_file</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_winfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_winfile" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><tt class="descname">load_winfile</tt><big>(</big><em>flexwin_file</em>, <em>initial_weight=1.0</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.load_winfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.load_winfile" title="Permalink to this definition">¶</a></dt>
 <dd><p>old way of loading flexwin outputfile</p>
 </dd></dl>
 
@@ -774,6 +865,13 @@ asdf file.</p>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pycmt3d.window.DataContainer.write_new_syn_file">
+<tt class="descname">write_new_syn_file</tt><big>(</big><em>format='sac'</em>, <em>outputdir='.'</em><big>)</big><a class="reference internal" href="_modules/pycmt3d/window.html#DataContainer.write_new_syn_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pycmt3d.window.DataContainer.write_new_syn_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write out new synthetic file based on new cmtsolution
+:return:</p>
 </dd></dl>
 
 </dd></dl>

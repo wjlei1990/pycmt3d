@@ -120,9 +120,11 @@ window_2_begin_time window_2_end_time
 <div><p>Then the setup is exactly as the original fortran version. The pycmt3d needs the outputfile from flexwin which contains observed and synthetic data filename and associated windows.
 Data could be loaded as:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="n">flexwin_file</span> <span class="o">=</span> <span class="s">&quot;path/to/your/flexwin_output&quot;</span>
-<span class="n">data_con</span><span class="o">.</span><span class="n">add_measurements_from_sac</span><span class="p">(</span><span class="n">flexwin_file</span><span class="p">)</span>
+<span class="n">data_con</span><span class="o">.</span><span class="n">add_measurements_from_sac</span><span class="p">(</span><span class="n">flexwin_file</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s">&quot;user_defined_tag&quot;</span><span class="p">,</span> <span class="n">initial_weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">load_mode</span><span class="o">=</span><span class="s">&quot;relative_time&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>In this function, <em>tag</em> is user defined tag for the data. For example, if you window selection for two period band, such as 2s-30s and 6s-30s, you can tag the data with &#8220;2s-30s&#8221; and &#8220;6s-30s&#8221; ans so they will be treated as two different measurements. Also, you can assign differnt <em>initial_weight</em> to these two categories.</p>
+<p>The <em>load_mode</em> is the way how to treat the window time in flexwin file. If <em>load_mode==&#8221;relative_time&#8221;</em>, then the reference time(zero time point) would be the event time(old version of FLEXWIN). If <em>load_mode==&#8221;absolute_time&#8221;</em>, then the reference time(zero time point) would be the beginning of the trace. In this case, the window time could not be smaller than 0.</p>
 </div></blockquote>
 <ol class="arabic simple" start="2">
 <li>ASDF format data</li>
@@ -154,24 +156,36 @@ Data could be loaded as:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pycmt3d.config</span> <span class="kn">import</span> <span class="n">Config</span>
 <span class="n">npar</span> <span class="o">=</span> <span class="mi">9</span>   <span class="c"># 9 paramter inversion</span>
 <span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">2.0e+23</span><span class="p">,</span>
-    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">normalize_window</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-    <span class="n">norm_mode</span><span class="o">=</span><span class="s">&quot;data_and_synt&quot;</span><span class="p">,</span> <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-    <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">weight_azi_mode</span><span class="o">=</span><span class="s">&quot;num_files&quot;</span>
+    <span class="n">normalize_window</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">norm_mode</span><span class="o">=</span><span class="s">&quot;data_only&quot;</span><span class="p">,</span> <span class="n">normalize_category</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+    <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
     <span class="n">bootstrap</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
 </div>
 <ul>
 <li><dl class="first docutils">
 <dt>Bootstrap</dt>
-<dd><p class="first last">If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting &#8220;boostrap = True&#8221; in the config. It will provide the mean value and the standard deviation.</p>
+<dd><p class="first last">If you want to do some statistic analysis on the inversion, you can turn the bootstrap analysis by turning the bootstrap on by setting &#8220;boostrap = True&#8221; in the config. It will provide the mean value and the standard deviation. Using this function is encouraged because: 1) it doesn&#8217;t cost a lot of extra calculation; 2) give you good estimate how stable is your inversion.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="first docutils">
 <dt>Window energy normalization</dt>
 <dd><p class="first last">If you want the measurement from each window normalized by it&#8217;s energy, you can set the flag &#8220;normalize_window = True&#8221; in config. There are two normalization mode you can choose.
-1. norm_mode=&#8221;data_and_synt&#8221;
-2. norm_mode=&#8221;data_only&#8221;</p>
+1. norm_mode=&#8221;data_only&#8221;
+2. norm_mode=&#8221;data_and_synt&#8221;(don&#8217;t choose this one; bad normalization factor)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Window Category normalization</dt>
+<dd><p class="first last">If you want to normalize the measurements from differnt categories, for example, you have window selection from two period bands, 2s-30s and 10s-50s and you want to combine them together in the source inversion, you can turn this flag one to make their contributions equal(all normalize to 1). This flag is usually turned on with window energy normalization on(set both to True).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Azimuth weighting</dt>
+<dd><p class="first last">There are two options: 1) &#8220;num_files&#8221;; 2) &#8220;num_wins&#8221;. In the old fortran version of cmt3d code, the default is &#8220;num_files&#8221; and you will use the number of files in each azimuth bin as the weighting term. But you might want to change it to &#8220;num_wins&#8221; to truely reflect the number of measurements.</p>
 </dd>
 </dl>
 </li>
@@ -185,10 +199,29 @@ Data could be loaded as:</p>
 <span class="n">srcinv</span><span class="o">.</span><span class="n">source_inversion</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>if you want to plot the result of the inversion, use the plot methods:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">srcinv</span><span class="o">.</span><span class="n">plot_summary</span><span class="p">(</span><span class="n">figurename</span><span class="o">=</span><span class="s">&quot;/path/to/output_figure&quot;</span><span class="p">)</span>
+<p>If you want to write out the new synthetic data for the new source and new CMT Solution file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">srcinv</span><span class="o">.</span><span class="n">write_new_syn</span><span class="p">(</span><span class="n">outputdir</span><span class="o">=</span><span class="s">&quot;./new_syn&quot;</span><span class="p">)</span>
+<span class="n">srcinv</span><span class="o">.</span><span class="n">write_new_cmtfile</span><span class="p">(</span><span class="n">outputdir</span><span class="o">=</span><span class="s">&quot;.&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="visualization-tools">
+<h2>5. Visualization tools<a class="headerlink" href="#visualization-tools" title="Permalink to this headline">¶</a></h2>
+<p>if you want to plot the result of the inversion, use the plotting methods:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">srcinv</span><span class="o">.</span><span class="n">plot_summary</span><span class="p">(</span><span class="n">outputdir</span><span class="o">=</span><span class="s">&quot;.&quot;</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">&quot;png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="align-center figure">
+<a class="reference internal image-reference" href="_images/srcinv_summary.png"><img alt="Source Inversion Summary" src="_images/srcinv_summary.png" style="width: 500px;" /></a>
+</div>
+<p>If you want to plot the statistic histogram, for example, how the time shift, energy or waveform misfit(in windows) are changed, you can use:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">srcinv</span><span class="o">.</span><span class="n">plot_stats_histogram</span><span class="p">(</span><span class="n">outputdir</span><span class="o">=</span><span class="s">&quot;.&quot;</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">&quot;png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="align-center figure">
+<a class="reference internal image-reference" href="_images/srcinv_histogram.png"><img alt="Source Inversion Summary" src="_images/srcinv_histogram.png" style="width: 500px;" /></a>
+</div>
+<p>The <em>format</em> could be any as long as it is supported by matplotlib.</p>
 </div>
 <div class="section" id="workflow-example">
 <h2>5. Workflow Example<a class="headerlink" href="#workflow-example" title="Permalink to this headline">¶</a></h2>
@@ -256,6 +289,7 @@ Data could be loaded as:</p>
 </li>
 <li><a class="reference internal" href="#inversion-schema">3. Inversion schema</a></li>
 <li><a class="reference internal" href="#source-inversion">4. Source Inversion</a></li>
+<li><a class="reference internal" href="#visualization-tools">5. Visualization tools</a></li>
 <li><a class="reference internal" href="#workflow-example">5. Workflow Example</a></li>
 </ul>
 </li>

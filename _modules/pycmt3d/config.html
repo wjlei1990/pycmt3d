@@ -63,78 +63,8 @@
 
 <span class="kn">import</span> <span class="nn">const</span>
 <span class="kn">from</span> <span class="nn">__init__</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">user_defined_weighting_function</span> <span class="kn">import</span> <span class="o">*</span>
 
-
-<div class="viewcode-block" id="default_weight_function"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.default_weight_function">[docs]</a><span class="k">def</span> <span class="nf">default_weight_function</span><span class="p">(</span><span class="n">kcmpnm</span><span class="p">,</span> <span class="n">dist_in_km</span><span class="p">,</span> <span class="n">azi_count</span><span class="p">,</span> <span class="n">nwins</span><span class="p">,</span>
-                            <span class="n">comp_r_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">comp_t_weight</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">comp_z_weight</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
-                            <span class="n">az_exp_weight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">pnl_dist_weight</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">rayleigh_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span>
-                            <span class="n">love_dist_weight</span><span class="o">=</span><span class="mf">0.55</span><span class="p">,</span> <span class="n">dist_weight_mode</span><span class="o">=</span><span class="s">&quot;exponential&quot;</span><span class="p">):</span>
-
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Defualt weighting function</span>
-
-<span class="sd">    :param kcmpnm:</span>
-<span class="sd">    :param dist_in_km:</span>
-<span class="sd">    :param azi_count:</span>
-<span class="sd">    :param nwins:</span>
-<span class="sd">    :param comp_r_weight:</span>
-<span class="sd">    :param comp_t_weight:</span>
-<span class="sd">    :param comp_z_weight:</span>
-<span class="sd">    :param az_exp_weight:</span>
-<span class="sd">    :param pnl_dist_weight:</span>
-<span class="sd">    :param rayleigh_dist_weight:</span>
-<span class="sd">    :param love_dist_weight:</span>
-<span class="sd">    :return:</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">data_weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nwins</span><span class="p">)</span>
-    <span class="c"># component weight</span>
-    <span class="n">comp_direct</span> <span class="o">=</span> <span class="n">kcmpnm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;Z&#39;</span><span class="p">:</span>
-        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_z_weight</span>
-    <span class="k">elif</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;R&#39;</span><span class="p">:</span>
-        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_r_weight</span>
-    <span class="k">elif</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">:</span>
-        <span class="n">cmp_weight</span> <span class="o">=</span> <span class="n">comp_t_weight</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The direction of component of seismic data has to be Z, R or T&#39;</span><span class="p">)</span>
-
-    <span class="c"># distance weights</span>
-    <span class="c"># for global seismograms, this obviously has to be changed</span>
-    <span class="k">for</span> <span class="n">win_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nwins</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">comp_direct</span> <span class="o">==</span> <span class="s">&#39;T&#39;</span><span class="p">:</span>
-            <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">love_dist_weight</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">nwins</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">win_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">pnl_dist_weight</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">dist_exp_weight</span> <span class="o">=</span> <span class="n">rayleigh_dist_weight</span>
-
-        <span class="k">if</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;exponential&quot;</span><span class="p">:</span>
-            <span class="c"># exponential weight on distance</span>
-            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">*</span> <span class="p">((</span><span class="n">dist_in_km</span><span class="o">/</span><span class="n">const</span><span class="o">.</span><span class="n">REF_DIST</span><span class="p">)</span> <span class="o">**</span> <span class="n">dist_exp_weight</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;uniform&quot;</span><span class="p">:</span>
-            <span class="c"># no distance weighting</span>
-            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">dist_weight_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;damping&quot;</span><span class="p">:</span>
-            <span class="c"># damping over short distance and long distance</span>
-            <span class="n">data_weight</span><span class="p">[</span><span class="n">win_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmp_weight</span> <span class="o">/</span> <span class="p">(</span><span class="n">azi_count</span> <span class="o">**</span> <span class="n">az_exp_weight</span><span class="p">)</span> <span class="o">*</span> <span class="n">dist_damping_function</span><span class="p">(</span><span class="n">dist_in_km</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">data_weight</span>
-
-</div>
-<div class="viewcode-block" id="dist_damping_function"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.dist_damping_function">[docs]</a><span class="k">def</span> <span class="nf">dist_damping_function</span><span class="p">(</span><span class="n">dist_in_km</span><span class="p">):</span>
-    <span class="n">geo_degree</span> <span class="o">=</span> <span class="n">dist_in_km</span><span class="o">/</span><span class="mi">112</span>  <span class="c"># 111.325km = 1 degree</span>
-    <span class="k">if</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">60</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">geo_degree</span><span class="o">/</span><span class="mf">60.0</span>
-    <span class="k">elif</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">120</span><span class="p">:</span>
-        <span class="k">return</span> <span class="mf">1.0</span>
-    <span class="k">elif</span> <span class="n">geo_degree</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="mf">180.0</span> <span class="o">-</span> <span class="n">geo_degree</span><span class="p">)</span><span class="o">/</span><span class="mf">60.0</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="mi">0</span>
-
-</div>
 <div class="viewcode-block" id="Config"><a class="viewcode-back" href="../../pycmt3d.html#pycmt3d.config.Config">[docs]</a><span class="k">class</span> <span class="nc">Config</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Configuration for source inversion</span>
@@ -156,8 +86,9 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">npar</span><span class="p">,</span> <span class="n">dlocation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ddepth</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dmoment</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-                 <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">weight_data</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">weight_function</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">weight_azi_mode</span><span class="o">=</span><span class="s">&quot;num_files&quot;</span><span class="p">,</span>
                  <span class="n">normalize_window</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">norm_mode</span><span class="o">=</span><span class="s">&quot;data_only&quot;</span><span class="p">,</span>
+                 <span class="n">normalize_category</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                  <span class="n">station_correction</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">zero_trace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                  <span class="n">double_couple</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lamda_damping</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
                  <span class="n">bootstrap</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">bootstrap_repeat</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
@@ -180,7 +111,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">weight_function</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weight_function</span> <span class="o">=</span> <span class="n">default_weight_function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight_azi_mode</span> <span class="o">=</span> <span class="n">weight_azi_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">normalize_window</span> <span class="o">=</span> <span class="n">normalize_window</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize_category</span> <span class="o">=</span> <span class="n">normalize_category</span>
+        <span class="k">if</span> <span class="n">norm_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;data_and_synt&#39;</span><span class="p">,</span> <span class="s">&#39;data_only&#39;</span><span class="p">,</span> <span class="s">&#39;data_average_only&#39;</span><span class="p">,</span> <span class="s">&#39;data_abs_only&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Weight mode incorrect: 1) data_and_synt; 2) data_only; &quot;</span>
+                            <span class="s">&quot;3) data_avergage_only; 4) data_abs_only&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_mode</span> <span class="o">=</span> <span class="n">norm_mode</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station_correction</span> <span class="o">=</span> <span class="n">station_correction</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">zero_trace</span> <span class="o">=</span> <span class="n">zero_trace</span>
