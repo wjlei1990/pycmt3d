@@ -10,6 +10,8 @@ from __init__ import logger
 import util
 from plot_util import *
 import os
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 
 class Cmt3D(object):
@@ -1106,3 +1108,52 @@ class Cmt3D(object):
                 f.write("%s\n" % sta_info)
                 for _idx in range(window.weight.shape[0]):
                     f.write("%10.5e %10.5e\n" % (window.weight[_idx], window.energy[_idx]))
+
+
+    def plot_new_seismogram(self, outputdir=".", format="png"):
+        """
+        Plot the new synthetic and old synthetic data together with data
+
+        :param filename:
+        :return:
+        """
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir)
+
+        # make a check
+        if 'new_synt' not in self.window[0].datalist.keys():
+            return "New synt not generated...Can't plot"
+        else:
+            print "Plotting data, synthetics and windows to dir: %s" % outputdir
+
+        for window in self.window:
+            self.plot_new_seismogram_sub(window, outputdir, format)
+
+
+    def plot_new_seismogram_sub(self, window, outputdir, format):
+        obsd = window.datalist['obsd']
+        synt = window.datalist['synt']
+        new_synt = window.datalist['new_synt']
+
+        station = obsd.stats.station; network = obsd.stats.network
+        channel = obsd.stats.channel; location = obsd.stats.location
+        outputfig = os.path.join(outputdir, "%s.%s.%s.%s.%s" % (network, station, location, channel, format))
+
+        offset = self.cmtsource.cmt_time - obsd.stats.starttime
+        times = [ offset + obsd.stats.delta*i for i in range(obsd.stats.npts)]
+
+        plt.figure(figsize=(15, 2.5))
+        plt.plot(times, obsd.data, color="black")
+        plt.plot(times, synt.data, color="red")
+        #plt.plot(times, new_synt.data, color="green")
+        plt.xlim(times[0], times[-1])
+
+        for win in window.win_time:
+            l = win[0] - offset
+            r = win[1] - offset
+            re = Rectangle((l, plt.ylim()[0]), r - l,
+                           plt.ylim()[1] - plt.ylim()[0], color="blue",
+                           alpha= 0.25)
+            plt.gca().add_patch(re)
+
+        plt.savefig(outputfig)
