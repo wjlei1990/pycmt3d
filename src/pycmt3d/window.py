@@ -47,6 +47,9 @@ class Window(object):
         self.tag = tag
         self.source = source
 
+        self.tshift = None
+        self.dlnA = None
+
     def win_energy(self, mode='data_and_synt'):
         """
         Calculate energy inside the window
@@ -74,6 +77,7 @@ class Window(object):
             else:
                 raise ValueError("Weight mode incorrect: 1) data_and_synt; 2) data_only "
                                 "3) data_average_only; 4) data_abs_only")
+
     def get_location_info(self, cmtsource):
         """
         calculating azimuth and distance, and then store it
@@ -362,7 +366,8 @@ class DataContainer(object):
         # get the tag
         st = getattr(asdf_handle.waveforms, station_name)
         attr_list = dir(st)
-        attr_list.remove('StationXML')
+        if 'StationXML' in attr_list:
+            attr_list.remove('StationXML')
         if tag is None or tag == "":
             if len(attr_list) != 1:
                 raise ValueError("More that 1 data tags in obsd asdf file. For this case, you need specify obsd_tag:%s"
@@ -391,7 +396,7 @@ class DataContainer(object):
                 station_dict[key] = [float(info[2]), float(info[3]), float(info[4])]
         return station_dict
 
-    def write_new_syn_file(self, format="sac", outputdir="."):
+    def write_new_syn_file(self, format="sac", outputdir=".", eventname=None, suffix=None):
         """
         Write out new synthetic file based on new cmtsolution
         :return:
@@ -409,7 +414,10 @@ class DataContainer(object):
 
         if format.upper() == "SAC":
             for tag, win_array in new_synt_dict.iteritems():
-                targetdir = os.path.join(outputdir, tag)
+                if eventname is None:
+                    targetdir = os.path.join(outputdir, tag)
+                else:
+                    targetdir = os.path.join(outputdir, "%s_%s" %(eventname, tag))
                 if not os.path.exists(targetdir):
                     os.makedirs(targetdir)
                 for window in win_array:
@@ -425,12 +433,20 @@ class DataContainer(object):
         elif format.upper() == "ASDF":
             from pyasdf import ASDFDataSet
             for tag, win_array in new_synt_dict.iteritems():
-                outputfn = os.path.join(outputdir, "new_synt.%s.h5" % tag)
+                if eventname is None:
+                    outputfn = os.path.join(outputdir, "new_synt.%s.h5" % tag)
+                else:
+                    if suffix is None:
+                        outputfn = os.path.join(outputdir, "%s.new_synt.%s.h5" % (eventname, tag))
+                    else:
+                        outputfn = os.path.join(outputdir, "%s.%s.new_synt.%s.h5" % (eventname, suffix, tag))
                 if os.path.exists(outputfn):
                     os.remove(outputfn)
                 ds = ASDFDataSet(outputfn)
                 for window in win_array:
                     ds.add_waveforms(window.datalist['new_synt'], tag=tag)
+                # add stationxml
+
 
     def print_summary(self):
         """

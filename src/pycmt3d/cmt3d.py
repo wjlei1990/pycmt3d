@@ -8,6 +8,7 @@ from obspy.core.util.geodetics import gps2DistAzimuth
 import const
 from __init__ import logger
 import util
+from util import construct_taper
 from plot_util import *
 import os
 
@@ -316,7 +317,7 @@ class Cmt3D(object):
         dt = dt_synt
 
         # hanning taper
-        taper = self.construct_hanning_taper(iend_s - istart_s)
+        taper = construct_taper(iend_s - istart_s, taper_type=const.taper_type)
 
         A1 = np.zeros((npar, npar))
         b1 = np.zeros(npar)
@@ -724,7 +725,7 @@ class Cmt3D(object):
             istart_d, iend_d, istart, iend, nshift, cc, dlnA, cc_amp_value = \
                 self.apply_station_correction(obsd, synt, idx_start, idx_end)
 
-            taper = self.construct_hanning_taper(iend - istart)
+            taper = construct_taper(iend - istart, taper_type=const.taper_type)
             v1[_win_idx] = np.sum(taper * (synt.data[istart:iend] - obsd.data[istart_d:iend_d]) ** 2)
             d1[_win_idx] = np.sum(taper * obsd.data[istart_d:iend_d] ** 2)
             nshift_array[_win_idx] = nshift
@@ -776,7 +777,16 @@ class Cmt3D(object):
         if 'new_synt' not in self.window[0].datalist.keys():
             raise ValueError("new synt not computed yet")
 
-        self.data_container.write_new_syn_file(format=format, outputdir=outputdir)
+        eventname = self.cmtsource.eventname
+        if self.config.double_couple:
+            constr_str = "ZT_DC"
+        elif self.config.zero_trace:
+            constr_str = "ZT"
+        else:
+            constr_str = "no_constr"
+        suffix = "%dp_%s" % (self.config.npar, constr_str)
+
+        self.data_container.write_new_syn_file(format=format, outputdir=outputdir, eventname=eventname, suffix=suffix)
 
     def calculate_criteria(self, obsd, synt, istart, iend):
         """
@@ -847,21 +857,6 @@ class Cmt3D(object):
     @staticmethod
     def _dlnA_win_(obsd, synt):
         return 10 * np.log10(np.sum(obsd ** 2) / np.sum(synt ** 2))
-
-    @staticmethod
-    def construct_hanning_taper(npts):
-        """
-        Hanning taper construct
-
-        :param npts: number of points
-        :return:
-        """
-        taper = np.zeros(npts)
-        #taper = np.ones(npts)
-        #return taper
-        for i in range(npts):
-            taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts - 1))))
-        return taper
 
     @staticmethod
     def print_cmtsource_summary(cmt):
@@ -993,7 +988,7 @@ class Cmt3D(object):
                 self.cmtsource.half_duration, self.new_cmtsource.half_duration,
                 self.par_mean[10], self.par_std[10], self.std_over_mean[10] * 100))
 
-    def plot_summary(self, outputdir=".", format="png"):
+    def plot_summary(self, outputdir=".", format="png", plot_mode="regional"):
         """
         Plot inversion summary
 
@@ -1014,10 +1009,11 @@ class Cmt3D(object):
 
         print "Source inversion summary figure: %s" % figurename
 
-        plot_stat = PlotUtil(data_container=self.data_container, config=self.config, cmtsource=self.cmtsource, 
-                             nregions=const.NREGIONS,
+        plot_stat = PlotUtil(data_container=self.data_container, config=self.config,
+                             cmtsource=self.cmtsource, nregions=const.NREGIONS,
                              new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
-                             bootstrap_std=self.par_std, var_reduction=self.var_reduction)
+                             bootstrap_std=self.par_std, var_reduction=self.var_reduction,
+                             mode=plot_mode)
         plot_stat.plot_inversion_summary(figurename=figurename)
 
     def plot_stats_histogram(self, outputdir=".", format="png"):

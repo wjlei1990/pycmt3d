@@ -49,3 +49,6 @@ NMAX_NL_ITER = 60
 
 # subset ratio of bootstrap
 BOOTSTRAP_SUBSET_RATIO = 0.4
+
+# taper used in the inversion
+taper_type = "tukey"
