@@ -18,7 +18,7 @@ class Window(object):
     """
 
     def __init__(self, station=None, network=None, location=None, component=None, num_wins=0,
-                 win_time=None, weight=None, obsd_fn=None, synt_fn=None,
+                 win_time=None, weight=None, obsd_id=None, synt_id=None,
                  datalist=None, tag=None, source=None):
         self.station = station
         self.network = network
@@ -27,8 +27,8 @@ class Window(object):
         self.num_wins = num_wins    # number of windows
         self.win_time = win_time    # window time
         self.weight = weight
-        self.obsd_fn = obsd_fn
-        self.synt_fn = synt_fn
+        self.obsd_id = obsd_id
+        self.synt_id = synt_id
         self.datalist = datalist
 
         # location
@@ -204,33 +204,91 @@ class DataContainer(object):
             dataset[deriv_par] = ASDFDataSet(asdf_file_dict[deriv_par])
         return dataset
 
-    @staticmethod
-    def load_winfile(flexwin_file, initial_weight=1.0):
+    def load_winfile(self, flexwin_file, initial_weight=1.0, format="txt"):
         """
-        old way of loading flexwin outputfile
+        loading window file. Currently supports two format:
+        1) txt; 2) json
+        """
+        format = format.lower()
+        if format not in ['txt', 'json']:
+            raise ValueError("Supported format: 1) txt; 2) json.")
+        if format == "txt":
+            win_list = self.load_winfile_txt(flexwin_file,
+                                             initial_weight=initial_weight)
+        elif format == "json":
+            win_list = self.load_winfile_json(flexwin_file,
+                                              initial_weight=initial_weight)
+
+    @staticmethod
+    def load_winfile_txt(flexwin_file, initial_weight=1.0):
+        """
+        Read the txt format of  window file(see the documentation
+        online).
+
+        :param flexwin_file:
+        :param initial_weight:
+        :return:
         """
         win_list = []
         with open(flexwin_file, "r") as f:
             num_file = int(f.readline().strip())
             if num_file == 0:
                 logger.warning("Nothing in flexwinfile: %s" % flexwin_file)
-                return
+                return []
             for idx in range(num_file):
                 # keep the old format of cmt3d input
-                obsd_fn = f.readline().strip()
-                synt_fn = f.readline().strip()
+                obsd_id = f.readline().strip()
+                synt_id = f.readline().strip()
                 num_wins = int(f.readline().strip())
-                win_time = np.zeros((num_wins, 2))
+                win_time = np.zeros((num_wins, 3))
+                win_weight = np.zeros(num_wins)
                 for iwin in range(num_wins):
                     content = f.readline().strip().split()
                     win_time[iwin, 0] = float(content[0])
                     win_time[iwin, 1] = float(content[1])
-                win_weight = initial_weight * np.ones(num_wins)
+                    if len(content) == 3:
+                        win_weight[iwin] = float(content[2])
+                    else:
+                        win_weight[iwin] = initial_weight
                 win_obj = Window(num_wins=num_wins, win_time=win_time,
-                                 obsd_fn=obsd_fn, synt_fn=synt_fn,
+                                 obsd_id=obsd_id, synt_id=synt_id,
                                  weight=win_weight)
                 win_list.append(win_obj)
         return win_list
+
+    @staticmethod
+    def load_winfile_json(flexwin_file, initial_weight=1.0):
+        """
+        Read the json format of window file
+
+        :param flexwin_file:
+        :param initial_weight:
+        :return:
+        """
+        import json
+        win_list = []
+        with open(flexwin_file, 'r') as fh:
+            content = json.load(fh)
+            for _sta, _channel in content.iteritems():
+                for _chan_id, _chan_win in _channel.iteritems():
+                    num_wins = len(_chan_win)
+                    obsd_id = _chan_win[0].channel_id
+                    synt_id = _chan_win[0].channel_id
+                    win_time = np.zeros([num_wins,2])
+                    win_weight = np.zeros(num_wins)
+                    for _idx, _win in _chan_win:
+                        win_time[_idx, 0] = _win["relative_starttime"]
+                        win_time[_idx, 0] = _win["relative_endtime"]
+                        if "initial_weighting" in _win.keys():
+                            win_weight[_idx] = _win["initial_weighting"]
+                        else:
+                            win_weight[_idx] = initial_weight
+                    win_obj = Window(num_wins=num_wins, win_time=win_time,
+                                     obsd_id=obsd_id, synt_id=synt_id,
+                                     weight=win_weight)
+                    win_list.append(win_obj)
+        return win_list
+
 
     def load_data_from_sac(self, win_obj, tag=None, mode=None):
         """
@@ -241,10 +299,10 @@ class DataContainer(object):
         """
         win_obj.datalist = {}
         win_obj.tag = {}
-        obsd_fn = win_obj.obsd_fn
-        synt_fn = win_obj.synt_fn
+        obsd_id = win_obj.obsd_id
+        synt_id = win_obj.synt_id
         # obsd
-        obsd = read(obsd_fn)[0]
+        obsd = read(obsd_id)[0]
         win_obj.datalist['obsd'] = obsd
         win_obj.tag['obsd'] = tag
         win_obj.station = obsd.stats.station
@@ -262,11 +320,11 @@ class DataContainer(object):
                     win_obj.win_time[_ii, _jj] = max(win_obj.win_time[_ii, _jj], 0.0)
 
         # synt
-        win_obj.datalist['synt'] = read(synt_fn)[0]
+        win_obj.datalist['synt'] = read(synt_id)[0]
         win_obj.tag['synt'] = tag
         # other synt data will be referred as key value: Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, dep, lat, lon, ctm, hdr
         for deriv_par in self.par_list:
-            synt_dev_fn = synt_fn + "." + deriv_par
+            synt_dev_fn = synt_id + "." + deriv_par
             win_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
             win_obj.tag[deriv_par] = tag
 
@@ -286,12 +344,12 @@ class DataContainer(object):
         win.datalist = {}
         win.tag = {}
         #print "obsd"
-        win.datalist['obsd'], win.tag['obsd'] = self.get_trace_from_asdf(win.obsd_fn, asdf_ds['obsd'], obsd_tag)
+        win.datalist['obsd'], win.tag['obsd'] = self.get_trace_from_asdf(win.obsd_id, asdf_ds['obsd'], obsd_tag)
         #print "synt"
-        win.datalist['synt'], win.tag['synt'] = self.get_trace_from_asdf(win.synt_fn, asdf_ds['synt'], synt_tag)
+        win.datalist['synt'], win.tag['synt'] = self.get_trace_from_asdf(win.synt_id, asdf_ds['synt'], synt_tag)
         for deriv_par in self.par_list:
             #print deriv_par
-            win.datalist[deriv_par], win.tag[deriv_par] = self.get_trace_from_asdf(win.synt_fn, asdf_ds[deriv_par], synt_tag)
+            win.datalist[deriv_par], win.tag[deriv_par] = self.get_trace_from_asdf(win.synt_id, asdf_ds[deriv_par], synt_tag)
 
         win.station = win.datalist['obsd'].stats.station
         win.network = win.datalist['obsd'].stats.network
@@ -300,7 +358,7 @@ class DataContainer(object):
 
         # station information
         if station_dict is None:
-            inv = self.get_stationxml_from_asdf(win.obsd_fn, asdf_ds['obsd'])
+            inv = self.get_stationxml_from_asdf(win.obsd_id, asdf_ds['obsd'])
             win.latitude = float(inv[0][0].latitude)
             win.longitude = float(inv[0][0].longitude)
         else:
