@@ -287,5 +287,3 @@ class CMTSource(object):
         return_str += '\tMtp              : %10.2e Nm\n' % (self.m_tp,)
 
         return return_str
-
-

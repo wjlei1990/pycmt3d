@@ -12,7 +12,8 @@ except:
            "Please install numpy first, it is needed before using pycmt3d.")
     raise ImportError(msg)
 from __init__ import logger
-from user_defined_weighting_function import *
+from user_defined_weighting_function import default_weight_function
+import const
 
 
 class Config(object):

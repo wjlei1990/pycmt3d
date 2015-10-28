@@ -6,12 +6,14 @@ import const
 from __init__ import logger
 import util
 from util import construct_taper
-from plot_util import *
+from plot_util import PlotUtil
 import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 import math
+from obspy.core.util.geodetics import gps2DistAzimuth
+import matplotlib.gridspec as gridspec
 
 
 class Cmt3D(object):
@@ -572,10 +574,10 @@ class Cmt3D(object):
         """
         A_bootstrap = []
         b_bootstrap = []
+        n_subset = int(const.BOOTSTRAP_SUBSET_RATIO * self.nwins)
         for i in range(self.config.bootstrap_repeat):
             random_array = util.gen_random_array(
-                self.nwins, sample_number=
-                int(const.BOOTSTRAP_SUBSET_RATIO * self.nwins))
+                self.nwins, sample_number=n_subset)
             A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
             b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
             A_bootstrap.append(A)
@@ -714,7 +716,7 @@ class Cmt3D(object):
 
             var_all += np.sum(0.5 * v1 * window.weight * obsd.stats.delta)
             var_all_new += np.sum(0.5 * v2 * window.weight * obsd.stats.delta)
-            
+
             # prepare stats
             tag = window.tag['obsd']
             if tag not in self.stats_before.keys():
