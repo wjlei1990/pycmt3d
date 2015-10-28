@@ -12,17 +12,10 @@ Source and Receiver classes of Instaseis.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
-import collections
 import numpy as np
 import obspy
-from obspy.core.util.geodetics import FlinnEngdahl
-from obspy.signal.filter import lowpass
 import obspy.xseed
-import os
-from scipy import interp
 import warnings
-from obspy import readEvents
 
 
 DEFAULT_MU = 32e9
@@ -34,10 +27,11 @@ class CMTSource(object):
     function.
     """
     def __init__(self, origin_time=obspy.UTCDateTime(0),
-                 pde_latitude=0.0, pde_longitude=0.0, mb=0.0, ms=0.0, pde_depth_in_m=None,
-                 region_tag=None, eventname=None, cmt_time=0.0, half_duration=0.0,
-                 latitude=0.0, longitude=0.0, depth_in_m=None,
-                 m_rr=0.0, m_tt=0.0, m_pp=0.0, m_rt=0.0, m_rp=0.0, m_tp=0.0):
+                 pde_latitude=0.0, pde_longitude=0.0, mb=0.0, ms=0.0,
+                 pde_depth_in_m=None, region_tag=None, eventname=None,
+                 cmt_time=0.0, half_duration=0.0, latitude=0.0, longitude=0.0,
+                 depth_in_m=None, m_rr=0.0, m_tt=0.0, m_pp=0.0, m_rt=0.0,
+                 m_rp=0.0, m_tp=0.0):
         """
         :param latitude: latitude of the source in degree
         :param longitude: longitude of the source in degree
@@ -78,7 +72,7 @@ class CMTSource(object):
         self.m_tp = m_tp
 
     @classmethod
-    def from_CMTSOLUTION_file(self, filename):
+    def from_CMTSOLUTION_file(cls, filename):
         """
         Initialize a source object from a CMTSOLUTION file.
 
@@ -97,7 +91,6 @@ class CMTSource(object):
                               % line)
                 origin_time = obspy.UTCDateTime(0)
             otherinfo = line[4:].strip().split()[6:]
-            #print("otherinfo:", otherinfo)
             pde_lat = float(otherinfo[0])
             pde_lon = float(otherinfo[1])
             pde_depth_in_m = float(otherinfo[2]) * 1e3
@@ -114,21 +107,24 @@ class CMTSource(object):
             depth_in_m = float(f.readline().strip().split()[-1]) * 1e3
 
             # unit: N/m
-            m_rr = float(f.readline().strip().split()[-1]) #/ 1e7
-            m_tt = float(f.readline().strip().split()[-1]) #/ 1e7
-            m_pp = float(f.readline().strip().split()[-1]) #/ 1e7
-            m_rt = float(f.readline().strip().split()[-1]) #/ 1e7
-            m_rp = float(f.readline().strip().split()[-1]) #/ 1e7
-            m_tp = float(f.readline().strip().split()[-1]) #/ 1e7
+            m_rr = float(f.readline().strip().split()[-1])  # / 1e7
+            m_tt = float(f.readline().strip().split()[-1])  # / 1e7
+            m_pp = float(f.readline().strip().split()[-1])  # / 1e7
+            m_rt = float(f.readline().strip().split()[-1])  # / 1e7
+            m_rp = float(f.readline().strip().split()[-1])  # / 1e7
+            m_tp = float(f.readline().strip().split()[-1])  # / 1e7
 
-        return self(origin_time=origin_time,
-                    pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms, pde_depth_in_m=pde_depth_in_m,
-                    region_tag=region_tag, eventname=eventname, cmt_time=cmt_time, half_duration=half_duration,
-                    latitude=latitude, longitude=longitude, depth_in_m=depth_in_m,
-                    m_rr=m_rr, m_tt=m_tt, m_pp=m_pp, m_rt=m_rt, m_rp=m_rp, m_tp=m_tp)
+        return cls(origin_time=origin_time,
+                   pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms,
+                   pde_depth_in_m=pde_depth_in_m, region_tag=region_tag,
+                   eventname=eventname, cmt_time=cmt_time,
+                   half_duration=half_duration, latitude=latitude,
+                   longitude=longitude, depth_in_m=depth_in_m,
+                   m_rr=m_rr, m_tt=m_tt, m_pp=m_pp, m_rt=m_rt,
+                   m_rp=m_rp, m_tp=m_tp)
 
     @classmethod
-    def from_quakeml_file(self, filename):
+    def from_quakeml_file(cls, filename):
         """
         Initizliaze a source object from a quakeml file
         :param filename: path to a quakeml file
@@ -143,6 +139,8 @@ class CMTSource(object):
         pde_lat = pdesolution.latitude
         pde_lon = pdesolution.longitude
         pde_depth_in_m = pdesolution.depth
+        mb = 0.0
+        ms = 0.0
         for mag in event.magnitudes:
             if mag.magnitude_type == "mb":
                 mb = mag.mag
@@ -153,10 +151,13 @@ class CMTSource(object):
         for descrip in event.event_descriptions:
             if descrip.type == "earthquake name":
                 eventname = descrip.text
-                eventname = self.adjust_eventname(eventname)
+                eventname = cls.adjust_eventname(eventname)
+            else:
+                eventname = ""
         cmt_time = cmtsolution.time
         focal_mechanism = event.focal_mechanisms[0]
-        half_duration = focal_mechanism.moment_tensor.source_time_function.duration/2.0
+        half_duration = \
+            focal_mechanism.moment_tensor.source_time_function.duration/2.0
         latitude = cmtsolution.latitude
         longitude = cmtsolution.longitude
         depth_in_m = cmtsolution.depth
@@ -168,11 +169,14 @@ class CMTSource(object):
         m_rp = tensor.m_rp * 1e7
         m_tp = tensor.m_tp * 1e7
 
-        return self(origin_time=origin_time,
-                    pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms, pde_depth_in_m=pde_depth_in_m,
-                    region_tag=region_tag, eventname=eventname, cmt_time=cmt_time, half_duration=half_duration,
-                    latitude=latitude, longitude=longitude, depth_in_m=depth_in_m,
-                    m_rr=m_rr, m_tt=m_tt, m_pp=m_pp, m_rt=m_rt, m_rp=m_rp, m_tp=m_tp)
+        return cls(origin_time=origin_time,
+                   pde_latitude=pde_lat, pde_longitude=pde_lon, mb=mb, ms=ms,
+                   pde_depth_in_m=pde_depth_in_m, region_tag=region_tag,
+                   eventname=eventname, cmt_time=cmt_time,
+                   half_duration=half_duration, latitude=latitude,
+                   longitude=longitude, depth_in_m=depth_in_m,
+                   m_rr=m_rr, m_tt=m_tt, m_pp=m_pp, m_rt=m_rt,
+                   m_rp=m_rp, m_tp=m_tp)
 
     def write_CMTSOLUTION_file(self, filename):
         """
@@ -180,39 +184,37 @@ class CMTSource(object):
 
         :param filename: path to the CMTSOLUTION file
         """
-        time_shift = self.cmt_time - self.origin_time
         with open(filename, "w") as f:
             # Reconstruct the first line as well as possible. All
             # hypocentral information is missing.
-            f.write(' PDE %4i %2i %2i %2i %2i %5.2f %8.4f %9.4f %5.1f %.1f %.1f'
-                    ' %s\n' % (
-                        self.origin_time.year,
-                        self.origin_time.month,
-                        self.origin_time.day,
-                        self.origin_time.hour,
-                        self.origin_time.minute,
-                        self.origin_time.second +
-                        self.origin_time.microsecond / 1E6,
-                        self.pde_latitude,
-                        self.pde_longitude,
-                        self.pde_depth_in_m / 1e3,
-                        # Just write the moment magnitude twice...we don't
-                        # have any other.
-                        self.mb,
-                        self.ms,
-                        self.region_tag))
-            f.write('event name:     %s\n' % (self.eventname,))
+            f.write(
+                " PDE %4i %2i %2i %2i %2i %5.2f %8.4f %9.4f %5.1f %.1f %.1f"
+                " %s\n" % (
+                    self.origin_time.year,
+                    self.origin_time.month,
+                    self.origin_time.day,
+                    self.origin_time.hour,
+                    self.origin_time.minute,
+                    self.origin_time.second +
+                    self.origin_time.microsecond / 1E6,
+                    self.pde_latitude,
+                    self.pde_longitude,
+                    self.pde_depth_in_m / 1e3,
+                    self.mb,
+                    self.ms,
+                    str(self.region_tag)))
+            f.write('event name:     %s\n' % (str(self.eventname)))
             f.write('time shift:%12.4f\n' % (self.time_shift,))
             f.write('half duration:%9.4f\n' % (self.half_duration,))
             f.write('latitude:%14.4f\n' % (self.latitude,))
             f.write('longitude:%13.4f\n' % (self.longitude,))
             f.write('depth:%17.4f\n' % (self.depth_in_m / 1e3,))
-            f.write('Mrr:%19.6e\n' % (self.m_rr)) #* 1e7,))
-            f.write('Mtt:%19.6e\n' % (self.m_tt)) #* 1e7,))
-            f.write('Mpp:%19.6e\n' % (self.m_pp)) #* 1e7,))
-            f.write('Mrt:%19.6e\n' % (self.m_rt)) #* 1e7,))
-            f.write('Mrp:%19.6e\n' % (self.m_rp)) #* 1e7,))
-            f.write('Mtp:%19.6e\n' % (self.m_tp)) #* 1e7,))
+            f.write('Mrr:%19.6e\n' % self.m_rr)  # * 1e7,))
+            f.write('Mtt:%19.6e\n' % self.m_tt)  # * 1e7,))
+            f.write('Mpp:%19.6e\n' % self.m_pp)  # * 1e7,))
+            f.write('Mrt:%19.6e\n' % self.m_rt)  # * 1e7,))
+            f.write('Mrp:%19.6e\n' % self.m_rp)  # * 1e7,))
+            f.write('Mtp:%19.6e\n' % self.m_tp)  # * 1e7,))
 
     @staticmethod
     def adjust_eventname(eventname):
@@ -231,9 +233,9 @@ class CMTSource(object):
         """
         Scalar Moment M0 in Nm
         """
-        return (self.m_rr ** 2 + self.m_tt ** 2 + self.m_pp ** 2
-                + 2 * self.m_rt ** 2 + 2 * self.m_rp ** 2
-                + 2 * self.m_tp ** 2) ** 0.5 * 0.5 ** 0.5
+        return (self.m_rr ** 2 + self.m_tt ** 2 + self.m_pp ** 2 +
+                2 * self.m_rt ** 2 + 2 * self.m_rp ** 2 +
+                2 * self.m_tp ** 2) ** 0.5 * 0.5 ** 0.5
 
     @property
     def moment_magnitude(self):
