@@ -1,6 +1,6 @@
 from __future__ import (absolute_import)
-import logging.config
 import os
+import logging
 
 # setup the logger
 logger = logging.getLogger("pycmt3d")
