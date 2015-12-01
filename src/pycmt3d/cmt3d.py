@@ -1113,15 +1113,24 @@ class Cmt3D(object):
         :param filename:
         :return:
         """
-        if not os.path.exists(outputdir):
-            os.makedirs(outputdir)
 
         # make a check
         if 'new_synt' not in self.window[0].datalist.keys():
             return "New synt not generated...Can't plot"
-        else:
-            print "Plotting data, synthetics and windows to dir: %s" % outputdir
 
+        eventname = self.cmtsource.eventname
+        if self.config.double_couple:
+            constr_str = "ZT_DC"
+        elif self.config.zero_trace:
+            constr_str = "ZT"
+        else:
+            constr_str = "no_constr"
+        suffix = eventname + "_%dp_%s" % (self.config.npar, constr_str)
+        outputdir = os.path.join(outputdir, suffix)
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir)
+
+        print "Plotting data, synthetics and windows to dir: %s" % outputdir
         for window in self.window:
             self.plot_new_seismogram_sub(window, outputdir, format)
 
@@ -1130,19 +1139,27 @@ class Cmt3D(object):
         obsd = window.datalist['obsd']
         synt = window.datalist['synt']
         new_synt = window.datalist['new_synt']
+        tag = window.tag['obsd']
 
         station = obsd.stats.station; network = obsd.stats.network
         channel = obsd.stats.channel; location = obsd.stats.location
-        outputfig = os.path.join(outputdir, "%s.%s.%s.%s.%s" % (network, station, location, channel, format))
+        outputfig = os.path.join(outputdir, "%s.%s.%s.%s.%s.win.%s" % 
+                        (network, station, location, channel, tag, format))
 
         offset = self.cmtsource.cmt_time - obsd.stats.starttime
         times = [ offset + obsd.stats.delta*i for i in range(obsd.stats.npts)]
 
-        plt.figure(figsize=(15, 2.5))
-        plt.plot(times, obsd.data, color="black")
-        plt.plot(times, synt.data, color="red")
-        #plt.plot(times, new_synt.data, color="green")
+        fig = plt.figure(figsize=(15, 2.5))
+        plt.plot(times, obsd.data, color="black", linewidth=0.5, alpha=0.6)
+        plt.plot(times, synt.data, color="red", linewidth=0.8)
+        plt.plot(times, new_synt.data, color="green", linewidth=0.8)
         plt.xlim(times[0], times[-1])
+
+        xlim1 = plt.xlim()[1]
+        ylim1 = plt.ylim()[1]
+        fontsize = 9 
+        plt.text(0.01*xlim1, 0.80*ylim1, "Network: %2s    Station: %s" % (network, station), fontsize=fontsize)
+        plt.text(0.01*xlim1, 0.65*ylim1,  "Location: %2s  Channel:%3s" % (location, channel), fontsize=fontsize)
 
         for win in window.win_time:
             l = win[0] - offset
@@ -1153,3 +1170,4 @@ class Cmt3D(object):
             plt.gca().add_patch(re)
 
         plt.savefig(outputfig)
+        plt.close(fig)
