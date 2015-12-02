@@ -160,7 +160,8 @@ class DataContainer(object):
     def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict,
                                    obsd_tag=None, synt_tag=None,
                                    external_stationfile=None,
-                                   initial_weight=1.0):
+                                   initial_weight=1.0,
+                                   winfile_format="txt"):
         """
         Add measurments(window and data) from the given flexwinfile and
         the data format should be asdf. Usually, you can leave the
@@ -174,7 +175,8 @@ class DataContainer(object):
         t1 = time.time()
         # load window information
         win_list = self.load_winfile(flexwinfile,
-                                     initial_weight=initial_weight)
+                                     initial_weight=initial_weight,
+                                     file_format=winfile_format)
         # load in the asdf data
         asdf_dataset = self.check_and_load_asdf_file(asdf_file_dict)
         if external_stationfile is not None:
@@ -236,11 +238,12 @@ class DataContainer(object):
         if file_format == "txt":
             win_list = self.load_winfile_txt(flexwin_file,
                                              initial_weight=initial_weight)
-        elif format == "json":
+        elif file_format == "json":
             win_list = self.load_winfile_json(flexwin_file,
                                               initial_weight=initial_weight)
         else:
-            raise NotImplementedError
+            raise NotImplementedError("Window file format not support:"
+                                      "%s" % file_format)
         return win_list
 
     @staticmethod
@@ -300,9 +303,9 @@ class DataContainer(object):
                     synt_id = _chan_win[0]["synt_id"]
                     win_time = np.zeros([num_wins, 2])
                     win_weight = np.zeros(num_wins)
-                    for _idx, _win in _chan_win:
+                    for _idx, _win in enumerate(_chan_win):
                         win_time[_idx, 0] = _win["relative_starttime"]
-                        win_time[_idx, 0] = _win["relative_endtime"]
+                        win_time[_idx, 1] = _win["relative_endtime"]
                         if "initial_weighting" in _win.keys():
                             win_weight[_idx] = _win["initial_weighting"]
                         else:
@@ -386,7 +389,7 @@ class DataContainer(object):
         # load station information
         if station_dict is None:
             win.latitude, win.longitude = \
-                self.get_station_loc_from_asdf(win.obsd_id, asdf_ds['obsd'])
+                self.get_station_loc_from_asdf(win.obsd_id, asdf_ds['synt'])
         else:
             key = "_".join([win.network, win.station])
             win.latitude = station_dict[key][0]
