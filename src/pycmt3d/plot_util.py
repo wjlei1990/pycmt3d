@@ -377,7 +377,7 @@ class PlotUtil(object):
     def plot_inversion_summary(self, figurename=None):
         if self.new_cmtsource is None:
             raise ValueError("No new cmtsource...Can't plot summary")
-        plt.figure(figsize=(12, 12), facecolor='w', edgecolor='k')
+        plt.figure(figsize=(10, 11), facecolor='w', edgecolor='k')
         g = gridspec.GridSpec(3, 3)
         plt.subplot(g[0, :-1])
         self.plot_global_map()

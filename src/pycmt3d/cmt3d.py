@@ -1161,13 +1161,14 @@ class Cmt3D(object):
 
         print "Inversion histogram figure: %s" % figname
 
-        plt.figure(figsize=(5*ncols, 5*nrows))
+        plt.figure(figsize=(4*ncols, 4*nrows))
         G = gridspec.GridSpec(nrows, ncols)
         irow = 0
         for cat in self.stats_before.keys():
             self._plot_stats_histogram_per_cat_(
                 G, irow, cat, self.stats_before[cat], self.stats_after[cat])
             irow += 1
+        plt.tight_layout()
         plt.savefig(figname)
 
     def _plot_stats_histogram_per_cat_(self, G, irow, cat, data_before,
@@ -1187,8 +1188,8 @@ class Cmt3D(object):
     @staticmethod
     def _plot_stats_histogram_one_(pos, cat, vtype, data_b, data_a, num_bin):
         plt.subplot(pos)
-        plt.xlabel(vtype)
-        plt.ylabel(cat)
+        plt.xlabel(vtype, fontsize=15)
+        plt.ylabel(cat, fontsize=15)
         if vtype == "cc":
             ax_min = min(min(data_b), min(data_a))
             ax_max = max(max(data_b), max(data_a))
