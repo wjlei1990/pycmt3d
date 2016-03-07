@@ -809,6 +809,8 @@ class Cmt3D(object):
         """
         # get a dummy copy to keep meta data information
         datalist['new_synt'] = datalist['synt'].copy()
+        datalist['new_synt'].stats.location = \
+            datalist['obsd'].stats.location
 
         npar = self.config.npar
         npts = datalist['synt'].stats.npts

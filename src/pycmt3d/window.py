@@ -23,6 +23,7 @@ class Window(object):
                  component=None, num_wins=0, win_time=None, weight=None,
                  obsd_id=None, synt_id=None, datalist=None, tag=None,
                  source=None):
+
         self.station = station
         self.network = network
         self.location = location
@@ -121,6 +122,9 @@ class DataContainer(object):
 
         self.elapse_time = 0.0
 
+        # store asdf dataset if asdf mode
+        self.asdf_file_dict = None
+
     def add_measurements_from_sac(self, flexwinfile, tag="untaged",
                                   initial_weight=1.0,
                                   load_mode="obsolute_time"):
@@ -179,11 +183,13 @@ class DataContainer(object):
                                      file_format=winfile_format)
         # load in the asdf data
         asdf_dataset = self.check_and_load_asdf_file(asdf_file_dict)
+        self.asdf_file_dict = asdf_file_dict
         if external_stationfile is not None:
             station_info = \
                 self.load_station_from_text(external_stationfile)
         else:
             station_info = None
+
         # load data for each window
         for win_obj in win_list:
             self.load_data_from_asdf(
@@ -297,7 +303,7 @@ class DataContainer(object):
         with open(flexwin_file, 'r') as fh:
             content = json.load(fh)
             for _sta, _channel in content.iteritems():
-                for _chan_id, _chan_win in _channel.iteritems():
+                for _chan_win in _channel:
                     num_wins = len(_chan_win)
                     obsd_id = _chan_win[0]["obsd_id"]
                     synt_id = _chan_win[0]["synt_id"]
@@ -472,7 +478,7 @@ class DataContainer(object):
             stream = getattr(st, tag)
         tr = stream.select(network=network, station=station, location=loc,
                            channel=channel)[0]
-        return tr, tag
+        return tr.copy(), tag
 
     @staticmethod
     def load_station_from_text(stationfile):
@@ -525,24 +531,40 @@ class DataContainer(object):
                     new_synt.write(outputfn, format='SAC')
         elif file_format.upper() == "ASDF":
             for tag, win_array in new_synt_dict.iteritems():
+
                 if eventname is None:
-                    outputfn = os.path.join(outputdir, "new_synt.%s.h5" % tag)
+                    _event_str = "new_synt"
                 else:
-                    if suffix is None:
-                        outputfn = os.path.join(outputdir, "%s.new_synt.%s.h5"
-                                                % (eventname, tag))
-                    else:
-                        outputfn = os.path.join(
-                            outputdir, "%s.%s.new_synt.%s.h5"
-                            % (eventname, suffix, tag))
+                    _event_str = "%s.new_synt" % eventname
+                if suffix is None:
+                    _suffix_str = ""
+                else:
+                    _suffix_str = "%s" % suffix
+                outputfn = os.path.join(
+                    outputdir, "%s.%s.%s.h5" 
+                    % (_event_str, _suffix_str, tag))
+
                 if os.path.exists(outputfn):
+                    print "Output file exists, removed:%s" % outputfn
                     os.remove(outputfn)
                 ds = ASDFDataSet(outputfn)
                 for window in win_array:
                     ds.add_waveforms(window.datalist['new_synt'], tag=tag)
                 # add stationxml
+                _staxml_asdf = self.asdf_file_dict['synt']
+                ds_sta = ASDFDataSet(_staxml_asdf)
+                self.add_staxml_from_other_asdf(ds, ds_sta)
+                ds.flush()
         else:
             raise NotImplementedError
+
+    @staticmethod
+    def add_staxml_from_other_asdf(ds, ds_sta):
+        sta_tag_list = dir(ds.waveforms)
+        for sta_tag in sta_tag_list:
+            _sta_data = getattr(ds_sta.waveforms, sta_tag)
+            staxml = _sta_data.StationXML
+            ds.add_stationxml(staxml)
 
     def print_summary(self):
         """
