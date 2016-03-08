@@ -547,8 +547,19 @@ class DataContainer(object):
                 if os.path.exists(outputfn):
                     print "Output file exists, removed:%s" % outputfn
                     os.remove(outputfn)
-                ds = ASDFDataSet(outputfn)
+
+                ds = ASDFDataSet(outputfn, mode='w')
+                added_list = []
                 for window in win_array:
+                    synt_id = window.datalist['new_synt'].id
+                    # skip duplicate obsd location id.
+                    # for example, II.AAK.00.BHZ and II.AAK.10.BHZ will
+                    # be treated as different traces. But the synt and 
+                    # new synt will be the same. So we only add one
+                    if synt_id in added_list:
+                        continue
+                    else:
+                        added_list.append(synt_id)
                     ds.add_waveforms(window.datalist['new_synt'], tag=tag)
                 # add stationxml
                 _staxml_asdf = self.asdf_file_dict['synt']
