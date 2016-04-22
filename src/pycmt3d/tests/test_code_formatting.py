@@ -20,14 +20,14 @@ import os
 def test_flake8():
     test_dir = os.path.dirname(os.path.abspath(inspect.getfile(
         inspect.currentframe())))
-    pyflex_dir = os.path.dirname(test_dir)
+    package_dir = os.path.dirname(test_dir)
 
     # Possibility to ignore some files and paths.
     ignore_paths = [
-        os.path.join(pyflex_dir, "doc"),
-        os.path.join(pyflex_dir, ".git")]
+        os.path.join(package_dir, "doc"),
+        os.path.join(package_dir, ".git")]
     files = []
-    for dirpath, _, filenames in os.walk(pyflex_dir):
+    for dirpath, _, filenames in os.walk(package_dir):
         ignore = False
         for path in ignore_paths:
             if dirpath.startswith(path):

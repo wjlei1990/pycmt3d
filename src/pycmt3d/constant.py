@@ -7,7 +7,7 @@ All the constants used in pycmt3d
 
 import numpy as np
 
-PAR_LIST = ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
+PARLIST = ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
             "dep", "lon", "lat", "ctm", "hdr")
 
 # Mathmatical constants
@@ -16,11 +16,11 @@ PI = np.pi
 # Scale of cmt parameters
 # (latitude, longtitude, depth and moment centroid time and half duration)
 SCALE_LONGITUDE = 0.01   # degree
-SCALE_LATTITUDE = 0.01   # degree
+SCALE_LATITUDE = 0.01   # degree
 SCALE_DEPTH = 1.0        # km
 SCALE_MOMENT = 1.0e+23   # dyns*cm
-SCALE_CTIME = 1.0        # seconds
-SCALE_HDUR = 1.0         # seconds
+SCALE_CTIME = 1.0        # seconds, please don't change
+SCALE_HDUR = 1.0         # seconds, please don't change
 
 # Maximum number of parameters
 NPARMAX = 11

@@ -1,51 +1,109 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+General util functions
+"""
 import numpy as np
 import math
+from scipy import signal
 
 
-def sum_matrix(coef, data):
+def get_window_idx(win_time, dt):
+    """
+    Get window index from window time and dt
+    """
+    istart = int(win_time[0] / dt)
+    iend = int(win_time[1] / dt)
+    if istart < 0:
+        raise ValueError("Start index(%d) smaller than 0")
+    if istart >= iend:
+        raise ValueError("Start index(%d) larger or equal than end index(%d)"
+                         % (istart, iend))
+    return np.array([istart, iend])
 
-    if len(coef) != len(data):
+
+def check_trace_consistent(tr1, tr2, mode="part"):
+    """
+    Check if two traces are consistent with each other.
+    If mode is 'part', only starttime and dt is compared
+    If mode is 'full', npts is also compared
+    """
+    _options = ["part", "full"]
+    if mode not in _options:
+        raise ValueError("mode(%s) must be within %s" % (mode, _options))
+
+    if not np.isclose(tr1.stats.delta, tr2.stats.delta):
+        raise ValueError("DT of two traces are not the same: %f, %f"
+                         % (tr1.stats.delta, tr2.stats.delta))
+
+    if not np.isclose(tr1.stats.starttime - tr2.stats.starttime, 0):
+        raise ValueError("Starttime of two traces not the same: %s, %s"
+                         % (tr1.stats.starttime, tr2.stats.starttime))
+
+    if mode == "full":
+        if tr1.stats.npts != tr2.stats.npts:
+            raise ValueError("NPTS not the same: %d, %d" % (tr1.stats.npts,
+                                                            tr2.stats.npts))
+    else:
+        return
+
+
+def sum_matrix(data, coef=None):
+    """
+    Sum a list of matrix with same dimension(sum over first index)
+    :return: \sum coef[i] * data[i]
+    """
+    if coef is None:
+        coef = np.ones(len(data))
+    elif len(coef) != len(data):
         raise ValueError("dimension of coef and data not the same")
+
     sum_value = coef[0] * data[0]
     for _idx in range(1, len(coef)):
         sum_value += coef[_idx] * data[_idx]
     return sum_value
 
 
-def gen_random_array(npts, sample_number=0):
-
-    if npts <= 0:
-        return
-    if sample_number <= 1:
-        sample_number = 1
-    subset_array = np.zeros(npts)
-    location_array = np.random.choice(npts, sample_number)
+def random_select(nsamples, nselected=1, replace=True):
+    """
+    Draw nselected number of samples from nsamples,
+    index [0, nsamples-1]
+    :param nsamples: the total number of samples
+    :type nsamples: int
+    :param nselected: the number of ssamples drawed
+    :type nselected: int
+    :return: select position array. If selected twice, then on the same
+        index, value would be 2.
+    """
+    subset_array = np.zeros(nsamples)
+    location_array = np.random.choice(nsamples, nselected,
+                                      replace=replace)
     for _idx in location_array:
         subset_array[_idx] += 1
     return subset_array
 
 
-def hanning_window(npts):
+def _float_to_str(value):
     """
-    Hanning taper constructor
+    Convert float value to a specific precision string
 
-    :param npts: number of points
+    :param value:
+    :return: string of the value
+    """
+    return "%.5f" % value
+
+
+def _float_array_to_str(array):
+    """
+    Convert float array to string
+
     :return:
     """
-    taper = np.zeros(npts)
-    for i in range(npts):
-        taper[i] = 0.5 * (1 - math.cos(2 * np.pi * (float(i) / (npts - 1))))
-    return taper
-
-
-def boxcar_window(npts):
-    """
-    Boxcar taper constructor
-    """
-    taper = np.ones(npts)
-    return taper
+    string = "[  "
+    for ele in array:
+        string += "%.3e," % ele
+    string += "]"
+    return string
 
 
 def tukey_window(window_length, alpha=0.2):
@@ -87,16 +145,17 @@ def tukey_window(window_length, alpha=0.2):
     return w
 
 
-def construct_taper(npts, taper_type="tukey"):
+def construct_taper(npts, taper_type="tukey", alpha=0.2):
     taper_type = taper_type.lower()
-    if taper_type not in ['hanning', 'boxcar', 'tukey']:
-        raise ValueError("taper type option: 1) boxcar; 2) hanning; 3) tukey")
-    if taper_type == "hanning":
-        taper = hanning_window(npts)
+    _options = ['hann', 'boxcar', 'tukey']
+    if taper_type not in _options:
+        raise ValueError("taper type option: %s" % taper_type)
+    if taper_type == "hann":
+        taper = signal.hann(npts)
     elif taper_type == "boxcar":
-        taper = boxcar_window(npts)
+        taper = signal.boxcar(npts)
     elif taper_type == "tukey":
-        taper = tukey_window(npts, alpha=0.1)
+        taper = signal.tukey(npts, alpha=alpha)
     else:
         raise ValueError("Taper type not supported: %s" % taper_type)
     return taper

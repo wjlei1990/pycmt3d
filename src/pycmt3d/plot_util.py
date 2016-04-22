@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import print_function, division, absolute_import
+from . import logger
 from obspy.core.util.geodetics.base import gps2DistAzimuth
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
@@ -10,6 +12,69 @@ import matplotlib.gridspec as gridspec
 
 # earth half circle
 EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
+
+
+def _plot_new_seismogram(data_container, outputdir, cmtsource=None,
+                        figure_format="png"):
+    """
+    Plot the new synthetic and old synthetic data together with data
+    """
+    # make a check
+    traces = data_container.traces
+    if 'new_synt' not in traces[0].datalist.keys():
+        return "New synt not generated...Can't plot"
+
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
+    logger.info("Plotting observed, synthetics and windows to dir: %s"
+                % outputdir)
+    for tr in traces:
+        plot_new_seismogram_sub(tr, outputdir, cmtsource,
+                                     figure_format)
+
+
+def _plot_new_seismogram_sub(window, outputdir, cmtsource, figure_format):
+    obsd = window.datalist['obsd']
+    synt = window.datalist['synt']
+    new_synt = window.datalist['new_synt']
+
+    station = obsd.stats.station
+    network = obsd.stats.network
+    channel = obsd.stats.channel
+    location = obsd.stats.location
+    outputfig = os.path.join(outputdir, "%s.%s.%s.%s.%s" % (
+        network, station, location, channel, figure_format))
+
+    if cmtsource is None:
+        offset = 0
+    else:
+        offset = cmtsource.cmt_time - obsd.stats.starttime
+    times = [offset + obsd.stats.delta*i for i in range(obsd.stats.npts)]
+
+    fig = plt.figure(figsize=(15, 2.5))
+    plt.plot(times, obsd.data, color="black", linewidth=0.5, alpha=0.6)
+    plt.plot(times, synt.data, color="red", linewidth=0.8)
+    plt.plot(times, new_synt.data, color="green", linewidth=0.8)
+    plt.xlim(times[0], times[-1])
+
+    xlim1 = plt.xlim()[1]
+    ylim1 = plt.ylim()[1]
+    fontsize = 9
+    plt.text(0.01*xlim1, 0.80*ylim1, "Network: %2s    Station: %s" %
+             (network, station), fontsize=fontsize)
+    plt.text(0.01*xlim1, 0.65*ylim1,  "Location: %2s  Channel:%3s" %
+             (location, channel), fontsize=fontsize)
+
+    for win in window.win_time:
+        l = win[0] - offset
+        r = win[1] - offset
+        re = Rectangle((l, plt.ylim()[0]), r - l,
+                       plt.ylim()[1] - plt.ylim()[0], color="blue",
+                       alpha=0.25)
+        plt.gca().add_patch(re)
+
+    plt.savefig(outputfig)
+    plt.close(fig)
 
 
 class PlotUtil(object):

@@ -11,7 +11,7 @@ except:
     msg = ("No module named numpy. "
            "Please install numpy first, it is needed before using pycmt3d.")
     raise ImportError(msg)
-import const
+from .constant import REF_DIST
 
 
 def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
@@ -65,7 +65,7 @@ def default_weight_function(kcmpnm, dist_in_km, azi_count, nwins,
         if dist_weight_mode.lower() == "exponential":
             # exponential weight on distance
             data_weight[win_idx] = \
-                cmp_weight * ((dist_in_km/const.REF_DIST) ** dist_exp_weight) \
+                cmp_weight * ((dist_in_km/REF_DIST) ** dist_exp_weight) \
                 / (azi_count ** az_exp_weight)
         elif dist_weight_mode.lower() == "uniform":
             # no distance weighting
