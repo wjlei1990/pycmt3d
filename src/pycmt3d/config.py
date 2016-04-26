@@ -11,7 +11,6 @@ except:
     msg = ("No module named numpy. "
            "Please install numpy first, it is needed before using pycmt3d.")
     raise ImportError(msg)
-from .user_defined_weighting_function import default_weight_function
 from .util import _float_array_to_str
 from .constant import SCALE_LONGITUDE, SCALE_LATITUDE, SCALE_DEPTH
 from .constant import SCALE_MOMENT, PARLIST
@@ -19,30 +18,56 @@ from .constant import SCALE_MOMENT, PARLIST
 
 class WeightConfig(object):
     """
-    Since we introduce a complex weighting strategy here, so I think
-    it might be worth to seperate WeightConfig
+    Base class of weight config. Shouldn't be used for most cases.
+    Since we introduce complex weighting strategies here, so I think
+    it might be worth to seperate WeightConfig from the Config.
     """
-    def __init__(self, mode="default", normalize_by_energy=True,
-                 normalize_by_category=True,
-                 user_weight_function=None):
+    def __init__(self, mode="default", normalize_by_energy=False,
+                 normalize_by_category=False):
         self.mode = mode.lower()
         self.normalize_by_energy = normalize_by_energy
         self.normalize_by_category = normalize_by_category
-        if self.mode == "default" and user_weight_function is None:
-            self._use_default_wfunc = True
-            self.user_weight_function = default_weight_function
 
     def __repr__(self):
         string = "Weight Strategy:\n"
         string += "mode: %s\n" % self.mode
         string += "normalize_by_energy: %s\n" % self.normalize_by_energy
         string += "normalize_by_category: %s\n" % self.normalize_by_category
-        if self._use_default_wfunc:
-            string += "Weight function: default_weight_function\n"
         return string
 
     def __str__(self):
         return self.__repr__()
+
+
+class DefaultWeightConfig(WeightConfig):
+    """
+    Weight config in original CMT3D packages
+    """
+    def __init__(self, normalize_by_energy=False, normalize_by_category=False,
+                 comp_weight={"Z":2.0, "R": 1.0, "T": 2.0},
+                 love_dist_weight=0.78, pnl_dist_weight=1.15,
+                 rayleigh_dist_weight=0.55,
+                 azi_exp_idx=0.5):
+        WeightConfig.__init__(self, mode="default",
+                              normalize_by_energy=normalize_by_energy,
+                              normalize_by_category=normalize_by_category)
+        self.comp_weight = comp_weight
+        self.love_dist_weight = love_dist_weight
+        self.pnl_dist_weight = pnl_dist_weight
+        self.rayleigh_dist_weight = rayleigh_dist_weight
+        self.azi_exp_idx = azi_exp_idx
+
+    def __repr__(self):
+        string = "Weight Strategy:\n"
+        string += "mode: %s\n" % self.mode
+        string += "normalize_by_energy: %s\n" % self.normalize_by_energy
+        string += "normalize_by_category: %s\n" % self.normalize_by_category
+        string += "component weight: %s\n" % self.comp_weight
+        string += "pnl, rayleigh and love distance weights: %s\n" % (
+            self.pnl_dist_weight, self.rayleigh_dist_weight,
+            self.love_dist_weight)
+        string += "azimuth exponential index: %s\n" % self.azi_exp_idx
+        return string
 
 
 class Config(object):
@@ -51,7 +76,7 @@ class Config(object):
 
     :param npar: number of parameters to be inverted
     :param dlocation: location perturbation when calculated perturbed
-    synthetic data
+        synthetic data
     :param ddepth: depth perturbation
     :param dmoment: moment perturbation
     :param weight_data: bool value of weighting data
@@ -61,7 +86,7 @@ class Config(object):
     :param station_correction: bool value of whether applies station correction
     :param zero_trace: bool value of whether applies zero-trace constraint
     :param double_couple: bool value of whether applied double-couple
-    constraint
+        constraint
     :param damping: damping coefficient
     :param bootstrap: bool value of whether applied bootstrap method
     :param bootstrap_repeat: bootstrap iterations
@@ -99,8 +124,7 @@ class Config(object):
         self.dmoment = dmoment
 
         self.weight_data = weight_data
-        if weight_config is None:
-            self.weight_config = weight_config
+        self.weight_config = weight_config
 
         self.station_correction = station_correction
         self.zero_trace = zero_trace

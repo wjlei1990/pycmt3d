@@ -18,9 +18,6 @@ import obspy.xseed
 import warnings
 
 
-DEFAULT_MU = 32e9
-
-
 class CMTSource(object):
     """
     Class to handle a seismic moment tensor source including a source time
@@ -151,7 +148,6 @@ class CMTSource(object):
         for descrip in event.event_descriptions:
             if descrip.type == "earthquake name":
                 eventname = descrip.text
-                eventname = cls.adjust_eventname(eventname)
             else:
                 eventname = ""
         cmt_time = cmtsolution.time
@@ -216,18 +212,6 @@ class CMTSource(object):
             f.write('Mrp:%19.6e\n' % self.m_rp)  # * 1e7,))
             f.write('Mtp:%19.6e\n' % self.m_tp)  # * 1e7,))
 
-    @staticmethod
-    def adjust_eventname(eventname):
-        """
-        Remove the leading char
-        :param eventname:
-        :return:
-        """
-        import re
-        mob = re.search('\d', eventname)
-        idx = mob.start()
-        return eventname[idx:]
-
     @property
     def M0(self):
         """
@@ -260,18 +244,8 @@ class CMTSource(object):
         return np.array([self.m_rr, self.m_tt, self.m_pp, self.m_rt, self.m_rp,
                          self.m_tp])
 
-    @property
-    def tensor_voigt(self):
-        """
-        List of moment tensor components in theta, phi, r coordinates in Voigt
-        notation:
-        [m_tt, m_pp, m_rr, m_rp, m_rt, m_tp]
-        """
-        return np.array([self.m_tt, self.m_pp, self.m_rr, self.m_rp, self.m_rt,
-                         self.m_tp])
-
     def __str__(self):
-        return_str = 'Instaseis Source:\n'
+        return_str = 'CMTSolution Source:\n'
         return_str += '\tLongitude        : %6.1f deg\n' % (self.longitude,)
         return_str += '\tLatitude         : %6.1f deg\n' % (self.latitude,)
         return_str += '\tDepth            : %6.1e km\n' \

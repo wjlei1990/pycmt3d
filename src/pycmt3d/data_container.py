@@ -17,6 +17,7 @@ import time
 import os
 import json
 from obspy.geodetics import gps2dist_azimuth
+from collections import Sequence
 try:
     from pyasdf import ASDFDataSet
 except ImportError:
@@ -34,7 +35,7 @@ class MetaInfo(object):
                  b1s=[]):
         self.obsd_id = obsd_id
         self.synt_id = synt_id
-        self.weight = weight
+        self.weights = weight
         self.A1s = A1s
         self.b1s = b1s
 
@@ -195,7 +196,7 @@ class TraceWindow(object):
         return energy
 
 
-class DataContainer(object):
+class DataContainer(Sequence):
     """
     Class that contains methods that load data and window information
     """
@@ -213,6 +214,8 @@ class DataContainer(object):
         # store asdf dataset if asdf mode
         self._asdf_file_dict = None
 
+        self.__index = 0
+
     @staticmethod
     def _check_parlist(par_list):
         for par in par_list:
@@ -224,9 +227,11 @@ class DataContainer(object):
     def npar(self):
         return len(self.par_list)
 
-    @property
-    def ntrwins(self):
+    def __len__(self):
         return len(self.trwins)
+
+    def __getitem__(self, index):
+        return self.trwins[index]
 
     @property
     def nwindows(self):

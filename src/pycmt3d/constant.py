@@ -38,8 +38,9 @@ EPS5 = 1.0e-5
 # Number of regions for azimuthal weighting
 NREGIONS = 10
 
-# Reference distance for Pnl, Rayleigh and Love wave weighting
-REF_DIST = 100.0
+# Reference distance for Pnl, Rayleigh and Love wave weighting.
+# Unit is degree
+REF_DIST = 1.0
 
 # Earth's radius for depth scaling
 R_EARTH = 6371  # km

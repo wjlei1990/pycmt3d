@@ -41,9 +41,6 @@ class Cmt3D(object):
         self.new_cmt_par = None
         self.new_cmtsource = None
 
-        # category bin
-        self.category_bin = None
-
         # variance information
         self.var_all = None
         self.var_all_new = None
@@ -75,12 +72,14 @@ class Cmt3D(object):
         """
         if not self.config.weight_data:
             # no extra weighting, return
+            # only use the initial weight information provided by
+            # the user in the window function
             return
         logger.info("*" * 15)
         logger.info("Start weighting...")
         weight_obj = Weight(self.cmtsource, self.data_container,
                             self.metas, self.config.weight_config)
-        weight_obj.calculate_weight()
+        weight_obj.setup_weight()
 
     def setup_matrix(self):
         """
@@ -92,7 +91,8 @@ class Cmt3D(object):
         logger.info("Set up inversion matrix")
 
         for trwin in self.trwins:
-            metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id)
+            metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id,
+                                weight=trwin.init_weight)
             for win_idx in range(trace.nwindows):
                 # loop over each window
                 # here, A and b are from raw measurements
@@ -102,24 +102,6 @@ class Cmt3D(object):
                                        self.config.dcmt_par)
                 metainfo.A1s.append(A1)
                 metainfo.b1s.append(b1)
-
-    def sort_category(self):
-        """
-        Sort self.trwins into different category bins
-        """
-        def _get_tag(trwin):
-            if trwin.tag is None:
-                return "%s_%s" % (trwin.tag, trwin.channel)
-            else:
-                return trwin.channel
-
-        bins = {}
-        for idx, trwin in enumerate(self.trwins):
-            cat = _get_tag(trwin)
-            if cat not in bins:
-                bins[cat] = []
-            bins[cat].append(idx)
-        return bins
 
     def invert_solver(self, A, b):
         """
@@ -297,7 +279,6 @@ class Cmt3D(object):
         :return:
         """
         self.setup_matrix()
-        self.sort_category()
         self.setup_weight()
         self.invert_cmt()
 

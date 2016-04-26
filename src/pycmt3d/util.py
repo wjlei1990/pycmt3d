@@ -6,6 +6,20 @@ General util functions
 import numpy as np
 import math
 from scipy import signal
+from obspy.geodetics import locations2degrees
+
+
+def distance(lat1, lon1, lat2, lon2):
+    """
+    Given two points location by (latitude, longitude) and return
+    the distance on sphere between two points, unit in degree
+    :return: distance in degree
+    """
+    return locations2degrees(lat1, lon1, lat2, lon2)
+
+
+def normalize_array(array, factor):
+    return factor * numpy.array(array)
 
 
 def get_window_idx(win_time, dt):

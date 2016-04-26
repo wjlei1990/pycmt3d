@@ -31,6 +31,17 @@ OBSD_DIR = os.path.join(DATA_DIR, "data_T006_T030")
 SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 
 
+def test_distance():
+    assert util._distance(0, 0, 10, 0) == 10
+    assert util._distance(0, 0, 0, 10) == 10
+
+
+def normalize_array():
+    array = np.array([1.0, 2])
+    npt.assert_allclose(util.normalize_array(array, 0.5),
+                        [0.5, 1.0])
+
+
 def test_get_window_idx():
     win_time = [10, 20]
     dt = 0.5
@@ -92,7 +103,7 @@ def test_float_to_str():
 
 
 def test_float_array_to_str():
-    answer = "[   1.000e+00   1.000e+01  ]"
+    answer = "[  1.000e+00,1.000e+01,]"
     assert util._float_array_to_str([1.0, 10.0]) == answer
 
 

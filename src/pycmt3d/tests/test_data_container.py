@@ -16,7 +16,7 @@ import inspect
 import os
 import numpy as np
 import obspy
-from pycmt3d.data_container import TraceWindow, DataContainer
+from pycmt3d.data_container import MetaInfo, TraceWindow, DataContainer
 import numpy.testing as npt
 
 
@@ -25,6 +25,19 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(
         inspect.getfile(inspect.currentframe()))), "data")
 OBSD_DIR = os.path.join(DATA_DIR, "data_T006_T030")
 SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
+
+
+@pytest.fixture
+def meta():
+    meta = MetaInfo(obsd_id="CI.GSC..BHZ", synt_id="CI.GSC..BHZ",
+                    weight=np.ones(1))
+    return meta 
+
+
+def test_MetaInfo(meta):
+    assert meta.obsd_id == "CI.GSC..BHZ"
+    assert meta.synt_id == "CI.GSC..BHZ"
+    np.assert_allclose(meta.weight, np.ones(1))
 
 
 def test_TraceWindow():
