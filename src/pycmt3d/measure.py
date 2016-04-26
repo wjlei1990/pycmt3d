@@ -252,8 +252,6 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par):
     istart_d, iend_d, istart_s, iend_s, _, _ = \
         correct_window_index(obsd.data, synt.data, win_idx[0], win_idx[1])
 
-
-    npar = len(parlist)
     A1 = np.dot(dsyn, dsyn.transpose()) * dt
     b1 = np.sum(
         taper * (obsd.data[istart_d:iend_d] -
@@ -300,11 +298,11 @@ def calculate_variance_on_trace(obsd, synt, win_time):
 
         taper = construct_taper(iend - istart, taper_type=constant.taper_type)
 
-        v1_array[_win_idx] = dt *_diff_energy_(obsd.data[istart_d:iend_d],
-                                               synt.data[istart_s:iend_s],
-                                               taper=taper)
-        d1_array[_win_idx] = dt *_energy_(obsd.data[istart_d:iend_d],
-                                          taper=taper)
+        v1_array[_win_idx] = dt * _diff_energy_(obsd.data[istart_d:iend_d],
+                                                synt.data[istart_s:iend_s],
+                                                taper=taper)
+        d1_array[_win_idx] = dt * _energy_(obsd.data[istart_d:iend_d],
+                                           taper=taper)
 
         tshift_array[_win_idx] = nshift * dt
         cc_array[_win_idx] = cc

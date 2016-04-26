@@ -4,7 +4,6 @@
 General util functions
 """
 import numpy as np
-import math
 from scipy import signal
 from obspy.geodetics import locations2degrees
 
@@ -19,7 +18,7 @@ def distance(lat1, lon1, lat2, lon2):
 
 
 def normalize_array(array, factor):
-    return factor * numpy.array(array)
+    return factor * np.array(array)
 
 
 def get_window_idx(win_time, dt):

@@ -44,7 +44,7 @@ class DefaultWeightConfig(WeightConfig):
     Weight config in original CMT3D packages
     """
     def __init__(self, normalize_by_energy=False, normalize_by_category=False,
-                 comp_weight={"Z":2.0, "R": 1.0, "T": 2.0},
+                 comp_weight={"Z": 2.0, "R": 1.0, "T": 2.0},
                  love_dist_weight=0.78, pnl_dist_weight=1.15,
                  rayleigh_dist_weight=0.55,
                  azi_exp_idx=0.5):

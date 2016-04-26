@@ -16,6 +16,7 @@ import inspect
 import os
 import numpy as np
 import obspy
+import pytest
 from pycmt3d.data_container import MetaInfo, TraceWindow, DataContainer
 import numpy.testing as npt
 
@@ -30,14 +31,14 @@ SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 @pytest.fixture
 def meta():
     meta = MetaInfo(obsd_id="CI.GSC..BHZ", synt_id="CI.GSC..BHZ",
-                    weight=np.ones(1))
+                    weights=np.ones(1))
     return meta 
 
 
 def test_MetaInfo(meta):
     assert meta.obsd_id == "CI.GSC..BHZ"
     assert meta.synt_id == "CI.GSC..BHZ"
-    np.assert_allclose(meta.weight, np.ones(1))
+    npt.assert_allclose(meta.weights, np.ones(1))
 
 
 def test_TraceWindow():
@@ -48,7 +49,8 @@ def test_TraceWindow():
 
     win_time = np.array([[7.545, 46.1450], [50.0, 60.0]])
     weight = np.ones(win_time.shape[0])
-    win = TraceWindow(datalist=datalist, windows=win_time, weight=weight,
+    win = TraceWindow(datalist=datalist, windows=win_time,
+            init_weight=weight,
                       latitude=0.0, longitude=10.0,
                       event_latitude=0.0, event_longitude=0.0,
                       tag="T006_T030", source="SAC")
@@ -58,7 +60,6 @@ def test_TraceWindow():
     assert win.location == ""
     assert win.channel == "BHZ"
     assert sorted(win.data_keys) == sorted(["obsd", "synt"])
-    assert win.full_tag == "T006_T030_BHZ"
     assert win.nwindows == 2
     assert win.obsd_id == "CI.GSC..BHZ"
     assert win.synt_id == "CI.GSC..BHZ"
@@ -72,14 +73,14 @@ def test_DataContainer_simple():
     WINDOW_FILE = os.path.join(DATA_DIR, "flexwin_T006_T030.output.test")
     dcon = DataContainer()
     assert dcon.npar == 0
-    assert dcon.ntraces == 0
+    assert len(dcon) == 0
     assert dcon.nwindows == 0
 
     os.chdir(DATA_DIR)
     dcon.add_measurements_from_sac(WINDOW_FILE, tag="T006_T030")
     assert dcon.npar == 0
-    assert dcon.ntraces == 1
-    assert dcon.nwindows == 1
+    assert len(dcon) == 3
+    assert dcon.nwindows == 5
 
 
 def test_load_winfile_txt():
@@ -90,10 +91,9 @@ def test_load_winfile_txt():
                                file_format="txt")
     assert len(traces) == 2
     npt.assert_allclose(traces[0].windows[0], [7.5450, 46.1450])
-    npt.assert_allclose(traces[0].weight[0], 0.50)
+    npt.assert_allclose(traces[0].init_weight, [0.50,])
     npt.assert_allclose(traces[1].windows[0], [-0.0550, 44.5950])
     npt.assert_allclose(traces[1].windows[1], [44.5950, 76.8450])
-    npt.assert_allclose(traces[1].weight[0], 0.60)
-    npt.assert_allclose(traces[1].weight[1], 2.00)
+    npt.assert_allclose(traces[1].init_weight, [0.60, 2.00])
 
     assert dcon._get_counts(traces) == (2, 3)

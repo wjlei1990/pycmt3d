@@ -8,9 +8,10 @@ import const
 from __init__ import logger
 import util
 from plot_util import PlotUtil, _plot_new_seismogram
-from measure import compute_A_b, get_f_df
+from .measure import compute_A_b, get_f_df, calculate_var_on_trace
 from plot_stats import _plot_stats_histogram
 from data_container import MetaInfo
+from .weight import Weight
 
 
 class Cmt3D(object):
@@ -93,13 +94,13 @@ class Cmt3D(object):
         for trwin in self.trwins:
             metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id,
                                 weight=trwin.init_weight)
-            for win_idx in range(trace.nwindows):
+            for win_idx in range(trwin.nwindows):
                 # loop over each window
                 # here, A and b are from raw measurements
                 # and no weightings has been applied yet
-                A1, b1 = compute_A_b(trace, traces. win_idx,
-                                       self.config.parlist,
-                                       self.config.dcmt_par)
+                A1, b1 = compute_A_b(trwin.datalist, trwin.windows[win_idx],
+                                     self.config.parlist,
+                                     self.config.dcmt_par)
                 metainfo.A1s.append(A1)
                 metainfo.b1s.append(b1)
 
@@ -137,14 +138,14 @@ class Cmt3D(object):
 
         # add damping
         logger.info("Condition number of A: %10.2f"
-                     % np.linalg.cond(A))
+                    % np.linalg.cond(A))
         if self.config.damping > 0:
             trace = np.matrix.trace(A)
             damp_matrix = np.zeros([npar, npar])
             np.fill_diagonal(damp_matrix, trace * self.config.lamda_damping)
             A = A + damp_matrix
             logger.info("Condition number of A after damping: %10.2f"
-                         % np.linalg.cond(A))
+                        % np.linalg.cond(A))
 
         if linear_inversion:
             logger.info("Linear Inversion...")
@@ -228,13 +229,13 @@ class Cmt3D(object):
             b1 += b1_trwin
 
         logger.info("Inversion Matrix A is as follows:")
-        logger.info("\n%s" % ('\n'.join(map(self._float_array_to_str, A))))
-        logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A)))
+        logger.info("\n%s" % ('\n'.join(map(self._float_array_to_str, A1))))
+        logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A1)))
         logger.info("RHS vector b is as follows:")
-        logger.info("[%s]" % (self._float_array_to_str(b)))
+        logger.info("[%s]" % (self._float_array_to_str(b1)))
 
         # source inversion
-        self.new_cmt_par = self.invert_solver(A, b, print_mode=True)
+        self.new_cmt_par = self.invert_solver(A1, b1, print_mode=True)
         self.convert_new_cmt_par()
 
     def invert_bootstrap(self):
@@ -284,7 +285,7 @@ class Cmt3D(object):
 
         self.calculate_variance()
 
-        #if self.config.bootstrap:
+        # if self.config.bootstrap:
         #    self.invert_bootstrap()
 
         self.print_inversion_summary()
@@ -312,16 +313,16 @@ class Cmt3D(object):
             # calculate old variance metrics
             [v1, d1, tshift1, cc1, dlnA1, cc_amp1] = \
                 calculate_var_on_trace(obsd, synt, trwin.win_time)
-            meta.measure["synt"] = {"v": v1, "d": d1, "nshift": nshift1,
+            meta.measure["synt"] = {"v": v1, "d": d1, "tshift": tshift1,
                                     "cc": cc1, "dlnA": dlnA1,
                                     "cc_amp": cc_amp1}
 
             self.compute_new_syn(trwin.datalist, dm)
             new_synt = trwin.datalist['new_synt']
             # calculate new variance metrics
-            [v2, d2, tshift2, cc2, dlnA2, cc_amp_value2] = \
+            [v2, d2, tshift2, cc2, dlnA2, cc_amp2] = \
                 calculate_var_on_trace(obsd, new_synt, trwin.win_time)
-            meta.measure["new_synt"] = {"v": v2, "d": d2, "nshift": nshift2,
+            meta.measure["new_synt"] = {"v": v2, "d": d2, "tshift": tshift2,
                                         "cc": cc2, "dlnA": dlnA2,
                                         "cc_amp": cc_amp2}
 

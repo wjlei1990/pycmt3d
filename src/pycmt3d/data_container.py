@@ -22,6 +22,7 @@ try:
     from pyasdf import ASDFDataSet
 except ImportError:
     print("Can not import pyasdf. ASDF not supported then")
+from .constant import PARLIST
 
 
 class MetaInfo(object):
@@ -31,16 +32,16 @@ class MetaInfo(object):
     raw traces and window information. All measurments will be kept
     in MetaInfo
     """
-    def __init__(obsd_id=None, synt_id=None, weight=[], A1s=[],
-                 b1s=[]):
+    def __init__(self, obsd_id=None, synt_id=None, weights=[], A1s=[],
+                 b1s=[], measure={}):
         self.obsd_id = obsd_id
         self.synt_id = synt_id
-        self.weights = weight
+        self.weights = weights
         self.A1s = A1s
         self.b1s = b1s
 
         # dictionary to store various measurements
-        self.measure = {}
+        self.measure = measure
 
 
 class TraceWindow(object):
@@ -200,15 +201,15 @@ class DataContainer(Sequence):
     """
     Class that contains methods that load data and window information
     """
-    def __init__(self, par_list=[]):
+    def __init__(self, parlist=[]):
         """
-        :param par_list: derivative parameter name list
+        :param parlist: derivative parameter name list
         """
-        if not self._check_parlist(par_list):
-            raise ValueError("par_list(%s) not within %s"
-                             % (par_list, PAR_LIST))
+        if not self._check_parlist(parlist):
+            raise ValueError("parlist(%s) not within %s"
+                             % (parlist, PARLIST))
 
-        self.par_list = par_list
+        self.parlist = parlist
         self.trwins = []
         self._load_info = {}
         # store asdf dataset if asdf mode
@@ -217,15 +218,15 @@ class DataContainer(Sequence):
         self.__index = 0
 
     @staticmethod
-    def _check_parlist(par_list):
-        for par in par_list:
-            if par not in PAR_LIST:
+    def _check_parlist(parlist):
+        for par in parlist:
+            if par not in PARLIST:
                 return False
         return True
 
     @property
     def npar(self):
-        return len(self.par_list)
+        return len(self.parlist)
 
     def __len__(self):
         return len(self.trwins)
@@ -352,12 +353,12 @@ class DataContainer(Sequence):
 
         if not isinstance(asdf_file_dict, dict):
             raise TypeError("asdf_file_dict should be dictionary. Key from "
-                            "par_list and value is the asdf file name")
+                            "parlist and value is the asdf file name")
 
-        necessary_keys = ["obsd", "synt"] + self.par_list
+        necessary_keys = ["obsd", "synt"] + self.parlist
         for key in necessary_keys:
             if key not in asdf_file_dict.keys():
-                raise ValueError("key(%s) in par_list is not in "
+                raise ValueError("key(%s) in parlist is not in "
                                  "asdf_file_dict(%s)"
                                  % (key, asdf_file_dict.keys()))
 
@@ -516,7 +517,7 @@ class DataContainer(Sequence):
         # The path of derived synt follows the CMT3D convetion.
         # for example, if synt data path is "data/II.AAK.00.BHZ.sac",
         # then derived synts are: ["data/II.AAK.00.BHZ.sac.Mrr", ...]
-        for deriv_par in self.par_list:
+        for deriv_par in self.parlist:
             synt_dev_fn = synt_path + "." + deriv_par
             trace_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
             trace_obj.tag[deriv_par] = tag
@@ -552,7 +553,7 @@ class DataContainer(Sequence):
             self._get_trace_from_asdf(trace_obj.synt_id, asdf_ds['synt'],
                                       synt_tag)
 
-        for deriv_par in self.par_list:
+        for deriv_par in self.parlist:
             trace_obj.datalist[deriv_par], trace_obj.tag[deriv_par] = \
                 self._get_trace_from_asdf(trace_obj.synt_id,
                                           asdf_ds[deriv_par],
@@ -753,8 +754,8 @@ class DataContainer(Sequence):
                     % (window.station, window.network, window.component))
 
         logger.info("="*10 + "  Data Summary  " + "="*10)
-        logger.info("Number of Deriv synt: %d" % len(self.par_list))
-        logger.info("   Par: [%s]" % (', '.join(self.par_list)))
+        logger.info("Number of Deriv synt: %d" % len(self.parlist))
+        logger.info("   Par: [%s]" % (', '.join(self.parlist)))
         logger.info("Number of data pairs: %d" % self.nfiles)
         logger.info("   [Z, R, T] = [%d, %d, %d]"
                     % (nfiles_z, nfiles_r, nfiles_t))

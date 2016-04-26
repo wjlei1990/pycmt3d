@@ -32,8 +32,8 @@ SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 
 
 def test_distance():
-    assert util._distance(0, 0, 10, 0) == 10
-    assert util._distance(0, 0, 0, 10) == 10
+    assert util.distance(0, 0, 10, 0) == 10
+    assert util.distance(0, 0, 0, 10) == 10
 
 
 def normalize_array():

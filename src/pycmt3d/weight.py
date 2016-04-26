@@ -20,8 +20,7 @@ class Weight(object):
     :param config: configuration for source inversion
     :type config: :class:`pycmt3d.Config`
     """
-    def __init__(self, cmtsource, data_container, metas, config,
-                 **kwargs):
+    def __init__(self, cmtsource, data_container, metas, config):
 
         self.cmtsource = cmtsource
 
