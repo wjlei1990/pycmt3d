@@ -225,7 +225,7 @@ def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper=None):
     return dsyn
 
 
-def compute_A_b(datalist, win_time, parlist, dcmt_par):
+def compute_A_b(datalist, win_time, parlist, dcmt_par, taper_type="tukey"):
     """
     Calculate the matrix A and vector b based on one pair of
     observed data and synthetic data on a given window.
@@ -245,7 +245,7 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par):
     win_idx = get_window_idx(win_time, obsd.stats.delta)
 
     win_len = win_idx[1] - win_idx[0]
-    taper = construct_taper(win_len, taper_type=constant.taper_type)
+    taper = construct_taper(win_len, taper_type=taper_type)
 
     dsyn = calculate_dsyn(datalist, win_idx, parlist, dcmt_par,
                           taper=taper)
@@ -263,7 +263,7 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par):
     return A1, b1
 
 
-def calculate_variance_on_trace(obsd, synt, win_time):
+def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
     """
     Calculate the variance reduction on a pair of obsd and
     synt and windows
@@ -298,7 +298,7 @@ def calculate_variance_on_trace(obsd, synt, win_time):
         nshift, cc, dlnA, cc_amp_value = \
             measure_window(obsd, synt, istart, iend)
 
-        taper = construct_taper(iend - istart, taper_type=constant.taper_type)
+        taper = construct_taper(iend - istart, taper_type=taper_type)
 
         v1_array[_win_idx] = dt * _diff_energy_(obsd.data[istart_d:iend_d],
                                                 synt.data[istart_s:iend_s],

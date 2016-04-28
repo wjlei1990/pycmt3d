@@ -95,5 +95,3 @@ def test_weighting_two(cmtsource):
     srcinv = Cmt3D(cmtsource, dcon_two, config)
     srcinv.source_inversion()
     srcinv.plot_new_synt_seismograms("test")
-    assert False
-

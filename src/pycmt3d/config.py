@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-Configuration object for pycmt3d
+Weight and inversion Configuration for pycmt3d
 """
 from __future__ import print_function, division, absolute_import
 import numpy as np
 from .util import _float_array_to_str
-from .constant import SCALE_LONGITUDE, SCALE_LATITUDE, SCALE_DEPTH
-from .constant import SCALE_MOMENT, PARLIST
+from .constant import DEFAULT_SCALE_VECTOR, NM, NML, PARLIST
 
 
 class WeightConfig(object):
@@ -42,7 +41,8 @@ class DefaultWeightConfig(WeightConfig):
                  comp_weight={"Z": 2.0, "R": 1.0, "T": 2.0},
                  love_dist_weight=0.78, pnl_dist_weight=1.15,
                  rayleigh_dist_weight=0.55,
-                 azi_exp_idx=0.5, azi_bins=12):
+                 azi_exp_idx=0.5, azi_bins=12,
+                 ref_dist=1.0):
         WeightConfig.__init__(self, mode="default",
                               normalize_by_energy=normalize_by_energy,
                               normalize_by_category=normalize_by_category)
@@ -52,6 +52,8 @@ class DefaultWeightConfig(WeightConfig):
         self.rayleigh_dist_weight = rayleigh_dist_weight
         self.azi_exp_idx = azi_exp_idx
         self.azi_bins = azi_bins
+
+        self.ref_dist = ref_dist
 
     def __repr__(self):
         string = "Weight Strategy:\n"
@@ -90,10 +92,14 @@ class Config(object):
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 zero_trace=True, double_couple=False, damping=0.0,
+                 scale_vector=None, zero_trace=True,
+                 double_couple=False, max_nl_iter=60,
+                 damping=0.0,
                  station_correction=True,
                  weight_data=True, weight_config=None,
-                 bootstrap=True, bootstrap_repeat=300):
+                 bootstrap=True, bootstrap_repeat=300,
+                 bootstrap_subset_ratio=0.4,
+                 taper_type="tukey"):
 
         _options = [6, 7, 9, 10, 11]
         if npar not in _options:
@@ -119,6 +125,7 @@ class Config(object):
         self.dlocation = dlocation
         self.ddepth = ddepth
         self.dmoment = dmoment
+        self._check_perturbation_sanity()
 
         self.weight_data = weight_data
         self.weight_config = weight_config
@@ -126,24 +133,52 @@ class Config(object):
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple
+        if max_nl_iter <= 0:
+            raise ValueError("max_nl_iter(%d) must be larger than 0"
+                             % max_nl_iter)
+        self.max_nl_iter = max_nl_iter
         self.damping = damping
 
         # scaling term
-        self.scale_par = np.array(
-            [SCALE_MOMENT, SCALE_MOMENT, SCALE_MOMENT,
-             SCALE_MOMENT, SCALE_MOMENT, SCALE_MOMENT,
-             SCALE_DEPTH, SCALE_LONGITUDE, SCALE_LATITUDE,
-             1.0, 1.0])
+        if scale_vector is None:
+            self.scale_vector = DEFAULT_SCALE_VECTOR[:npar]
+        elif len(scale_vector) != npar:
+            raise ValueError("Length of scale_vector(%d) must be %d"
+                             % (len(scale_vector), npar))
+        else:
+            self.scale_vector = scale_vector
+
         # original cmt perturbation
         self.dcmt_par = np.array(
             [self.dmoment, self.dmoment, self.dmoment, self.dmoment,
              self.dmoment, self.dmoment, self.ddepth, self.dlocation,
-             self.dlocation, 1.0, 1.0])
+             self.dlocation, 1.0, 1.0])[:npar]
         # scaled cmt perturbation
-        self.dcmt_par_scaled = self.dcmt_par / self.scale_par
+        self.dcmt_par_scaled = self.dcmt_par / self.scale_vector
 
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
+        self.bootstrap_subset_ratio = bootstrap_subset_ratio
+
+        self.taper_type = taper_type
+
+    def _check_perturbation_sanity(self):
+        """
+        Check cmt perturbation is set according to npar
+        """
+        if self.npar >= NM:
+            if not self.dmoment:
+                raise ValueError("npar(%d) requires dmoment(%s) > 0" %
+                                 (self.npar, self.dmoment))
+        if self.npar >= (NM + 1):
+            if not self.ddepth:
+                raise ValueError("npar(%d) requires ddepth(%s) > 0" %
+                                 (self.npar, self.ddepth))
+
+        if self.npar >= NML:
+            if not self.dlocation:
+                raise ValueError("npar(%d) requires dlocation(%s) > 0" %
+                                 (self.npar, self.ddepth))
 
     def __repr__(self):
         npar = self.npar
@@ -154,7 +189,7 @@ class Config(object):
         string += \
             "CMT perturbation: %s\n" % _float_array_to_str(self.dcmt_par)
         string += \
-            "CMT scaling term: %s\n" % _float_array_to_str(self.scale_par)
+            "CMT scaling term: %s\n" % _float_array_to_str(self.scale_vector)
 
         string += "-" * 5 + "\nInversion Schema\n"
         string += "Zero trace: %s  Doulbe couple: %s\n" % (

@@ -5,7 +5,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 from spaceweight import SphereAziBin, Point
 from . import logger
-from .constant import REF_DIST
 from .util import distance, get_window_idx
 from .measure import _energy_
 from .data_container import MetaInfo
@@ -174,6 +173,7 @@ class Weight(object):
         This is just a courtesy functions which works the same as CMT3D
         distance weighting
         """
+        ref_dist = self.config.ref_dist
         for cat, points in self.point_bins.iteritems():
             for point in points:
                 trwin = self.data_container.trwins[point.tag]
@@ -186,13 +186,15 @@ class Weight(object):
                 for win_idx in range(trwin.nwindows):
                     if comp == "T":
                         epi_weights[win_idx] = \
-                            (dist/REF_DIST) ** self.config.love_dist_weight
+                            (dist/ref_dist) ** self.config.love_dist_weight
                     elif win_idx == 0:
                         epi_weights[win_idx] = \
-                            (dist/REF_DIST) ** self.config.pnl_dist_weight
+                            (dist/ref_dist) ** self.config.pnl_dist_weight
                     else:
                         epi_weights[win_idx] = \
-                            (dist/REF_DIST) ** self.config.rayleigh_dist_weight
+                            (dist/ref_dist) ** self.config.rayleigh_dist_weight
+                print("comp, dist, ref_dist:", comp, dist, ref_dist)
+                print("epi_weights:", comp, epi_weights)
                 meta.weights /= epi_weights
                 meta.prov["epi_dist_factor"] = epi_weights
 

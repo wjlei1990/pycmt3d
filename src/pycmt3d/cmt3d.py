@@ -15,7 +15,7 @@ from .plot_util import plot_seismograms
 # from .plot_stats import _plot_stats_histogram
 from .data_container import MetaInfo
 from .weight import Weight
-from .constant import NPARMAX, NMAX_NL_ITER, BOOTSTRAP_SUBSET_RATIO
+from .constant import NPARMAX
 from .solver import linear_solver, nonlinear_solver
 
 
@@ -42,7 +42,6 @@ class Cmt3D(object):
         self.metas = []
 
         # new cmt par from the inversion
-        self.new_cmt_par = None
         self.new_cmtsource = None
 
         # variance information
@@ -60,8 +59,18 @@ class Cmt3D(object):
 
     @property
     def cmt_par(self):
-        """ cmt array """
+        """
+        cmt array: [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, lon, lat,
+                    time_shift, half_duration]
+        """
         return _get_cmt_par(self.cmtsource)
+
+    @property
+    def new_cmt_par(self):
+        """
+        New cmt param array
+        """
+        return _get_cmt_par(self.new_cmtsource)
 
     def setup_window_weight(self):
         """
@@ -117,7 +126,8 @@ class Cmt3D(object):
                 # A1 and b1 would be too small.
                 A1, b1 = compute_A_b(trwin.datalist, trwin.windows[win_idx],
                                      self.config.parlist,
-                                     self.config.dcmt_par_scaled)
+                                     self.config.dcmt_par_scaled,
+                                     self.config.taper_type)
                 meta.A1s.append(A1)
                 meta.b1s.append(b1)
 
@@ -133,7 +143,7 @@ class Cmt3D(object):
         :return:
         """
         npar = self.config.npar
-        old_par = self.cmt_par[0:npar] / self.config.scale_par[0:npar]
+        old_par = self.cmt_par[0:npar] / self.config.scale_vector[0:npar]
 
         # scale the A and b matrix by the max value
         # not really necessary, should be deleted in the future
@@ -161,14 +171,15 @@ class Cmt3D(object):
 
         if linear_inversion:
             logger.info("Linear Inversion...")
-            new_par = linear_solver(old_par, A, b, npar,
-                                         zero_trace=self.config.zero_trace)
+            new_par_scaled = linear_solver(
+                old_par, A, b, npar, zero_trace=self.config.zero_trace)
         else:
             logger.info("Nonlinear Inversion...")
-            new_par = nonlinear_solver(old_par, A, b, npar)
+            new_par_scaled = nonlinear_solver(
+                old_par, A, b, npar, max_iter=self.config.max_nl_iter)
 
-        new_cmt_par = np.copy(self.cmt_par)
-        new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
+        new_cmt_par = self.cmt_par.copy()
+        new_cmt_par[:npar] = new_par_scaled * self.config.scale_vector
         logger.info("New cmt array: %s" % new_cmt_par)
 
         return new_cmt_par
@@ -203,8 +214,8 @@ class Cmt3D(object):
         logger.info("[%s]" % (_float_array_to_str(b1)))
 
         # source inversion
-        self.new_cmt_par = self.invert_solver(A1, b1)
-        self.convert_new_cmt_par()
+        new_cmt_par = self.invert_solver(A1, b1)
+        self.convert_new_cmt_par(new_cmt_par)
         logger.info("new cmtsource: %s" % self.new_cmtsource)
 
     def invert_bootstrap(self):
@@ -216,7 +227,7 @@ class Cmt3D(object):
         """
         A_bootstrap = []
         b_bootstrap = []
-        n_subset = int(BOOTSTRAP_SUBSET_RATIO * self.nwins)
+        n_subset = int(self.config.bootstrap_subset_ratio * self.nwins)
         for i in range(self.config.bootstrap_repeat):
             random_array = random_select(
                 self.nwins, sample_number=n_subset)
@@ -282,7 +293,8 @@ class Cmt3D(object):
 
             # calculate old variance metrics
             [v1, d1, tshift1, cc1, dlnA1, cc_amp1] = \
-                calculate_variance_on_trace(obsd, synt, trwin.windows)
+                calculate_variance_on_trace(obsd, synt, trwin.windows,
+                                            self.config.taper_type)
             meta.prov["synt"] = {"v": v1, "d": d1, "tshift": tshift1,
                                  "cc": cc1, "dlnA": dlnA1,
                                  "cc_amp": cc_amp1}
@@ -290,7 +302,8 @@ class Cmt3D(object):
             new_synt = trwin.datalist['new_synt']
             # calculate new variance metrics
             [v2, d2, tshift2, cc2, dlnA2, cc_amp2] = \
-                calculate_variance_on_trace(obsd, new_synt, trwin.windows)
+                calculate_variance_on_trace(obsd, new_synt, trwin.windows,
+                                            self.config.taper_type)
             meta.prov["new_synt"] = {"v": v2, "d": d2, "tshift": tshift2,
                                      "cc": cc2, "dlnA": dlnA2,
                                      "cc_amp": cc_amp2}
@@ -323,19 +336,22 @@ class Cmt3D(object):
         """
         Compute new synthetic for each trwin in self.data_container
         """
-        dm_scaled = (self.new_cmt_par - self.cmt_par) / self.config.scale_par
+        npar = self.config.npar
+        dm_scaled = \
+            (self.new_cmt_par[:npar] - self.cmt_par[:npar]) / \
+            self.config.scale_vector
         for trwin in self.data_container:
             compute_new_syn_on_trwin(trwin.datalist, self.config.parlist,
                                      self.config.dcmt_par_scaled, dm_scaled)
 
-    def convert_new_cmt_par(self):
+    def convert_new_cmt_par(self, new_cmt_par):
         """
-        Convert self.new_cmt_par array to CMTSource instance
+        Convert new_cmt_par array to self.new_cmtsource
 
         :return:
         """
         oldcmt = self.cmtsource
-        newcmt = self.new_cmt_par
+        newcmt = new_cmt_par
         time_shift = newcmt[9]
         new_cmt_time = oldcmt.origin_time + time_shift
         # copy old one
@@ -408,7 +424,8 @@ class Cmt3D(object):
 
         # plot_stat = PlotUtil(
         #    data_container=self.data_container, config=self.config,
-        #    cmtsource=self.cmtsource, nregions=const.NREGIONS,
+        #    cmtsource=self.cmtsource,
+        #    nregions=self.config.weight_config.azi_bins,
         #    new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
         #    bootstrap_std=self.par_std, var_reduction=self.var_reduction,
         #    mode=plot_mode)

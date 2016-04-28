@@ -40,7 +40,7 @@ def linear_solver(old_par, A, b, npar, zero_trace=True):
     return new_par
 
 
-def nonlinear_solver(old_par, A, b, npar):
+def nonlinear_solver(old_par, A, b, npar, max_iter=60):
     """
     if invert for moment tensor with double couple constraints
     setup starting solution, solve directly for moment instead
@@ -56,8 +56,8 @@ def nonlinear_solver(old_par, A, b, npar):
     AA = np.zeros([na, na])
     bb = np.zeros(na)
 
-    error = np.zeros([NMAX_NL_ITER, na])
-    for iter_idx in range(NMAX_NL_ITER):
+    error = np.zeros([max_iter, na])
+    for iter_idx in range(max_iter):
         get_f_df(npar, A, b, m1, lam, mstart, AA, bb)
         bb = - bb
         xout = np.linalg.solve(AA, bb)

@@ -73,4 +73,4 @@ def test_config():
 
     npt.assert_allclose(config.dcmt_par, [2.0e23, 2.0e23, 2.0e23, 2.0e23,
                                           2.0e23, 2.0e23,
-                                          3.0, 0.03, 0.03, 1.0, 1.0])
+                                          3.0, 0.03, 0.03])
