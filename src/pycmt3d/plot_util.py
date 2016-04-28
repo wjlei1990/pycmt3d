@@ -1,42 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division, absolute_import
-from . import logger
-from obspy.core.util.geodetics.base import gps2DistAzimuth
-import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
-import numpy as np
+import os
 import math
-from obspy.imaging.beachball import Beach
+import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from mpl_toolkits.basemap import Basemap
+from matplotlib.patches import Rectangle
+from obspy.core.util.geodetics.base import gps2DistAzimuth
+from obspy.imaging.beachball import Beach
+
+from . import logger
 
 # earth half circle
 EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
 
 
-def _plot_new_seismogram(data_container, outputdir, cmtsource=None,
-                        figure_format="png"):
-    """
-    Plot the new synthetic and old synthetic data together with data
-    """
-    # make a check
-    traces = data_container.traces
-    if 'new_synt' not in traces[0].datalist.keys():
-        return "New synt not generated...Can't plot"
-
-    if not os.path.exists(outputdir):
-        os.makedirs(outputdir)
-    logger.info("Plotting observed, synthetics and windows to dir: %s"
-                % outputdir)
-    for tr in traces:
-        plot_new_seismogram_sub(tr, outputdir, cmtsource,
-                                     figure_format)
-
-
-def _plot_new_seismogram_sub(window, outputdir, cmtsource, figure_format):
-    obsd = window.datalist['obsd']
-    synt = window.datalist['synt']
-    new_synt = window.datalist['new_synt']
+def plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
+    obsd = trwin.datalist['obsd']
+    synt = trwin.datalist['synt']
+    new_synt = trwin.datalist['new_synt']
 
     station = obsd.stats.station
     network = obsd.stats.network
@@ -48,7 +32,8 @@ def _plot_new_seismogram_sub(window, outputdir, cmtsource, figure_format):
     if cmtsource is None:
         offset = 0
     else:
-        offset = cmtsource.cmt_time - obsd.stats.starttime
+        offset = obsd.stats.starttime - cmtsource.cmt_time
+        print("offset:", offset)
     times = [offset + obsd.stats.delta*i for i in range(obsd.stats.npts)]
 
     fig = plt.figure(figsize=(15, 2.5))
@@ -65,9 +50,9 @@ def _plot_new_seismogram_sub(window, outputdir, cmtsource, figure_format):
     plt.text(0.01*xlim1, 0.65*ylim1,  "Location: %2s  Channel:%3s" %
              (location, channel), fontsize=fontsize)
 
-    for win in window.win_time:
-        l = win[0] - offset
-        r = win[1] - offset
+    for win in trwin.windows:
+        l = win[0] + offset
+        r = win[1] + offset
         re = Rectangle((l, plt.ylim()[0]), r - l,
                        plt.ylim()[1] - plt.ylim()[0], color="blue",
                        alpha=0.25)
@@ -75,6 +60,26 @@ def _plot_new_seismogram_sub(window, outputdir, cmtsource, figure_format):
 
     plt.savefig(outputfig)
     plt.close(fig)
+
+
+def plot_seismograms(data_container, outputdir, cmtsource=None,
+                     figure_format="png"):
+    """
+    Plot the new synthetic and old synthetic data together with data
+    """
+    # make a check
+    if 'new_synt' not in data_container.trwins[0].datalist.keys():
+        return "New synt not generated...Can't plot"
+
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
+
+    logger.info("Plotting observed, synthetics and windows to dir: %s"
+                % outputdir)
+    for trwin in data_container:
+        print("plot:", trwin)
+        plot_new_seismogram_sub(trwin, outputdir, cmtsource,
+                                figure_format)
 
 
 class PlotUtil(object):

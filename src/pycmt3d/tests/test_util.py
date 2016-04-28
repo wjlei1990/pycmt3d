@@ -16,11 +16,8 @@ import inspect
 import os
 import numpy as np
 import pytest
-import obspy
 from obspy import Trace
 import pycmt3d.util as util
-import numpy.testing as npt
-from pycmt3d import constant
 import numpy.testing as npt
 
 
@@ -86,7 +83,7 @@ def test_check_trace_consistent():
 
 def test_sum_matrix():
     mat = np.ones([3, 3])
-    data = [mat, 2* mat.copy(), 3 * mat.copy()]
+    data = [mat, 2 * mat.copy(), 3 * mat.copy()]
     npt.assert_allclose(util.sum_matrix(data), 6 * mat)
 
     coef = [3, 2, 1]

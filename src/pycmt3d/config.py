@@ -4,13 +4,8 @@
 """
 Configuration object for pycmt3d
 """
-from __future__ import print_function, division
-try:
-    import numpy as np
-except:
-    msg = ("No module named numpy. "
-           "Please install numpy first, it is needed before using pycmt3d.")
-    raise ImportError(msg)
+from __future__ import print_function, division, absolute_import
+import numpy as np
 from .util import _float_array_to_str
 from .constant import SCALE_LONGITUDE, SCALE_LATITUDE, SCALE_DEPTH
 from .constant import SCALE_MOMENT, PARLIST
@@ -47,7 +42,7 @@ class DefaultWeightConfig(WeightConfig):
                  comp_weight={"Z": 2.0, "R": 1.0, "T": 2.0},
                  love_dist_weight=0.78, pnl_dist_weight=1.15,
                  rayleigh_dist_weight=0.55,
-                 azi_exp_idx=0.5):
+                 azi_exp_idx=0.5, azi_bins=12):
         WeightConfig.__init__(self, mode="default",
                               normalize_by_energy=normalize_by_energy,
                               normalize_by_category=normalize_by_category)
@@ -56,6 +51,7 @@ class DefaultWeightConfig(WeightConfig):
         self.pnl_dist_weight = pnl_dist_weight
         self.rayleigh_dist_weight = rayleigh_dist_weight
         self.azi_exp_idx = azi_exp_idx
+        self.azi_bins = azi_bins
 
     def __repr__(self):
         string = "Weight Strategy:\n"
@@ -66,7 +62,8 @@ class DefaultWeightConfig(WeightConfig):
         string += "pnl, rayleigh and love distance weights: %s\n" % (
             self.pnl_dist_weight, self.rayleigh_dist_weight,
             self.love_dist_weight)
-        string += "azimuth exponential index: %s\n" % self.azi_exp_idx
+        string += "number of azimuth bins: %d\n" % self.azi_bins
+        string += "azimuth exponential index: %f\n" % self.azi_exp_idx
         return string
 
 
@@ -138,12 +135,12 @@ class Config(object):
              SCALE_DEPTH, SCALE_LONGITUDE, SCALE_LATITUDE,
              1.0, 1.0])
         # original cmt perturbation
-        self._dcmt_par = np.array(
+        self.dcmt_par = np.array(
             [self.dmoment, self.dmoment, self.dmoment, self.dmoment,
              self.dmoment, self.dmoment, self.ddepth, self.dlocation,
              self.dlocation, 1.0, 1.0])
         # scaled cmt perturbation
-        self.dcmt_par = self._dcmt_par / self.scale_par
+        self.dcmt_par_scaled = self.dcmt_par / self.scale_par
 
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
@@ -155,7 +152,7 @@ class Config(object):
         string += "Number of inversion params: %d\n" % npar
         string += "Deriv params: [%s]\n" % ",".join(self.parlist)
         string += \
-            "CMT perturbation: %s\n" % _float_array_to_str(self._dcmt_par)
+            "CMT perturbation: %s\n" % _float_array_to_str(self.dcmt_par)
         string += \
             "CMT scaling term: %s\n" % _float_array_to_str(self.scale_par)
 

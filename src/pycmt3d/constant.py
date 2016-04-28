@@ -4,7 +4,7 @@
 """
 All the constants used in pycmt3d
 """
-
+from __future__ import absolute_import
 import numpy as np
 
 PARLIST = ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
@@ -15,10 +15,10 @@ PI = np.pi
 
 # Scale of cmt parameters
 # (latitude, longtitude, depth and moment centroid time and half duration)
-SCALE_LONGITUDE = 0.01   # degree
-SCALE_LATITUDE = 0.01   # degree
+SCALE_LONGITUDE = 0.001   # degree
+SCALE_LATITUDE = 0.001   # degree
 SCALE_DEPTH = 1.0        # km
-SCALE_MOMENT = 1.0e+23   # dyns*cm
+SCALE_MOMENT = 1.0e+22   # dyns*cm
 SCALE_CTIME = 1.0        # seconds, please don't change
 SCALE_HDUR = 1.0         # seconds, please don't change
 
@@ -40,7 +40,7 @@ NREGIONS = 10
 
 # Reference distance for Pnl, Rayleigh and Love wave weighting.
 # Unit is degree
-REF_DIST = 1.0
+REF_DIST = 0.877
 
 # Earth's radius for depth scaling
 R_EARTH = 6371  # km

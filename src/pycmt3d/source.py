@@ -6,6 +6,7 @@ Source and Receiver classes of Instaseis.
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2014
     Martin van Driel (Martin@vanDriel.de), 2014
+    Wenjie Lei (lei@princeton.edu), 2016
 :license:
     GNU Lesser General Public License, Version 3
     (http://www.gnu.org/copyleft/lgpl.html)
@@ -245,19 +246,28 @@ class CMTSource(object):
                          self.m_tp])
 
     def __str__(self):
-        return_str = 'CMTSolution Source:\n'
-        return_str += '\tLongitude        : %6.1f deg\n' % (self.longitude,)
-        return_str += '\tLatitude         : %6.1f deg\n' % (self.latitude,)
-        return_str += '\tDepth            : %6.1e km\n' \
+        return_str = 'CMTS Source -- %s\n' % self.eventname
+        return_str += 'origin time(pde): %s\n' % self.origin_time
+        return_str += 'pde location(lat, lon): %f, %f deg\n' \
+            % (self.pde_latitude, self.pde_longitude)
+        return_str += 'pde depth: %f\n' % self.pde_depth_in_m
+        return_str += 'CMT time: %s\n' % self.cmt_time
+        return_str += 'CMT location(lat, lon): %f, %f deg\n' \
+            % (self.latitude, self.longitude)
+        return_str += 'CMT depth: %6.1e km\n' \
                       % (self.depth_in_m / 1e3,)
-        return_str += '\tMoment Magnitude :   %4.2f\n' \
-                      % (self.moment_magnitude,)
-        return_str += '\tScalar Moment    : %10.2e Nm\n' % (self.M0,)
-        return_str += '\tMrr              : %10.2e Nm\n' % (self.m_rr,)
-        return_str += '\tMtt              : %10.2e Nm\n' % (self.m_tt,)
-        return_str += '\tMpp              : %10.2e Nm\n' % (self.m_pp,)
-        return_str += '\tMrt              : %10.2e Nm\n' % (self.m_rt,)
-        return_str += '\tMrp              : %10.2e Nm\n' % (self.m_rp,)
-        return_str += '\tMtp              : %10.2e Nm\n' % (self.m_tp,)
+        return_str += 'half duration: %f\n' % self.half_duration
+        return_str += 'moment tensor(Mrr, Mtt, Mpp, Mrt, Mrp, Mtp)\n'
+        return_str += 'moment tensor: %s\n' \
+            % self.tensor
+        return_str += 'Magnitude: %4.2f(mw), %4.2f(mb), %4.2f(ms)\n' \
+                      % (self.moment_magnitude, self.mb, self.ms)
+        return_str += 'region tag: %s' % self.region_tag
 
         return return_str
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return self.__dict__ == other.__dict__

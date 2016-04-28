@@ -32,7 +32,7 @@ SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 def meta():
     meta = MetaInfo(obsd_id="CI.GSC..BHZ", synt_id="CI.GSC..BHZ",
                     weights=np.ones(1))
-    return meta 
+    return meta
 
 
 def test_MetaInfo(meta):
@@ -46,14 +46,15 @@ def test_TraceWindow():
     obsd = obspy.read(os.path.join(OBSD_DIR, "GSC.CI.BHZ.sac.d"))[0]
     synt = obspy.read(os.path.join(SYNT_DIR, "GSC.CI.BHZ"))[0]
     datalist = {"obsd": obsd, "synt": synt}
+    tags = {"obsd": "T006_T030", "synt": "T006_T030"}
 
     win_time = np.array([[7.545, 46.1450], [50.0, 60.0]])
     weight = np.ones(win_time.shape[0])
     win = TraceWindow(datalist=datalist, windows=win_time,
-            init_weight=weight,
+                      init_weight=weight,
                       latitude=0.0, longitude=10.0,
                       event_latitude=0.0, event_longitude=0.0,
-                      tag="T006_T030", source="SAC")
+                      tags=tags, source="SAC")
 
     assert win.station == "GSC"
     assert win.network == "CI"
@@ -70,13 +71,14 @@ def test_TraceWindow():
 
 
 def test_DataContainer_simple():
-    WINDOW_FILE = os.path.join(DATA_DIR, "flexwin_T006_T030.output.test")
     dcon = DataContainer()
     assert dcon.npar == 0
     assert len(dcon) == 0
     assert dcon.nwindows == 0
 
     os.chdir(DATA_DIR)
+    WINDOW_FILE = os.path.join(DATA_DIR,
+                               "flexwin_T006_T030.output.one_station")
     dcon.add_measurements_from_sac(WINDOW_FILE, tag="T006_T030")
     assert dcon.npar == 0
     assert len(dcon) == 3
@@ -91,7 +93,7 @@ def test_load_winfile_txt():
                                file_format="txt")
     assert len(traces) == 2
     npt.assert_allclose(traces[0].windows[0], [7.5450, 46.1450])
-    npt.assert_allclose(traces[0].init_weight, [0.50,])
+    npt.assert_allclose(traces[0].init_weight, [0.50, ])
     npt.assert_allclose(traces[1].windows[0], [-0.0550, 44.5950])
     npt.assert_allclose(traces[1].windows[1], [44.5950, 76.8450])
     npt.assert_allclose(traces[1].init_weight, [0.60, 2.00])

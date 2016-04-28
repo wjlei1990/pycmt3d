@@ -9,15 +9,16 @@ Methods that contains utils for adjoint sources
     GNU Lesser General Public License, version 3 (LGPLv3)
     (http://www.gnu.org/licenses/lgpl-3.0.en.html)
 """
-from __future__ import (print_function, division)
-import numpy as np
-from __init__ import logger
-from obspy import read
+from __future__ import (print_function, division, absolute_import)
 import time
 import os
 import json
+import numpy as np
+from obspy import read
 from obspy.geodetics import gps2dist_azimuth
+from . import logger
 from collections import Sequence
+
 try:
     from pyasdf import ASDFDataSet
 except ImportError:
@@ -32,8 +33,8 @@ class MetaInfo(object):
     raw traces and window information. All measurments will be kept
     in MetaInfo
     """
-    def __init__(self, obsd_id=None, synt_id=None, weights=[], A1s=[],
-                 b1s=[], measure={}):
+    def __init__(self, obsd_id=None, synt_id=None, weights=None, A1s=None,
+                 b1s=None, prov=None):
         self.obsd_id = obsd_id
         self.synt_id = synt_id
         self.weights = weights
@@ -41,7 +42,18 @@ class MetaInfo(object):
         self.b1s = b1s
 
         # dictionary to store various measurements
-        self.measure = measure
+        self.prov = prov
+
+    def __repr__(self):
+        string = self.id
+        string += " -- weights: %s" % self.weights
+        string += " -- provenance: %s" % self.prov
+        return string
+
+    @property
+    def id(self):
+        return "MetaInfo [ obsd: %s -- synt: %s]" % (
+            self.obsd_id, self.synt_id)
 
 
 class TraceWindow(object):
@@ -55,7 +67,7 @@ class TraceWindow(object):
 
     def __init__(self, datalist={}, windows=[], init_weight=None,
                  longitude=None, latitude=None, event_latitude=None,
-                 event_longitude=None, tag=None, source=None,
+                 event_longitude=None, tags=None, source=None,
                  path_dict=None):
         """
         """
@@ -71,7 +83,7 @@ class TraceWindow(object):
         self.event_longitude = event_longitude
 
         # Provenance information
-        self.tag = tag
+        self.tags = tags
         self.source = source
         # sac file path
         self.path_dict = path_dict
@@ -100,13 +112,14 @@ class TraceWindow(object):
 
     def __repr__(self):
         string = "TraceWindow(id: %s -- tag:%s -- source:%s):\n" \
-            % (self.obsd_id, self.tag, self.source)
+            % (self.obsd_id, self.tags['obsd'], self.source)
         string += "\tTraces from %s\n" % self.datalist.keys()
         string += "\tNumber of Windows:%d\n" % len(self.windows)
+        string += "\tWindow time: %s\n" % self.windows
         string += "\tStation latitude and longitude: [%s, %s]\n" \
             % (self.latitude, self.longitude)
         string += "\tEvent latitude and longitude: [%s, %s]\n" \
-            % (self.event_latitude, self.longitude)
+            % (self.event_latitude, self.event_longitude)
         return string
 
     @property
@@ -497,13 +510,13 @@ class DataContainer(Sequence):
         :return:
         """
         trace_obj.datalist = {}
-        trace_obj.tag = {}
+        trace_obj.tags = {}
         obsd_path = trace_obj.path_dict["obsd"]
         synt_path = trace_obj.path_dict["synt"]
         # obsd
         obsd = read(obsd_path)[0]
         trace_obj.datalist['obsd'] = obsd
-        trace_obj.tag['obsd'] = tag
+        trace_obj.tags['obsd'] = tag
 
         # calibrate window time if needed
         if mode == "relative_time":
@@ -511,7 +524,7 @@ class DataContainer(Sequence):
 
         # synt
         trace_obj.datalist['synt'] = read(synt_path)[0]
-        trace_obj.tag['synt'] = tag
+        trace_obj.tags['synt'] = tag
         # other synt data will be referred as key value:
         # Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, dep, lat, lon, ctm, hdr
         # The path of derived synt follows the CMT3D convetion.
@@ -520,7 +533,7 @@ class DataContainer(Sequence):
         for deriv_par in self.parlist:
             synt_dev_fn = synt_path + "." + deriv_par
             trace_obj.datalist[deriv_par] = read(synt_dev_fn)[0]
-            trace_obj.tag[deriv_par] = tag
+            trace_obj.tags[deriv_par] = tag
 
         # station information
         if station_dict is None:
@@ -544,17 +557,17 @@ class DataContainer(Sequence):
         """
         # trace
         trace_obj.datalist = dict()
-        trace_obj.tag = dict()
+        trace_obj.tags = dict()
 
-        trace_obj.datalist['obsd'], trace_obj.tag['obsd'] = \
+        trace_obj.datalist['obsd'], trace_obj.tags['obsd'] = \
             self._get_trace_from_asdf(trace_obj.obsd_id, asdf_ds['obsd'],
                                       obsd_tag)
-        trace_obj.datalist['synt'], trace_obj.tag['synt'] = \
+        trace_obj.datalist['synt'], trace_obj.tags['synt'] = \
             self._get_trace_from_asdf(trace_obj.synt_id, asdf_ds['synt'],
                                       synt_tag)
 
         for deriv_par in self.parlist:
-            trace_obj.datalist[deriv_par], trace_obj.tag[deriv_par] = \
+            trace_obj.datalist[deriv_par], trace_obj.tags[deriv_par] = \
                 self._get_trace_from_asdf(trace_obj.synt_id,
                                           asdf_ds[deriv_par],
                                           synt_tag)
@@ -712,11 +725,11 @@ class DataContainer(Sequence):
         sort the new synthetic data to to solve reduante output
         """
         new_synt_dict = {}
-        for window in self.stations:
-            tag = window.tag['synt']
+        for trwin in self.trwins:
+            tag = trwin.tags['synt']
             if tag not in new_synt_dict.keys():
                 new_synt_dict[tag] = []
-            new_synt_dict[tag].append(window)
+            new_synt_dict[tag].append(trwin)
 
     @staticmethod
     def __add_staxml_from_other_asdf(ds, ds_sta):

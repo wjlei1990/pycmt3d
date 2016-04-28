@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import (print_function, division, absolute_import)
 import os
 import numpy as np
-from source import CMTSource
-import const
-from __init__ import logger
-import util
-from plot_util import PlotUtil, _plot_new_seismogram
-from .measure import compute_A_b, get_f_df, calculate_var_on_trace
-from plot_stats import _plot_stats_histogram
-from data_container import MetaInfo
+from . import logger
+from .source import CMTSource
+from .util import random_select, sum_matrix, _float_array_to_str
+from .util import _get_cmt_par
+from .measure import compute_A_b, calculate_variance_on_trace
+from .measure import compute_new_syn_on_trwin
+# from .plot_util import PlotUtil, _plot_new_seismogram
+from .plot_util import plot_seismograms
+# from .plot_stats import _plot_stats_histogram
+from .data_container import MetaInfo
 from .weight import Weight
+from .constant import NPARMAX, NMAX_NL_ITER, BOOTSTRAP_SUBSET_RATIO
+from .solver import linear_solver, nonlinear_solver
 
 
 class Cmt3D(object):
@@ -36,8 +41,6 @@ class Cmt3D(object):
 
         self.metas = []
 
-        self.trwins = self.data_container.traces
-
         # new cmt par from the inversion
         self.new_cmt_par = None
         self.new_cmtsource = None
@@ -48,41 +51,55 @@ class Cmt3D(object):
         self.var_reduction = None
 
         # bootstrap stat var
-        self.par_mean = np.zeros(const.NPARMAX)
-        self.par_std = np.zeros(const.NPARMAX)
-        self.par_var = np.zeros(const.NPARMAX)
+        self.par_mean = np.zeros(NPARMAX)
+        self.par_std = np.zeros(NPARMAX)
+        self.par_var = np.zeros(NPARMAX)
         self.std_over_mean = np.zeros(self.par_mean.shape)
 
-        self.print_cmtsource_summary(self.cmtsource)
+        self.print_cmtsource_summary()
 
     @property
     def cmt_par(self):
-        cmt = self.cmtsource
-        self.cmt_par = np.array(
-            [cmt.m_rr, cmt.m_tt, cmt.m_pp,
-             cmt.m_rt, cmt.m_rp, cmt.m_tp,
-             cmt.depth_in_m / 1000.0, cmt.longitude,
-             cmt.latitude, cmt.time_shift,
-             cmt.half_duration])
+        """ cmt array """
+        return _get_cmt_par(self.cmtsource)
 
-    def setup_weight(self):
+    def setup_window_weight(self):
         """
-        Use Window information to setup weight.
+        Use Window information to setup weight for each window.
 
         :returns:
         """
         if not self.config.weight_data:
-            # no extra weighting, return
             # only use the initial weight information provided by
-            # the user in the window function
+            # the user in the window function. No extra weighting
             return
+
         logger.info("*" * 15)
         logger.info("Start weighting...")
         weight_obj = Weight(self.cmtsource, self.data_container,
-                            self.metas, self.config.weight_config)
+                            self.config.weight_config)
         weight_obj.setup_weight()
 
-    def setup_matrix(self):
+        for meta, weight_meta in zip(self.metas, weight_obj.metas):
+            if meta.obsd_id != weight_meta.obsd_id or \
+                    meta.synt_id != weight_meta.synt_id:
+                raise ValueError("weight.metas and self.metas are different"
+                                 "on meta: %s %s" % (meta.id, weight_meta.id))
+            meta.weights = weight_meta.weights
+            meta.prov.update(weight_meta.prov)
+
+    def _init_metas(self):
+        """
+        Initialize the self.metas list. Keep the same order with the
+        data container
+        """
+        for trwin in self.data_container:
+            metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id,
+                                weights=trwin.init_weight, A1s=[], b1s=[],
+                                prov={})
+            self.metas.append(metainfo)
+
+    def setup_measurement_matrix(self):
         """
         Calculate A and b for all windows
 
@@ -91,18 +108,18 @@ class Cmt3D(object):
         logger.info("*" * 15)
         logger.info("Set up inversion matrix")
 
-        for trwin in self.trwins:
-            metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id,
-                                weight=trwin.init_weight)
+        for meta, trwin in zip(self.metas, self.data_container):
             for win_idx in range(trwin.nwindows):
                 # loop over each window
                 # here, A and b are from raw measurements
                 # and no weightings has been applied yet
+                # Attention here, we use dcmt_par_scaled here; otherwise
+                # A1 and b1 would be too small.
                 A1, b1 = compute_A_b(trwin.datalist, trwin.windows[win_idx],
                                      self.config.parlist,
-                                     self.config.dcmt_par)
-                metainfo.A1s.append(A1)
-                metainfo.b1s.append(b1)
+                                     self.config.dcmt_par_scaled)
+                meta.A1s.append(A1)
+                meta.b1s.append(b1)
 
     def invert_solver(self, A, b):
         """
@@ -128,13 +145,8 @@ class Cmt3D(object):
         # setup inversion schema
         if self.config.double_couple:
             linear_inversion = False
-            na = npar + 2
-        elif self.config.zero_trace:
-            linear_inversion = True
-            na = npar + 1
         else:
             linear_inversion = True
-            na = npar
 
         # add damping
         logger.info("Condition number of A: %10.2f"
@@ -149,63 +161,17 @@ class Cmt3D(object):
 
         if linear_inversion:
             logger.info("Linear Inversion...")
-            new_par = self.linear_solver(old_par, A, b, npar, na)
+            new_par = linear_solver(old_par, A, b, npar,
+                                         zero_trace=self.config.zero_trace)
         else:
             logger.info("Nonlinear Inversion...")
-            new_par = self.nonlinear_solver(old_par, A, b, npar, na)
+            new_par = nonlinear_solver(old_par, A, b, npar)
 
         new_cmt_par = np.copy(self.cmt_par)
         new_cmt_par[0:npar] = new_par[0:npar] * self.config.scale_par[0:npar]
+        logger.info("New cmt array: %s" % new_cmt_par)
 
         return new_cmt_par
-
-    def linear_solver(self, old_par, A, b, npar, na):
-        """
-        if invert for moment tensor with zero-trace constraints
-        or no constraint
-        """
-        AA = np.zeros([na, na])
-        bb = np.zeros(na)
-        AA[0:npar, 0:npar] = A
-        bb[0:npar] = b
-        if self.config.zero_trace:
-            bb[na - 1] = - np.sum(old_par[0:3])
-            AA[0:6, na - 1] = np.array([1, 1, 1, 0, 0, 0])
-            AA[na - 1, 0:6] = np.array([1, 1, 1, 0, 0, 0])
-            AA[na - 1, na - 1] = 0.0
-        try:
-            dm = np.linalg.solve(AA, bb)
-        except Exception as err:
-            raise ValueError("Can not solve the linear equation due to:%s"
-                             % err)
-        new_par = old_par[0:npar] + dm[0:npar]
-        return new_par
-
-    def nonlinear_solver(self, old_par, A, b, npar, na):
-        """
-        if invert for moment tensor with double couple constraints
-        setup starting solution, solve directly for moment instead
-        of dm, exact implementation of (A16)
-        logger.info('Non-linear Inversion')
-
-        :return:
-        """
-        mstart = np.copy(old_par)
-        m1 = np.copy(mstart)
-        lam = np.zeros(2)
-        AA = np.zeros([na, na])
-        bb = np.zeros(na)
-
-        error = np.zeros([const.NMAX_NL_ITER, na])
-        for iter_idx in range(const.NMAX_NL_ITER):
-            get_f_df(self.config.npar, A, b, m1, lam, mstart, AA, bb)
-            bb = - bb
-            xout = np.linalg.solve(AA, bb)
-            m1 = m1 + xout[0:npar]
-            lam = lam + xout[npar:na]
-            error[iter_idx, :] = np.dot(AA, xout) - bb
-        # dm = m1 - mstart
-        return m1
 
     def invert_cmt(self):
         """
@@ -223,20 +189,23 @@ class Cmt3D(object):
         b1 = np.zeros(self.config.npar)
         # ensemble A and b
         for _meta in self.metas:
-            A1_trwin = util.sum_matrix(_meta.A1s, coef=_meta.weight)
-            b1_trwin = util.sum_matrix(_meta.b1s, coef=_meta.weight)
+            A1_trwin = sum_matrix(_meta.A1s, coef=_meta.weights)
+            b1_trwin = sum_matrix(_meta.b1s, coef=_meta.weights)
             A1 += A1_trwin
             b1 += b1_trwin
 
-        logger.info("Inversion Matrix A is as follows:")
-        logger.info("\n%s" % ('\n'.join(map(self._float_array_to_str, A1))))
+        logger.info("Inversion Matrix A(with scaled cmt perturbation) is "
+                    "as follows:")
+        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, A1))))
         logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A1)))
-        logger.info("RHS vector b is as follows:")
-        logger.info("[%s]" % (self._float_array_to_str(b1)))
+        logger.info("RHS vector b(with scaled cmt perturbation) is "
+                    "as follows:")
+        logger.info("[%s]" % (_float_array_to_str(b1)))
 
         # source inversion
-        self.new_cmt_par = self.invert_solver(A1, b1, print_mode=True)
+        self.new_cmt_par = self.invert_solver(A1, b1)
         self.convert_new_cmt_par()
+        logger.info("new cmtsource: %s" % self.new_cmtsource)
 
     def invert_bootstrap(self):
         """
@@ -247,17 +216,17 @@ class Cmt3D(object):
         """
         A_bootstrap = []
         b_bootstrap = []
-        n_subset = int(const.BOOTSTRAP_SUBSET_RATIO * self.nwins)
+        n_subset = int(BOOTSTRAP_SUBSET_RATIO * self.nwins)
         for i in range(self.config.bootstrap_repeat):
-            random_array = util.gen_random_array(
+            random_array = random_select(
                 self.nwins, sample_number=n_subset)
-            A = util.sum_matrix(random_array * self.weight_array, self.A1_all)
-            b = util.sum_matrix(random_array * self.weight_array, self.b1_all)
+            A = sum_matrix(random_array * self.weight_array, self.A1_all)
+            b = sum_matrix(random_array * self.weight_array, self.b1_all)
             A_bootstrap.append(A)
             b_bootstrap.append(b)
 
         # inversion of each subset
-        new_par_array = np.zeros((self.config.bootstrap_repeat, const.NPARMAX))
+        new_par_array = np.zeros((self.config.bootstrap_repeat, NPARMAX))
         for i in range(self.config.bootstrap_repeat):
             new_par = self.invert_solver(A_bootstrap[i], b_bootstrap[i])
             new_par_array[i, :] = new_par
@@ -279,8 +248,12 @@ class Cmt3D(object):
         the Source Inversion method
         :return:
         """
-        self.setup_matrix()
-        self.setup_weight()
+        self._init_metas()
+        self.setup_measurement_matrix()
+        for meta in self.metas:
+            print("A1:", meta.A1s[0])
+            print("b1:", meta.b1s[0])
+        self.setup_window_weight()
         self.invert_cmt()
 
         self.calculate_variance()
@@ -288,22 +261,19 @@ class Cmt3D(object):
         # if self.config.bootstrap:
         #    self.invert_bootstrap()
 
-        self.print_inversion_summary()
-
     def calculate_variance(self):
         """
         Calculate variance reduction based on old and new source solution
 
         :return:
         """
-        npar = self.config.npar
-        dm = self.new_cmt_par[0:npar] - self.cmt_par[0:npar]
-
         var_all = 0.0
         var_all_new = 0.0
 
         self.stats_before = {}
         self.stats_after = {}
+
+        self.compute_new_syn()
 
         # calculate metrics for each trwin
         for meta, trwin in zip(self.metas, self.data_container.trwins):
@@ -312,22 +282,21 @@ class Cmt3D(object):
 
             # calculate old variance metrics
             [v1, d1, tshift1, cc1, dlnA1, cc_amp1] = \
-                calculate_var_on_trace(obsd, synt, trwin.win_time)
-            meta.measure["synt"] = {"v": v1, "d": d1, "tshift": tshift1,
-                                    "cc": cc1, "dlnA": dlnA1,
-                                    "cc_amp": cc_amp1}
+                calculate_variance_on_trace(obsd, synt, trwin.windows)
+            meta.prov["synt"] = {"v": v1, "d": d1, "tshift": tshift1,
+                                 "cc": cc1, "dlnA": dlnA1,
+                                 "cc_amp": cc_amp1}
 
-            self.compute_new_syn(trwin.datalist, dm)
             new_synt = trwin.datalist['new_synt']
             # calculate new variance metrics
             [v2, d2, tshift2, cc2, dlnA2, cc_amp2] = \
-                calculate_var_on_trace(obsd, new_synt, trwin.win_time)
-            meta.measure["new_synt"] = {"v": v2, "d": d2, "tshift": tshift2,
-                                        "cc": cc2, "dlnA": dlnA2,
-                                        "cc_amp": cc_amp2}
+                calculate_variance_on_trace(obsd, new_synt, trwin.windows)
+            meta.prov["new_synt"] = {"v": v2, "d": d2, "tshift": tshift2,
+                                     "cc": cc2, "dlnA": dlnA2,
+                                     "cc_amp": cc_amp2}
 
-            var_all += np.sum(0.5 * v1 * meta.weight)
-            var_all_new += np.sum(0.5 * v2 * meta.weight)
+            var_all += np.sum(0.5 * v1 * meta.weights)
+            var_all_new += np.sum(0.5 * v2 * meta.weights)
 
         logger.info(
             "Total Variance Reduced from %e to %e ===== %f %%"
@@ -350,45 +319,14 @@ class Cmt3D(object):
             kai_after[tag] = np.sum(self.stats_after[tag][:, -1])
         return kai_before, kai_after
 
-    def compute_new_syn(self, datalist, dm):
+    def compute_new_syn(self):
         """
-        Compute new synthetic data based on new CMTSOLUTION
-
-        :param datalist: dictionary of all data
-        :param dm: CMTSolution perterbation, i.e.,
-        (self.new_cmt_par-self.cmt_par)
-        :return:
+        Compute new synthetic for each trwin in self.data_container
         """
-        # get a dummy copy to keep meta data information
-        datalist['new_synt'] = datalist['synt'].copy()
-        # datalist['new_synt'].stats.location = \
-        #    datalist['obsd'].stats.location
-
-        npar = self.config.npar
-        npts = datalist['synt'].stats.npts
-        dt = datalist['synt'].stats.delta
-        dsyn = np.zeros([npts, npar])
-        par_list = self.config.par_name
-        dcmt_par = self.config.dcmt_par
-        dm_scaled = dm / self.config.scale_par[0:npar]
-
-        for i in range(npar):
-            if i < const.NM:
-                dsyn[:, i] = datalist[par_list[i]].data / dcmt_par[i]
-            elif i < const.NML:
-                dsyn[:, i] = (datalist[par_list[i]].data -
-                              datalist['synt'].data) / dcmt_par[i]
-            elif i == const.NML:
-                dsyn[0:(npts - 1), i] = \
-                    -(datalist['synt'].data[1:npts] -
-                      datalist[0:(npts - 1)]) / (dt * dcmt_par[i])
-                dsyn[npts - 1, i] = dsyn[npts - 2, i]
-            elif i == (const.NML + 1):
-                # not implement yet....
-                raise ValueError("For npar == 10 or 11, not implemented yet")
-
-        datalist['new_synt'].data = \
-            datalist['synt'].data + np.dot(dsyn, dm_scaled)
+        dm_scaled = (self.new_cmt_par - self.cmt_par) / self.config.scale_par
+        for trwin in self.data_container:
+            compute_new_syn_on_trwin(trwin.datalist, self.config.parlist,
+                                     self.config.dcmt_par_scaled, dm_scaled)
 
     def convert_new_cmt_par(self):
         """
@@ -426,26 +364,13 @@ class Cmt3D(object):
         outputfn = "%s.%dp_%s.inv" % (
             self.cmtsource.eventname, self.config.npar, suffix)
         cmtfile = os.path.join(outputdir, outputfn)
-        print "New cmt file: %s" % cmtfile
+        logger.info("New cmt file: %s" % cmtfile)
 
         self.new_cmtsource.write_CMTSOLUTION_file(cmtfile)
 
-    @staticmethod
-    def print_cmtsource_summary(cmt):
-        """
-        Print CMTSolution source summary
-
-        :return:
-        """
-        logger.info("=" * 10 + "  Event Summary  " + "=" * 10)
-        logger.info("Event name: %s" % cmt.eventname)
-        logger.info("   Latitude and longitude: %.2f, %.2f" % (
-            cmt.latitude, cmt.longitude))
-        logger.info("   Depth: %.1f km" % (cmt.depth_in_m / 1000.0))
-        logger.info("   Region tag: %s" % cmt.region_tag)
-        logger.info("   Trace: %.3e" % (
-            (cmt.m_rr + cmt.m_tt + cmt.m_pp) / cmt.M0))
-        logger.info("   Moment Magnitude: %.2f" % cmt.moment_magnitude)
+    def print_cmtsource_summary(self):
+        logger.info("===== CMT Source Information =====")
+        logger.info("\n%s" % self.cmtsource)
 
     @staticmethod
     def _write_log_file_(filename, nshift_list, cc_list, dlnA_list):
@@ -479,15 +404,15 @@ class Cmt3D(object):
         outputfn = os.path.join(outputdir, outputfn)
         figurename = outputfn + "." + figure_format
 
-        print "Source inversion summary figure: %s" % figurename
+        logger.info("Source inversion summary figure: %s" % figurename)
 
-        plot_stat = PlotUtil(
-            data_container=self.data_container, config=self.config,
-            cmtsource=self.cmtsource, nregions=const.NREGIONS,
-            new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
-            bootstrap_std=self.par_std, var_reduction=self.var_reduction,
-            mode=plot_mode)
-        plot_stat.plot_inversion_summary(figurename=figurename)
+        # plot_stat = PlotUtil(
+        #    data_container=self.data_container, config=self.config,
+        #    cmtsource=self.cmtsource, nregions=const.NREGIONS,
+        #    new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
+        #    bootstrap_std=self.par_std, var_reduction=self.var_reduction,
+        #    mode=plot_mode)
+        # plot_stat.plot_inversion_summary(figurename=figurename)
 
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
         """
@@ -517,8 +442,8 @@ class Cmt3D(object):
                                      figure_format)
         figname = os.path.join(outputdir, figname)
 
-        _plot_stats_histogram(self.stats_before, self.stats_after,
-                              figname, figure_format=figure_format)
+        # _plot_stats_histogram(self.stats_before, self.stats_after,
+        #                      figname, figure_format=figure_format)
 
     def _write_weight_log_(self, filename):
         """
@@ -536,18 +461,18 @@ class Cmt3D(object):
                     f.write("%10.5e %10.5e\n" % (
                         window.weight[_idx], window.energy[_idx]))
 
-    def plot_new_synt_seismogram(self, outputdir, figure_format="png"):
+    def plot_new_synt_seismograms(self, outputdir, figure_format="png"):
         """
         Plot the new synthetic waveform
         """
-        _plot_new_seismogram(self.data_container, outputdir, self.cmtsource,
-                             figure_format=figure_format)
+        plot_seismograms(self.data_container, outputdir,
+                         self.cmtsource, figure_format=figure_format)
 
     def write_new_syn(self, outputdir=".", file_format="sac"):
         """
         Write out the new synthetic waveform
         """
-        print "New synt output dir: %s" % outputdir
+        logger.info("New synt output dir: %s" % outputdir)
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 

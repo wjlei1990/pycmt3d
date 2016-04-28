@@ -3,9 +3,19 @@
 """
 General util functions
 """
+from __future__ import print_function, division, absolute_import
 import numpy as np
 from scipy import signal
 from obspy.geodetics import locations2degrees
+
+
+def _get_cmt_par(cmt):
+    """
+    Get cmt information as array
+    """
+    return np.array([cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp,
+                     cmt.m_tp, cmt.depth_in_m/1000.0, cmt.longitude,
+                     cmt.latitude, cmt.time_shift, cmt.half_duration])
 
 
 def distance(lat1, lon1, lat2, lon2):
@@ -25,14 +35,24 @@ def get_window_idx(win_time, dt):
     """
     Get window index from window time and dt
     """
-    istart = int(win_time[0] / dt)
-    iend = int(win_time[1] / dt)
-    if istart < 0:
-        raise ValueError("Start index(%d) smaller than 0")
-    if istart >= iend:
-        raise ValueError("Start index(%d) larger or equal than end index(%d)"
-                         % (istart, iend))
-    return np.array([istart, iend])
+    def _get_win_idx(win, dt):
+        istart = int(win[0] / dt)
+        iend = int(win[1] / dt)
+        if istart < 0:
+            raise ValueError("Start index(%d) smaller than 0")
+        if istart >= iend:
+            raise ValueError("Start index(%d) larger or equal than "
+                             "end index(%d)" % (istart, iend))
+        return np.array([istart, iend])
+
+    win_time = np.array(win_time)
+    win_idx = np.zeros(win_time.shape)
+    if len(win_time.shape) == 1:
+        win_idx = _get_win_idx(win_time, dt)
+    else:
+        for _i, _win in enumerate(win_time):
+            win_idx[_i] = _get_win_idx(_win, dt)
+    return win_idx
 
 
 def check_trace_consistent(tr1, tr2, mode="part"):

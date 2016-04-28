@@ -16,11 +16,8 @@ import inspect
 import os
 import numpy as np
 import pytest
-import obspy
 from obspy import Trace
 import pycmt3d.measure as meas
-import numpy.testing as npt
-from pycmt3d import constant
 import numpy.testing as npt
 
 

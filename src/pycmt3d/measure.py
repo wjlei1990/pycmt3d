@@ -3,9 +3,11 @@
 """
 Measurement util functions
 """
+from __future__ import print_function, division, absolute_import
 import numpy as np
+
 from .util import construct_taper, check_trace_consistent, get_window_idx
-import constant
+from . import constant
 
 
 def _xcorr_win_(arr1, arr2):
@@ -256,7 +258,7 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par):
     b1 = np.sum(
         taper * (obsd.data[istart_d:iend_d] -
                  synt.data[istart_s:iend_s]) *
-        dsyn, axis=1)
+        dsyn * dt, axis=1)
 
     return A1, b1
 
@@ -311,3 +313,41 @@ def calculate_variance_on_trace(obsd, synt, win_time):
 
     return v1_array, d1_array, tshift_array, cc_array, dlnA_array, \
         cc_amp_array
+
+
+def compute_new_syn_on_trwin(datalist, parlist, dcmt_par, dm):
+    """
+    Compute new synthetic data based on gradient(datalist, and dcmt_par)
+    and perturbation(dm). Be careful about dm here becuase dcmt_par has
+    been scaled.
+
+    :param datalist: dictionary of all data
+    :param dm: CMTSolution perterbation, i.e.,
+    (self.new_cmt_par-self.cmt_par)
+    :return:
+    """
+    # get a dummy copy to keep meta data information
+    datalist['new_synt'] = datalist['synt'].copy()
+
+    npar = len(parlist)
+    npts = datalist['synt'].stats.npts
+    dt = datalist['synt'].stats.delta
+    dsyn = np.zeros([npts, npar])
+
+    for i in range(npar):
+        if i < constant.NM:
+            dsyn[:, i] = datalist[parlist[i]].data / dcmt_par[i]
+        elif i < constant.NML:
+            dsyn[:, i] = (datalist[parlist[i]].data -
+                          datalist['synt'].data) / dcmt_par[i]
+        elif i == constant.NML:
+            dsyn[0:(npts - 1), i] = \
+                -(datalist['synt'].data[1:npts] -
+                  datalist[0:(npts - 1)]) / (dt * dcmt_par[i])
+            dsyn[npts - 1, i] = dsyn[npts - 2, i]
+        elif i == (constant.NML + 1):
+            # not implement yet....
+            raise ValueError("For npar == 10 or 11, not implemented yet")
+
+    datalist['new_synt'].data = \
+        datalist['synt'].data + np.dot(dsyn, dm[:npar])
