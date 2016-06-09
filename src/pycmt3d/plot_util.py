@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division, absolute_import
 import os
+from collections import defaultdict
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +18,7 @@ from . import logger
 EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
 
 
-def plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
+def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
     obsd = trwin.datalist['obsd']
     synt = trwin.datalist['synt']
     new_synt = trwin.datalist['new_synt']
@@ -65,7 +66,8 @@ def plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
 def plot_seismograms(data_container, outputdir, cmtsource=None,
                      figure_format="png"):
     """
-    Plot the new synthetic and old synthetic data together with data
+    Plot the new synthetic and old synthetic data together with data.
+    So we can see the how the seimogram changes after inversion.
     """
     # make a check
     if 'new_synt' not in data_container.trwins[0].datalist.keys():
@@ -78,11 +80,114 @@ def plot_seismograms(data_container, outputdir, cmtsource=None,
                 % outputdir)
     for trwin in data_container:
         print("plot:", trwin)
-        plot_new_seismogram_sub(trwin, outputdir, cmtsource,
-                                figure_format)
+        _plot_new_seismogram_sub(trwin, outputdir, cmtsource,
+                                 figure_format)
 
 
-class PlotUtil(object):
+class PlotStats(object):
+    """ plot histogram utils"""
+
+    def __init__(self, data_container, metas, outputfn):
+        self.data_container = data_container
+        self.metas = metas
+        self.outputfn = outputfn
+
+        self.metas_sort = None
+        self.key_map = None
+
+    def sort_metas(self):
+        metas_sort = defaultdict(list)
+        key_map = defaultdict(set)
+        """ sort metas into different categories for future plotting """
+        for trwin, meta in zip(self.data_container, self.metas):
+            tag = trwin.tags["obsd"]
+            comp = trwin.channel
+            cat_name = "%s.%s" % (tag, comp)
+            key_map[comp].add(cat_name)
+            metas_sort[cat_name].append(meta)
+
+        self.metas_sort = metas_sort
+        self.key_map = key_map
+
+    @staticmethod
+    def plot_stats_histogram_one_entry(pos, cat, vtype, data_b, data_a,
+                                       num_bin):
+        plt.subplot(pos)
+        plt.xlabel(vtype, fontsize=15)
+        plt.ylabel(cat, fontsize=15)
+        if vtype == "cc":
+            ax_min = min(min(data_b), min(data_a))
+            ax_max = max(max(data_b), max(data_a))
+        elif vtype == "chi":
+            ax_min = 0.0
+            ax_max = max(max(data_b), max(data_a))
+        else:
+            ax_min = min(min(data_b), min(data_a))
+            ax_max = max(max(data_b), max(data_a))
+            abs_max = max(abs(ax_min), abs(ax_max))
+            ax_min = -abs_max
+            ax_max = abs_max
+        binwidth = (ax_max - ax_min) / num_bin
+        plt.hist(
+            data_b, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
+            facecolor='blue', alpha=0.3)
+        plt.hist(
+            data_a, bins=np.arange(ax_min, ax_max+binwidth/2., binwidth),
+            facecolor='green', alpha=0.5)
+
+    def extract_metadata(self, cat_name, meta_varname):
+        data_old = []
+        data_new = []
+        cat_data = self.meta_sorted[cat_name]
+        for meta in cat_data:
+            data_old.append(meta.prov["synt"][meta_varname])
+            data_new.append(meta.prov["new_synt"][meta_varname])
+
+        return data_old, data_new
+
+    def plot_stats_histogram_one_category(self, G, cat_name):
+        num_bins = [15, 15, 15, 15, 15]
+        vtype_list = ['time shift', 'cc', 'power_ratio(dB)',
+                      'CC amplitude ratio(dB)', 'chi']
+
+        vtype_dict = {'time shift': "tshift", 'cc': "cc",
+                      "power_ratio(dB)": "dlnA",
+                      "CC amplitude ratio(dB)": "cc_amp",
+                      "chi": "v"}
+
+        # plot order
+        for var_idx, varname in enumerate(vtype_list):
+            meta_varname = vtype_dict[varname]
+            data_before, data_after = \
+                self.extract_metadata(cat_name, meta_varname)
+            self.plot_stats_histogram_one_entry(
+                G[var_idx], cat_name, varname, data_before, data_after,
+                num_bins[var_idx])
+
+    def plot_stats_histogram(self):
+        """
+        Plot histogram of tshift, cc, dlnA, cc_amplitude_ratio,
+        waveform misfit values before and after inversion inside
+        windows.
+
+        :return:
+        """
+        nrows = len(self.meta_sorted.keys())
+        ncols = 5
+
+        plt.figure(figsize=(4*ncols, 4*nrows))
+        G = gridspec.GridSpec(nrows, ncols)
+        irow = 0
+
+        cat_names = self.metas_sort.keys().sort()
+        for irow, cat in enumerate(cat_names):
+            self.plot_stats_histogram_one_category(
+                G[irow], cat)
+        plt.tight_layout()
+        plt.savefig(self.outputfn)
+
+
+class PlotInvSummary(object):
 
     def __init__(self, data_container=None, cmtsource=None, config=None,
                  nregions=12, new_cmtsource=None, bootstrap_mean=None,

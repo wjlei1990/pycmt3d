@@ -7,16 +7,15 @@ import numpy as np
 from . import logger
 from .source import CMTSource
 from .util import random_select, sum_matrix, _float_array_to_str
-from .util import _get_cmt_par
+from .util import _get_cmt_par, dump_json
 from .measure import compute_A_b, calculate_variance_on_trace
 from .measure import compute_new_syn_on_trwin
-# from .plot_util import PlotUtil, _plot_new_seismogram
-from .plot_util import plot_seismograms
-# from .plot_stats import _plot_stats_histogram
+from .plot_util import plot_seismograms, PlotInvSummary, PlotStats
 from .data_container import MetaInfo
 from .weight import Weight
 from .constant import NPARMAX
 from .solver import linear_solver, nonlinear_solver
+from .log_util import print_inversion_summary
 
 
 class Cmt3D(object):
@@ -271,6 +270,8 @@ class Cmt3D(object):
 
         # if self.config.bootstrap:
         #    self.invert_bootstrap()
+        print_inversion_summary(self.config.npar, self.cmtsource,
+                                self.new_cmtsource)
 
     def calculate_variance(self):
         """
@@ -385,25 +386,17 @@ class Cmt3D(object):
         self.new_cmtsource.write_CMTSOLUTION_file(cmtfile)
 
     def print_cmtsource_summary(self):
+        """
+        Print the inversion summary in the logger
+        """
         logger.info("===== CMT Source Information =====")
         logger.info("\n%s" % self.cmtsource)
-
-    @staticmethod
-    def _write_log_file_(filename, nshift_list, cc_list, dlnA_list):
-        """
-        Write the nshift, cc, dlnA out
-        """
-        with open(filename, 'w') as f:
-            for i in range(len(nshift_list)):
-                nshift = nshift_list[i]
-                cc = cc_list[i]
-                dlnA = dlnA_list[i]
-                f.write("%5d %10.3f %10.3f\n" % (nshift, cc, dlnA))
 
     def plot_summary(self, outputdir=".", figure_format="png",
                      plot_mode="regional"):
         """
-        Plot inversion summary
+        Plot inversion summary, including source parameter change,
+        station distribution, and beach ball change.
 
         :param outputdir: output directory
         :return:
@@ -422,18 +415,19 @@ class Cmt3D(object):
 
         logger.info("Source inversion summary figure: %s" % figurename)
 
-        # plot_stat = PlotUtil(
-        #    data_container=self.data_container, config=self.config,
-        #    cmtsource=self.cmtsource,
-        #    nregions=self.config.weight_config.azi_bins,
-        #    new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
-        #    bootstrap_std=self.par_std, var_reduction=self.var_reduction,
-        #    mode=plot_mode)
-        # plot_stat.plot_inversion_summary(figurename=figurename)
+        plot_util = PlotInvSummary(
+            data_container=self.data_container, config=self.config,
+            cmtsource=self.cmtsource,
+            nregions=self.config.weight_config.azi_bins,
+            new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
+            bootstrap_std=self.par_std, var_reduction=self.var_reduction,
+            mode=plot_mode)
+        plot_util.plot_inversion_summary(figurename=figurename)
 
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
         """
-        Plot inversion histogram
+        Plot inversion histogram, including histograms of tshift, cc,
+        dlnA, cc_amp, chi values before and after the inversion.
 
         :param outputdir:
         :return:
@@ -459,24 +453,17 @@ class Cmt3D(object):
                                      figure_format)
         figname = os.path.join(outputdir, figname)
 
-        # _plot_stats_histogram(self.stats_before, self.stats_after,
-        #                      figname, figure_format=figure_format)
+        plot_util = PlotStats(self.data_container, self.metas, figname)
+        plot_util.plot_stats_histogram()
 
-    def _write_weight_log_(self, filename):
+    def write_weight_log(self, filename):
         """
         write out weight log file
         """
-        with open(filename, 'w') as f:
-            for window in self.data_container.traces:
-                sta = window.station
-                nw = window.network
-                component = window.component
-                location = window.location
-                sta_info = "%s.%s.%s.%s" % (sta, nw, location, component)
-                f.write("%s\n" % sta_info)
-                for _idx in range(window.weight.shape[0]):
-                    f.write("%10.5e %10.5e\n" % (
-                        window.weight[_idx], window.energy[_idx]))
+        weights = {}
+        for meta in self.metas:
+            weights[meta.obsd_id] = meta.weights
+        dump_json(weights, filename)
 
     def plot_new_synt_seismograms(self, outputdir, figure_format="png"):
         """

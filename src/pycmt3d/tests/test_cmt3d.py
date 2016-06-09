@@ -15,7 +15,6 @@ from __future__ import print_function, division
 import inspect
 import os
 import numpy as np
-import numpy.testing as npt
 import pytest
 from pycmt3d import CMTSource
 from pycmt3d import DataContainer

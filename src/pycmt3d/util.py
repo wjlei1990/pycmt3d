@@ -4,9 +4,15 @@
 General util functions
 """
 from __future__ import print_function, division, absolute_import
+import json
 import numpy as np
 from scipy import signal
 from obspy.geodetics import locations2degrees
+
+
+def dump_json(content, filename):
+    with open(filename, "w") as fh:
+        json.dump(content, fh, indent=2, sort_keys=2)
 
 
 def _get_cmt_par(cmt):

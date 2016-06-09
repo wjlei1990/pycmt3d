@@ -65,14 +65,25 @@ class TraceWindow(object):
     read from the window file.
     """
 
-    def __init__(self, datalist={}, windows=[], init_weight=None,
+    def __init__(self, datalist=None, windows=None, init_weight=None,
                  longitude=None, latitude=None, event_latitude=None,
                  event_longitude=None, tags=None, source=None,
                  path_dict=None):
         """
         """
-        self.datalist = datalist
-        self.windows = np.array(windows)    # window time
+        if datalist is None:
+            self.datalist = {}
+        elif isinstance(datalist, dict):
+            self.datalist = datalist
+        else:
+            raise TypeError("datalist for TraceWindow should be dict: "
+                            "{'obsd': obspy.Trace, 'synt': obspy.Trace, ...}")
+
+        if windows is None:
+            self.windows = np.array([])    # window time
+        else:
+            self.windows = np.array(windows)
+
         self.init_weight = init_weight        # window initial weight
 
         # station location
@@ -91,12 +102,6 @@ class TraceWindow(object):
         self._sanity_check()
 
     def _sanity_check(self):
-
-        if self.datalist is None or isinstance(self.datalist, dict):
-            pass
-        else:
-            raise TypeError("datalist for TraceWindow should be dict: "
-                            "{'obsd': obspy.Trace, 'synt': obspy.Trace, ...}")
 
         if self.windows.shape[0] > 0:
             if self.windows.shape[1] != 2:
@@ -214,10 +219,12 @@ class DataContainer(Sequence):
     """
     Class that contains methods that load data and window information
     """
-    def __init__(self, parlist=[]):
+    def __init__(self, parlist=None):
         """
         :param parlist: derivative parameter name list
         """
+        if parlist is None:
+            parlist = []
         if not self._check_parlist(parlist):
             raise ValueError("parlist(%s) not within %s"
                              % (parlist, PARLIST))
