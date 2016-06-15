@@ -93,6 +93,7 @@ class Config(object):
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
                  scale_vector=None, zero_trace=True,
+                 envelope_coef=0.5,
                  double_couple=False, max_nl_iter=60,
                  damping=0.0,
                  station_correction=True,
@@ -133,6 +134,11 @@ class Config(object):
         self.station_correction = station_correction
         self.zero_trace = zero_trace
         self.double_couple = double_couple
+
+        if envelope_coef < 0.0 or envelope_coef > 1.0:
+            raise ValueError("Envelope coefficient must be within [0, 1]")
+        self.envelope_coef = envelope_coef
+
         if max_nl_iter <= 0:
             raise ValueError("max_nl_iter(%d) must be larger than 0"
                              % max_nl_iter)

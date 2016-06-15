@@ -59,7 +59,7 @@ class Weight(object):
 
         # center point set for cmtsource
         self.center = Point([self.cmtsource.latitude,
-                            self.cmtsource.longitude],
+                             self.cmtsource.longitude],
                             tag="cmtsource")
         # keep category information
         self.point_bins = {}
@@ -81,9 +81,6 @@ class Weight(object):
 
         :returns:
         """
-        logger.info("*" * 15)
-        logger.info("Start weighting...")
-
         self.sort_into_category()
 
         self.setup_weight_for_location()
@@ -193,8 +190,8 @@ class Weight(object):
                     else:
                         epi_weights[win_idx] = \
                             (dist/ref_dist) ** self.config.rayleigh_dist_weight
-                print("comp, dist, ref_dist:", comp, dist, ref_dist)
-                print("epi_weights:", comp, epi_weights)
+                # print("comp, dist, ref_dist:", comp, dist, ref_dist)
+                # print("epi_weights:", comp, epi_weights)
                 meta.weights /= epi_weights
                 meta.prov["epi_dist_factor"] = epi_weights
 

@@ -15,7 +15,6 @@ import os
 import json
 import numpy as np
 from obspy import read
-from obspy.geodetics import gps2dist_azimuth
 from . import logger
 from collections import Sequence
 
@@ -33,13 +32,15 @@ class MetaInfo(object):
     raw traces and window information. All measurments will be kept
     in MetaInfo
     """
-    def __init__(self, obsd_id=None, synt_id=None, weights=None, A1s=None,
-                 b1s=None, prov=None):
+    def __init__(self, obsd_id=None, synt_id=None, weights=None,
+                 Aws=None, bws=None, Aes=None, bes=None, prov=None):
         self.obsd_id = obsd_id
         self.synt_id = synt_id
         self.weights = weights
-        self.A1s = A1s
-        self.b1s = b1s
+        self.Aws = Aws
+        self.bws = bws
+        self.Aes = Aes
+        self.bes = bes
 
         # dictionary to store various measurements
         self.prov = prov
@@ -66,8 +67,8 @@ class TraceWindow(object):
     """
 
     def __init__(self, datalist=None, windows=None, init_weight=None,
-                 longitude=None, latitude=None, event_latitude=None,
-                 event_longitude=None, tags=None, source=None,
+                 longitude=None, latitude=None,
+                 tags=None, source=None,
                  path_dict=None):
         """
         """
@@ -89,9 +90,6 @@ class TraceWindow(object):
         # station location
         self.latitude = latitude
         self.longitude = longitude
-        # event location
-        self.event_latitude = event_latitude
-        self.event_longitude = event_longitude
 
         # Provenance information
         self.tags = tags
@@ -123,8 +121,6 @@ class TraceWindow(object):
         string += "\tWindow time: %s\n" % self.windows
         string += "\tStation latitude and longitude: [%s, %s]\n" \
             % (self.latitude, self.longitude)
-        string += "\tEvent latitude and longitude: [%s, %s]\n" \
-            % (self.event_latitude, self.event_longitude)
         return string
 
     @property
@@ -176,27 +172,6 @@ class TraceWindow(object):
             return self.datalist["obsd"].stats.channel
         except:
             return None
-
-    @property
-    def azimuth(self):
-        _, az, _ = gps2dist_azimuth(
-            self.event_latitude, self.event_longitude,
-            self.latitude, self.longitude)
-        return az
-
-    @property
-    def distance_in_km(self):
-        dist_in_m, _, _ = gps2dist_azimuth(
-            self.event_latitude, self.event_longitude,
-            self.latitude, self.longitude)
-        return dist_in_m / 1000.
-
-    @property
-    def back_azimuth(self):
-        _, _, baz = gps2dist_azimuth(
-            self.event_latitude, self.event_longitude,
-            self.latitude, self.longitude)
-        return baz
 
     @property
     def obsd_energy(self):

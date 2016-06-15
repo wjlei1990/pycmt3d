@@ -5,9 +5,15 @@ Measurement util functions
 """
 from __future__ import print_function, division, absolute_import
 import numpy as np
+from scipy.signal import hilbert
 
 from .util import construct_taper, check_trace_consistent, get_window_idx
 from . import constant
+from .util import _float_array_to_str
+
+
+def _envelope(array):
+    return np.abs(hilbert(array))
 
 
 def _xcorr_win_(arr1, arr2):
@@ -225,7 +231,50 @@ def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper=None):
     return dsyn
 
 
-def compute_A_b(datalist, win_time, parlist, dcmt_par, taper_type="tukey"):
+def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper=None):
+    """
+    Calculate dsyn matrix based on perturbed seismograms. Only synt
+    and perturbed synthetic are used here:
+    dsyn = synt_perturbation / perturbation.
+
+    :param datalist:
+    :return:
+    """
+
+    istart = win_idx[0]
+    iend = win_idx[1]
+    win_len = iend - istart
+
+    denv = np.zeros((len(parlist), win_len))
+    for itype, type_name in enumerate(parlist):
+        if itype < constant.NM:
+            # moment tensor, linear term
+            denv[itype, :] = \
+                _envelope(taper * datalist[type_name].data[istart:iend]) / \
+                dcmt_par[itype]
+        elif itype < constant.NML:
+            # location, finite difference to get denv
+            denv[itype, :] = \
+                (_envelope(taper * datalist[type_name].data[istart:iend]) -
+                 _envelope(taper * datalist['synt'].data[istart:iend])) / \
+                dcmt_par[itype]
+        elif itype == constant.NML:
+            # time shift
+            dt = datalist['synt'].stats.delta
+            denv[itype, 0:(win_len - 1)] = \
+                np.diff(datalist['synt'].data) / (dt * dcmt_par[itype])
+            denv[itype, -1] = denv[itype, -2]
+        elif itype == constant.NML + 1:
+            raise NotImplementedError("Not implemented with npar == %d"
+                                      % itype)
+        else:
+            raise ValueError("npar(%d) error" % itype)
+
+    return denv
+
+
+def compute_derivatives(datalist, win_time, parlist, dcmt_par,
+                        taper_type="tukey"):
     """
     Calculate the matrix A and vector b based on one pair of
     observed data and synthetic data on a given window.
@@ -240,8 +289,8 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par, taper_type="tukey"):
     """
     obsd = datalist['obsd']
     synt = datalist['synt']
-    check_trace_consistent(obsd, synt)
     dt = obsd.stats.delta
+    check_trace_consistent(obsd, synt)
     win_idx = get_window_idx(win_time, obsd.stats.delta)
 
     win_len = win_idx[1] - win_idx[0]
@@ -249,15 +298,81 @@ def compute_A_b(datalist, win_time, parlist, dcmt_par, taper_type="tukey"):
 
     dsyn = calculate_dsyn(datalist, win_idx, parlist, dcmt_par,
                           taper=taper)
+    denv = calculate_denv(datalist, win_idx, parlist, dcmt_par,
+                          taper=taper)
 
+    Ae1, be1 = compute_envelope_matrix(denv, obsd.data, synt.data, dt,
+                                       win_idx, taper)
+
+    Ae, be, _ = compute_envelope_derivatives(dsyn, obsd.data, synt.data, dt,
+                                             win_idx, taper)
+    print("Ae1")
+    print("%s" % ('\n'.join(map(_float_array_to_str, Ae1))))
+    print("Ae")
+    print("%s" % ('\n'.join(map(_float_array_to_str, Ae))))
+    Aw, bw = compute_waveform_derivatives(dsyn, obsd.data, synt.data, dt,
+                                          win_idx, taper)
+    return Aw, bw, Ae1, be1
+
+
+def compute_envelope_matrix(denv, obsd, synt, dt, win_idx, taper):
+    istart = win_idx[0]
+    iend = win_idx[1]
+
+    obs_array = obsd.copy()
+    syn_array = synt.copy()
+
+    A1 = np.dot(denv, denv.transpose()) * dt
+    b1 = np.sum(
+        (np.abs(hilbert(taper * obs_array[istart:iend])) -
+         np.abs(hilbert(taper * syn_array[istart:iend]))) *
+        denv * dt, axis=1)
+    return A1, b1
+
+
+def compute_envelope_derivatives(dsyn, obsd, synt, dt, win_idx, taper):
+    """
+    Compute envelope measurements matrix H and misfit vector G,
+    as stated in Appendix in Qinya's paper
+    """
+    istart = win_idx[0]
+    iend = win_idx[1]
+
+    syn_array = synt.copy()
+    obs_array = obsd.copy()
+
+    syn_analytic = hilbert(taper * syn_array[istart:iend])
+    syn_hilbert = np.imag(syn_analytic)
+    syn_env = np.abs(syn_analytic)
+    dsyn_hilbert = np.imag(hilbert(dsyn))
+    env_derivss = \
+        ((syn_env) ** (-0.5)) * (syn_array[istart:iend] * dsyn +
+                                 syn_hilbert * dsyn_hilbert)
+
+    A1 = np.dot(env_derivss, env_derivss.transpose()) * dt
+    b1 = np.sum(
+        (np.abs(hilbert(taper * obs_array[istart:iend])) -
+         np.abs(hilbert(taper * syn_array[istart:iend]))) *
+        env_derivss * dt, axis=1)
+    return A1, b1, env_derivss
+
+
+def compute_waveform_derivatives(dsyn, obsd, synt, dt, win_idx, taper):
+    """
+    Compute waveform measurement matrix H and misfit vector G,
+    as stated in Appendix in Qinya's paper
+    """
     # station correction
+    obs_array = obsd.copy()
+    syn_array = synt.copy()
+
     istart_d, iend_d, istart_s, iend_s, _, _ = \
-        correct_window_index(obsd.data, synt.data, win_idx[0], win_idx[1])
+        correct_window_index(obs_array, syn_array, win_idx[0], win_idx[1])
 
     A1 = np.dot(dsyn, dsyn.transpose()) * dt
     b1 = np.sum(
-        taper * (obsd.data[istart_d:iend_d] -
-                 synt.data[istart_s:iend_s]) *
+        taper * (obs_array[istart_d:iend_d] -
+                 syn_array[istart_s:iend_s]) *
         dsyn * dt, axis=1)
 
     return A1, b1

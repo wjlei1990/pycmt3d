@@ -20,7 +20,7 @@ def _get_cmt_par(cmt):
     Get cmt information as array
     """
     return np.array([cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp,
-                     cmt.m_tp, cmt.depth_in_m/1000.0, cmt.longitude,
+                     cmt.m_tp, cmt.depth_in_m, cmt.longitude,
                      cmt.latitude, cmt.time_shift, cmt.half_duration])
 
 

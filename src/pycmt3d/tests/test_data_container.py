@@ -53,7 +53,6 @@ def test_TraceWindow():
     win = TraceWindow(datalist=datalist, windows=win_time,
                       init_weight=weight,
                       latitude=0.0, longitude=10.0,
-                      event_latitude=0.0, event_longitude=0.0,
                       tags=tags, source="SAC")
 
     assert win.station == "GSC"
@@ -64,9 +63,6 @@ def test_TraceWindow():
     assert win.nwindows == 2
     assert win.obsd_id == "CI.GSC..BHZ"
     assert win.synt_id == "CI.GSC..BHZ"
-    npt.assert_allclose(win.azimuth, 90.0)
-    npt.assert_allclose(win.back_azimuth, 270.0)
-    npt.assert_allclose(win.distance_in_km, 1113.19490793)
     npt.assert_allclose(win.obsd_energy, [1.10586496e-14, 1.24385582e-12])
 
 

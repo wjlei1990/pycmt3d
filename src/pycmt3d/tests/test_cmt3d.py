@@ -16,6 +16,8 @@ import inspect
 import os
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')  # NOQA
 from pycmt3d import CMTSource
 from pycmt3d import DataContainer
 from pycmt3d import DefaultWeightConfig, Config
@@ -77,7 +79,7 @@ def weight_sum(metas):
     return sumw
 
 
-def test_weighting_two(cmtsource):
+def test_weighting_two(tmpdir, cmtsource):
     dcon_two = construct_dcon_two()
 
     weight_config = DefaultWeightConfig(
@@ -93,4 +95,39 @@ def test_weighting_two(cmtsource):
 
     srcinv = Cmt3D(cmtsource, dcon_two, config)
     srcinv.source_inversion()
-    srcinv.plot_new_synt_seismograms("test")
+    srcinv.plot_new_synt_seismograms(str(tmpdir))
+
+
+def setup_inversion(cmt):
+    dcon_two = construct_dcon_two()
+
+    weight_config = DefaultWeightConfig(
+        normalize_by_energy=False, normalize_by_category=False,
+        comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
+        love_dist_weight=1.0, pnl_dist_weight=1.0,
+        rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+
+    config = Config(6, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
+                    zero_trace=True, weight_data=True,
+                    station_correction=True,
+                    weight_config=weight_config)
+
+    srcinv = Cmt3D(cmt, dcon_two, config)
+    srcinv.source_inversion()
+    return srcinv
+
+
+class TestIO(object):
+    """ test class for IO method """
+
+    def test_write_new_cmtfile(self, tmpdir, cmtsource):
+        srcinv = setup_inversion(cmtsource)
+        srcinv.write_new_cmtfile(outputdir=str(tmpdir))
+
+    def test_plot_summary(self, tmpdir, cmtsource):
+        srcinv = setup_inversion(cmtsource)
+        srcinv.plot_summary(outputdir=str(tmpdir), mode="regional")
+
+    def test_plot_stats_histogram(self, tmpdir, cmtsource):
+        srcinv = setup_inversion(cmtsource)
+        srcinv.plot_stats_histogram(outputdir=str(tmpdir))

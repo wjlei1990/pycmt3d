@@ -4,18 +4,44 @@
 from __future__ import (print_function, division, absolute_import)
 import os
 import numpy as np
+from copy import deepcopy
+
 from . import logger
-from .source import CMTSource
 from .util import random_select, sum_matrix, _float_array_to_str
 from .util import _get_cmt_par, dump_json
-from .measure import compute_A_b, calculate_variance_on_trace
+from .measure import compute_derivatives, calculate_variance_on_trace
 from .measure import compute_new_syn_on_trwin
 from .plot_util import plot_seismograms, PlotInvSummary, PlotStats
 from .data_container import MetaInfo
 from .weight import Weight
 from .constant import NPARMAX
-from .solver import linear_solver, nonlinear_solver
+from .solver import solver
 from .log_util import print_inversion_summary
+
+
+def generate_newcmtsource(oldcmt, new_cmt_par):
+    """
+    Convert new_cmt_par array to self.new_cmtsource
+
+    :return:
+    """
+    newcmt = deepcopy(oldcmt)
+
+    time_shift = new_cmt_par[9]
+    new_cmt_time = oldcmt.origin_time + time_shift
+    # copy old one
+    attrlist = ["m_rr", "m_tt", "m_pp", "m_rt", "m_rp", "m_tp",
+                "depth_in_m", "longitude", "latitude", "cmt_time",
+                "half_duration"]
+
+    for idx, attr in enumerate(attrlist):
+        if attr == "cmt_time":
+            val = new_cmt_time
+        else:
+            val = new_cmt_par[idx]
+        setattr(newcmt, attr, val)
+
+    return newcmt
 
 
 class Cmt3D(object):
@@ -103,8 +129,8 @@ class Cmt3D(object):
         """
         for trwin in self.data_container:
             metainfo = MetaInfo(obsd_id=trwin.obsd_id, synt_id=trwin.synt_id,
-                                weights=trwin.init_weight, A1s=[], b1s=[],
-                                prov={})
+                                weights=trwin.init_weight, Aws=[], bws=[],
+                                Aes=[], bes=[], prov={})
             self.metas.append(metainfo)
 
     def setup_measurement_matrix(self):
@@ -116,6 +142,7 @@ class Cmt3D(object):
         logger.info("*" * 15)
         logger.info("Set up inversion matrix")
 
+        self._init_metas()
         for meta, trwin in zip(self.metas, self.data_container):
             for win_idx in range(trwin.nwindows):
                 # loop over each window
@@ -123,65 +150,29 @@ class Cmt3D(object):
                 # and no weightings has been applied yet
                 # Attention here, we use dcmt_par_scaled here; otherwise
                 # A1 and b1 would be too small.
-                A1, b1 = compute_A_b(trwin.datalist, trwin.windows[win_idx],
-                                     self.config.parlist,
-                                     self.config.dcmt_par_scaled,
-                                     self.config.taper_type)
-                meta.A1s.append(A1)
-                meta.b1s.append(b1)
+                Aw, bw, Ae, be = compute_derivatives(
+                    trwin.datalist, trwin.windows[win_idx],
+                    self.config.parlist, self.config.dcmt_par_scaled,
+                    self.config.taper_type)
 
-    def invert_solver(self, A, b):
-        """
-        Solver part. Hession matrix A and misfit vector b will be
-        reconstructed here based on different constraints.
+                meta.Aws.append(Aw)
+                meta.bws.append(bw)
+                meta.Aes.append(Ae)
+                meta.bes.append(be)
 
-        :param A: basic Hessian matrix
-        :param b: basic misfit vector
-        :param print_mode: if True, then print out log information;
-        if False, then no log information
-        :return:
-        """
+    def invert_solver(self, A, b, envelope_flag=False):
         npar = self.config.npar
-        old_par = self.cmt_par[0:npar] / self.config.scale_vector[0:npar]
-
-        # scale the A and b matrix by the max value
-        # not really necessary, should be deleted in the future
-        max_row = np.amax(abs(A), axis=1)
-        for i in range(len(b)):
-            A[i, :] /= max_row[i]
-            b[i] /= max_row[i]
-
-        # setup inversion schema
-        if self.config.double_couple:
-            linear_inversion = False
-        else:
-            linear_inversion = True
-
-        # add damping
-        logger.info("Condition number of A: %10.2f"
-                    % np.linalg.cond(A))
-        if self.config.damping > 0:
-            trace = np.matrix.trace(A)
-            damp_matrix = np.zeros([npar, npar])
-            np.fill_diagonal(damp_matrix, trace * self.config.lamda_damping)
-            A = A + damp_matrix
-            logger.info("Condition number of A after damping: %10.2f"
-                        % np.linalg.cond(A))
-
-        if linear_inversion:
-            logger.info("Linear Inversion...")
-            new_par_scaled = linear_solver(
-                old_par, A, b, npar, zero_trace=self.config.zero_trace)
-        else:
-            logger.info("Nonlinear Inversion...")
-            new_par_scaled = nonlinear_solver(
-                old_par, A, b, npar, max_iter=self.config.max_nl_iter)
+        cmt_par_scaled = self.cmt_par[:npar] / self.config.scale_vector
+        new_cmt_par_scaled = \
+            solver(npar, A, b, cmt_par_scaled, self.config.zero_trace,
+                   self.config.double_couple, envelope_flag,
+                   self.config.damping, self.config.max_nl_iter)
 
         new_cmt_par = self.cmt_par.copy()
-        new_cmt_par[:npar] = new_par_scaled * self.config.scale_vector
-        logger.info("New cmt array: %s" % new_cmt_par)
+        new_cmt_par[:npar] = \
+            new_cmt_par_scaled * self.config.scale_vector[:npar]
 
-        return new_cmt_par
+        return generate_newcmtsource(self.cmtsource, new_cmt_par)
 
     def invert_cmt(self):
         """
@@ -195,27 +186,54 @@ class Cmt3D(object):
         logger.info("CMT Inversion")
         logger.info("*"*15)
 
-        A1 = np.zeros([self.config.npar, self.config.npar])
-        b1 = np.zeros(self.config.npar)
+        npar = self.config.npar
+        Aw_all = np.zeros([npar, npar])
+        bw_all = np.zeros(npar)
+        Ae_all = np.zeros([npar, npar])
+        be_all = np.zeros(npar)
         # ensemble A and b
         for _meta in self.metas:
-            A1_trwin = sum_matrix(_meta.A1s, coef=_meta.weights)
-            b1_trwin = sum_matrix(_meta.b1s, coef=_meta.weights)
-            A1 += A1_trwin
-            b1 += b1_trwin
+            Aw = sum_matrix(_meta.Aws, coef=_meta.weights)
+            bw = sum_matrix(_meta.bws, coef=_meta.weights)
+            Ae = sum_matrix(_meta.Aes, coef=_meta.weights)
+            be = sum_matrix(_meta.bes, coef=_meta.weights)
+            Aw_all += Aw
+            bw_all += bw
+            Ae_all += Ae
+            be_all += be
+
+        ecoef = self.config.envelope_coef
+        A_all = (1 - ecoef) * Aw_all + ecoef * Ae_all
+        b_all = (1 - ecoef) * bw_all + ecoef * be_all
 
         logger.info("Inversion Matrix A(with scaled cmt perturbation) is "
                     "as follows:")
-        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, A1))))
-        logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A1)))
+        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, A_all))))
+        logger.info("Inversion Matrix Aw(with scaled cmt perturbation) is "
+                    "as follows:")
+        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, Aw_all))))
+        logger.info("Inversion Matrix Ae(with scaled cmt perturbation) is "
+                    "as follows:")
+        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, Ae_all))))
+        logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A_all)))
         logger.info("RHS vector b(with scaled cmt perturbation) is "
                     "as follows:")
-        logger.info("[%s]" % (_float_array_to_str(b1)))
+
+        logger.info("b_all")
+        logger.info(b_all)
+        logger.info("[%s]" % (_float_array_to_str(b_all)))
 
         # source inversion
-        new_cmt_par = self.invert_solver(A1, b1)
-        self.convert_new_cmt_par(new_cmt_par)
-        logger.info("new cmtsource: %s" % self.new_cmtsource)
+        logger.info("-" * 10 + " inversion " + "-" * 10)
+        self.new_cmtsource = self.invert_solver(
+            A_all, b_all, envelope_flag=(not np.isclose(ecoef, 0)))
+        logger.info("-" * 10 + " waveform inversion " + "-" * 10)
+        self.new_cmtsource_waveform = self.invert_solver(
+            Aw_all, bw_all, envelope_flag=False)
+        logger.info("-" * 10 + " envelope inversion " + "-" * 10)
+        self.new_cmtsource_envelope = self.invert_solver(
+            Ae_all, be_all, envelope_flag=True)
+        logger.info("-" * 20)
 
     def invert_bootstrap(self):
         """
@@ -258,11 +276,10 @@ class Cmt3D(object):
         the Source Inversion method
         :return:
         """
-        self._init_metas()
         self.setup_measurement_matrix()
-        for meta in self.metas:
-            print("A1:", meta.A1s[0])
-            print("b1:", meta.b1s[0])
+        # for meta in self.metas:
+        #    print("A1:", meta.A1s[0])
+        #    print("b1:", meta.b1s[0])
         self.setup_window_weight()
         self.invert_cmt()
 
@@ -345,29 +362,6 @@ class Cmt3D(object):
             compute_new_syn_on_trwin(trwin.datalist, self.config.parlist,
                                      self.config.dcmt_par_scaled, dm_scaled)
 
-    def convert_new_cmt_par(self, new_cmt_par):
-        """
-        Convert new_cmt_par array to self.new_cmtsource
-
-        :return:
-        """
-        oldcmt = self.cmtsource
-        newcmt = new_cmt_par
-        time_shift = newcmt[9]
-        new_cmt_time = oldcmt.origin_time + time_shift
-        # copy old one
-        self.new_cmtsource = CMTSource(
-            origin_time=oldcmt.origin_time,
-            pde_latitude=oldcmt.pde_latitude,
-            pde_longitude=oldcmt.pde_longitude,
-            mb=oldcmt.mb, ms=oldcmt.ms, pde_depth_in_m=oldcmt.pde_depth_in_m,
-            region_tag=oldcmt.region_tag, eventname=oldcmt.eventname,
-            cmt_time=new_cmt_time, half_duration=newcmt[10],
-            latitude=newcmt[8], longitude=newcmt[7],
-            depth_in_m=newcmt[6] * 1000.0,
-            m_rr=newcmt[0], m_tt=newcmt[1], m_pp=newcmt[2], m_rt=newcmt[3],
-            m_rp=newcmt[4], m_tp=newcmt[5])
-
     def write_new_cmtfile(self, outputdir="."):
         """
         Write new_cmtsource into a file
@@ -393,7 +387,7 @@ class Cmt3D(object):
         logger.info("\n%s" % self.cmtsource)
 
     def plot_summary(self, outputdir=".", figure_format="png",
-                     plot_mode="regional"):
+                     mode="global"):
         """
         Plot inversion summary, including source parameter change,
         station distribution, and beach ball change.
@@ -421,7 +415,7 @@ class Cmt3D(object):
             nregions=self.config.weight_config.azi_bins,
             new_cmtsource=self.new_cmtsource, bootstrap_mean=self.par_mean,
             bootstrap_std=self.par_std, var_reduction=self.var_reduction,
-            mode=plot_mode)
+            mode=mode)
         plot_util.plot_inversion_summary(figurename=figurename)
 
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
@@ -439,13 +433,14 @@ class Cmt3D(object):
         else:
             constr_str = "no_constraint"
 
-        if not self.config.normalize_window:
-            prefix = "%dp_%s." % (self.config.npar, constr_str) + "no_normwin"
+        if not self.config.weight_config.normalize_by_energy:
+            prefix = "%dp_%s." % (self.config.npar, constr_str) + \
+                "no_normener"
         else:
             prefix = "%dp_%s.%s" % (
                 self.config.npar, constr_str, self.config.norm_mode)
 
-        if not self.config.normalize_category:
+        if not self.config.weight_config.normalize_by_category:
             prefix += ".no_normcat"
         else:
             prefix += ".normcat"

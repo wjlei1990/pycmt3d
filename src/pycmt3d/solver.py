@@ -4,6 +4,7 @@ Linear and non-linear solver for source inversion
 from __future__ import print_function, division, absolute_import
 import numpy as np
 from .measure import get_f_df
+from . import logger
 
 
 def linear_solver(old_par, A, b, npar, zero_trace=True):
@@ -32,11 +33,8 @@ def linear_solver(old_par, A, b, npar, zero_trace=True):
     except Exception as err:
         raise ValueError("Can not solve the linear equation due to:%s"
                          % err)
+
     new_par = old_par[0:npar] + dm[0:npar]
-    print("old par")
-    print(old_par)
-    print("dm")
-    print(dm)
     return new_par
 
 
@@ -66,3 +64,51 @@ def nonlinear_solver(old_par, A, b, npar, max_iter=60):
         error[iter_idx, :] = np.dot(AA, xout) - bb
     # dm = m1 - mstart
     return m1
+
+
+def solver(npar, A, b, cmt_par, zero_trace, double_couple,
+           envelope_flag, damping, max_nl_iter):
+    """
+    Solver part. Hession matrix A and misfit vector b will be
+    reconstructed here based on different constraints.
+
+    :param A: basic Hessian matrix
+    :param b: basic misfit vector
+    :param print_mode: if True, then print out log information;
+    if False, then no log information
+    :return:
+    """
+    A = A.copy()
+    b = b.copy()
+
+    # scale the A and b matrix by the max value
+    # not really necessary, should be deleted in the future
+    max_row = np.amax(abs(A), axis=1)
+    for i in range(len(b)):
+        A[i, :] /= max_row[i]
+        b[i] /= max_row[i]
+
+    # add damping
+    logger.info("Condition number of A: %10.2f"
+                % np.linalg.cond(A))
+    if damping > 0:
+        trace = np.matrix.trace(A)
+        damp_matrix = np.zeros([npar, npar])
+        np.fill_diagonal(damp_matrix, trace * damping)
+        A = A + damp_matrix
+        logger.info("Condition number of A after damping: %10.2f"
+                    % np.linalg.cond(A))
+
+    # setup inversion schema
+    if double_couple or envelope_flag:
+        # non-linear inversion
+        logger.info("Nonlinear Inversion...")
+        new_par = nonlinear_solver(
+            cmt_par, A, b, npar, max_iter=max_nl_iter)
+    else:
+        # linear_inversion
+        logger.info("Linear Inversion...")
+        new_par = linear_solver(
+            cmt_par, A, b, npar, zero_trace=zero_trace)
+
+    return new_par

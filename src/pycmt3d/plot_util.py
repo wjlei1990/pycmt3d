@@ -9,13 +9,15 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.basemap import Basemap
 from matplotlib.patches import Rectangle
-from obspy.core.util.geodetics.base import gps2DistAzimuth
+from obspy.geodetics import gps2dist_azimuth
 from obspy.imaging.beachball import Beach
 
 from . import logger
+from .util import _get_cmt_par
+from .measure import _envelope
 
 # earth half circle
-EARTH_HC, _, _ = gps2DistAzimuth(0, 0, 0, 180)
+EARTH_HC, _, _ = gps2dist_azimuth(0, 0, 0, 180)
 
 
 def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
@@ -34,13 +36,18 @@ def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
         offset = 0
     else:
         offset = obsd.stats.starttime - cmtsource.cmt_time
-        print("offset:", offset)
     times = [offset + obsd.stats.delta*i for i in range(obsd.stats.npts)]
 
-    fig = plt.figure(figsize=(15, 2.5))
-    plt.plot(times, obsd.data, color="black", linewidth=0.5, alpha=0.6)
-    plt.plot(times, synt.data, color="red", linewidth=0.8)
-    plt.plot(times, new_synt.data, color="green", linewidth=0.8)
+    fig = plt.figure(figsize=(15, 5))
+
+    # plot seismogram
+    plt.subplot(211)
+    plt.plot(times, obsd.data, color="black", linewidth=0.5, alpha=0.6,
+             label="obsd")
+    plt.plot(times, synt.data, color="red", linewidth=0.8,
+             label="synt")
+    plt.plot(times, new_synt.data, color="green", linewidth=0.8,
+             label="new synt")
     plt.xlim(times[0], times[-1])
 
     xlim1 = plt.xlim()[1]
@@ -59,6 +66,26 @@ def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
                        alpha=0.25)
         plt.gca().add_patch(re)
 
+    # plot envelope
+    plt.subplot(212)
+    plt.plot(times, _envelope(obsd.data), color="black", linewidth=0.5,
+             alpha=0.6, label="obsd")
+    plt.plot(times, _envelope(synt.data), color="red", linewidth=0.8,
+             label="synt")
+    plt.plot(times, _envelope(new_synt.data), color="green", linewidth=0.8,
+             label="new synt")
+    plt.xlim(times[0], times[-1])
+
+    for win in trwin.windows:
+        l = win[0] + offset
+        r = win[1] + offset
+        re = Rectangle((l, plt.ylim()[0]), r - l,
+                       plt.ylim()[1] - plt.ylim()[0], color="blue",
+                       alpha=0.25)
+        plt.gca().add_patch(re)
+
+    logger.info("output figname: %s" % outputfig)
+    plt.legend(prop={'size': 6})
     plt.savefig(outputfig)
     plt.close(fig)
 
@@ -79,7 +106,6 @@ def plot_seismograms(data_container, outputdir, cmtsource=None,
     logger.info("Plotting observed, synthetics and windows to dir: %s"
                 % outputdir)
     for trwin in data_container:
-        print("plot:", trwin)
         _plot_new_seismogram_sub(trwin, outputdir, cmtsource,
                                  figure_format)
 
@@ -138,14 +164,14 @@ class PlotStats(object):
     def extract_metadata(self, cat_name, meta_varname):
         data_old = []
         data_new = []
-        cat_data = self.meta_sorted[cat_name]
+        cat_data = self.metas_sort[cat_name]
         for meta in cat_data:
-            data_old.append(meta.prov["synt"][meta_varname])
-            data_new.append(meta.prov["new_synt"][meta_varname])
+            data_old.extend(meta.prov["synt"][meta_varname])
+            data_new.extend(meta.prov["new_synt"][meta_varname])
 
         return data_old, data_new
 
-    def plot_stats_histogram_one_category(self, G, cat_name):
+    def plot_stats_histogram_one_category(self, G, irow, cat_name):
         num_bins = [15, 15, 15, 15, 15]
         vtype_list = ['time shift', 'cc', 'power_ratio(dB)',
                       'CC amplitude ratio(dB)', 'chi']
@@ -161,7 +187,7 @@ class PlotStats(object):
             data_before, data_after = \
                 self.extract_metadata(cat_name, meta_varname)
             self.plot_stats_histogram_one_entry(
-                G[var_idx], cat_name, varname, data_before, data_after,
+                G[irow, var_idx], cat_name, varname, data_before, data_after,
                 num_bins[var_idx])
 
     def plot_stats_histogram(self):
@@ -172,17 +198,18 @@ class PlotStats(object):
 
         :return:
         """
-        nrows = len(self.meta_sorted.keys())
+        self.sort_metas()
+        nrows = len(self.metas_sort.keys())
         ncols = 5
 
         plt.figure(figsize=(4*ncols, 4*nrows))
         G = gridspec.GridSpec(nrows, ncols)
         irow = 0
 
-        cat_names = self.metas_sort.keys().sort()
+        cat_names = sorted(self.metas_sort.keys())
         for irow, cat in enumerate(cat_names):
             self.plot_stats_histogram_one_category(
-                G[irow], cat)
+                G, irow, cat)
         plt.tight_layout()
         plt.savefig(self.outputfn)
 
@@ -194,7 +221,7 @@ class PlotInvSummary(object):
                  bootstrap_std=None, var_reduction=0.0, mode="regional"):
         self.data_container = data_container
         self.cmtsource = cmtsource
-        self.window = data_container.window
+        self.trwins = data_container.trwins
         self.config = config
         self.nregions = nregions
 
@@ -203,44 +230,33 @@ class PlotInvSummary(object):
         self.bootstrap_std = bootstrap_std
         self.var_reduction = var_reduction
 
-        self.moment_tensor = [cmtsource.m_rr, cmtsource.m_tt, cmtsource.m_pp,
-                              cmtsource.m_rt, cmtsource.m_rp, cmtsource.m_tp]
-
         if mode.lower() not in ["global", "regional"]:
             raise ValueError("Plot mode: 1) global; 2) regional")
         self.mode = mode.lower()
 
-        self.sta_lat = []
-        self.sta_lon = []
-        self.sta_theta = []
+        self.sta_lat = None
+        self.sta_lon = None
         self.sta_dist = []
+        # azimuth in degree unit
         self.sta_azi = []
+        # azimuth in radius unit
+        self.sta_theta = []
         self.prepare_array()
 
     def prepare_array(self):
         # station
-        sta_dict = {}
-        for window in self.window:
-            key = window.network + "." + window.station
-            if key not in sta_dict.keys():
-                sta_dict[key] = [window.latitude, window.longitude]
+        self.sta_lat = [window.latitude for window in self.trwins]
+        self.sta_lon = [window.longitude for window in self.trwins]
 
-        for key, sta in sta_dict.iteritems():
-            self.sta_lat.append(sta[0])
-            self.sta_lon.append(sta[1])
-
-        self.calc_sta_dist_azi()
-
-    def calc_sta_dist_azi(self):
-        for i in range(len(self.sta_lat)):
-            dist, az, baz = gps2DistAzimuth(self.cmtsource.latitude,
-                                            self.cmtsource.longitude,
-                                            self.sta_lat[i], self.sta_lon[i])
+        for sta_lat, sta_lon in zip(self.sta_lat, self.sta_lon):
+            dist, az, baz = gps2dist_azimuth(self.cmtsource.latitude,
+                                             self.cmtsource.longitude,
+                                             sta_lat, sta_lon)
             self.sta_azi.append(az)
-            self.sta_theta.append(az/180.0*np.pi)
+            self.sta_theta.append(az / 180.0 * np.pi)
             if self.mode == "regional":
                 # if regional, then use original distance(in km)
-                self.sta_dist.append(dist/1000.0)
+                self.sta_dist.append(dist / 1000.0)
             elif self.mode == "global":
                 # if global, then use degree as unit
                 self.sta_dist.append(dist/EARTH_HC)
@@ -352,7 +368,7 @@ class PlotInvSummary(object):
         format2 = "%16.3f  %16.3f  %20.3f  %20.3f   %15.2f%%"
 
         text = "Number of stations: %d          Number of widnows: %d" \
-               % (len(self.sta_lat), self.data_container.nwins)
+               % (len(self.sta_lat), self.data_container.nwindows)
         plt.text(0, pos, text, fontsize=fontsize)
 
         pos -= incre
@@ -363,10 +379,11 @@ class PlotInvSummary(object):
         plt.text(0, pos, text, fontsize=fontsize)
 
         pos -= incre
-        text = "Station Correction:%6s         Norm_window:%6s" \
-               "              Norm_Category:%6s" \
-               % (self.config.station_correction, self.config.normalize_window,
-                  self.config.normalize_category)
+        text = "Station Correction:%6s         Norm_by_energy:%6s" \
+               "              Norm_by_category:%6s" \
+               % (self.config.station_correction,
+                  self.config.weight_config.normalize_by_energy,
+                  self.config.weight_config.normalize_by_category)
         plt.text(0, pos, text, fontsize=fontsize)
 
         pos -= incre
@@ -374,7 +391,7 @@ class PlotInvSummary(object):
             (self.new_cmtsource.M0 - self.cmtsource.M0) / self.cmtsource.M0
         text = "Inversion Damping:%6.3f       Energy Change: %6.2f%%" \
                "       Variance Reduction: %6.2f%%" \
-               % (self.config.lamda_damping, energy_change*100,
+               % (self.config.damping, energy_change*100,
                   self.var_reduction*100)
         plt.text(0, pos, text, fontsize=fontsize)
 
@@ -465,7 +482,7 @@ class PlotInvSummary(object):
 
         cmt_lat = self.cmtsource.latitude
         cmt_lon = self.cmtsource.longitude
-        focmecs = self.moment_tensor
+        focmecs = _get_cmt_par(self.cmtsource)[:6]
         ax = plt.gca()
         bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1,
                    alpha=1.0)
@@ -513,8 +530,8 @@ class PlotInvSummary(object):
         # set plt.subplot(***, polar=True)
         plt.title("Window Azimuth", fontsize=10)
         win_azi = []
-        for window in self.window:
-            win_azi.append([window.azimuth, window.num_wins])
+        for azi, window in zip(self.sta_azi, self.trwins):
+            win_azi.append([azi, window.nwindows])
         bins, naz = self.calculate_azimuth_bin(win_azi)
         norm_factor = np.max(naz)
 
@@ -531,7 +548,11 @@ class PlotInvSummary(object):
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
 
-    def plot_all_stat(self, figurename=None):
+    def plot_dataset(self, figurename=None):
+        """
+        Plot only the dataset, including global map, station and window
+        distribution, and beach ball
+        """
         plt.figure(figsize=(10, 7), facecolor='w', edgecolor='k')
         g = gridspec.GridSpec(2, 3)
         plt.subplot(g[0, :-1])
@@ -550,8 +571,12 @@ class PlotInvSummary(object):
             plt.savefig(figurename)
 
     def plot_inversion_summary(self, figurename=None):
+        """
+        Plot the dataset and the inversion result.
+        """
         if self.new_cmtsource is None:
             raise ValueError("No new cmtsource...Can't plot summary")
+
         plt.figure(figsize=(10, 11), facecolor='w', edgecolor='k')
         g = gridspec.GridSpec(3, 3)
         plt.subplot(g[0, :-1])

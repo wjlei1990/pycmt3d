@@ -132,7 +132,8 @@ def test_compute_A_b():
     win_time = [1, 6]
     dcmt_par = np.ones(len(parlist))
 
-    A, b = meas.compute_A_b(datalist, win_time, parlist, dcmt_par)
+    A, b, Ae, be = meas.compute_derivatives(datalist, win_time, parlist,
+                                            dcmt_par)
 
     A_true = np.zeros([9, 9])
     for ii in range(0, 6):
