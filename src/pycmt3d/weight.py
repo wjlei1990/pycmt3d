@@ -3,7 +3,7 @@
 
 from __future__ import print_function, division, absolute_import
 import numpy as np
-from spaceweight import SphereAziBin, Point
+from spaceweight import SphereAziBin, SpherePoint
 from . import logger
 from .util import distance, get_window_idx
 from .measure import _energy_, _envelope
@@ -73,9 +73,9 @@ class Weight(object):
         self.config = config
 
         # center point set for cmtsource
-        self.center = Point([self.cmtsource.latitude,
-                             self.cmtsource.longitude],
-                            tag="cmtsource")
+        self.center = SpherePoint(
+            self.cmtsource.latitude, self.cmtsource.longitude,
+            tag="cmtsource")
         # keep category information
         self.point_bins = {}
 
@@ -140,7 +140,7 @@ class Weight(object):
             if cat not in pbins:
                 pbins[cat] = []
             pbins[cat].append(
-                Point([trwin.latitude, trwin.longitude], tag=idx))
+                SpherePoint(trwin.latitude, trwin.longitude, tag=idx))
 
         logger.info("Category: %s" % pbins.keys())
 
@@ -165,7 +165,7 @@ class Weight(object):
             weight = SphereAziBin(
                 points, center=self.center, bin_order=self.config.azi_exp_idx,
                 nbins=self.config.azi_bins, remove_duplicate=False,
-                normalize_flag=True, normalize_mode="average")
+                normalize_mode="average")
             weight.calculate_weight()
             weight_dict[cat] = weight.points_weights
             idx_dict[cat] = weight.points_tags
