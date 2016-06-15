@@ -16,7 +16,7 @@ import inspect
 import os
 from pycmt3d import CMTSource
 from pycmt3d import DataContainer
-from pycmt3d import DefaultWeightConfig, Config
+from pycmt3d import DefaultWeightConfig, Config, WeightConfig
 from pycmt3d.constant import PARLIST
 from pycmt3d import Cmt3D
 
@@ -48,11 +48,14 @@ def construct_dcon_two():
 def weighting_two():
     dcon_two = construct_dcon_two()
 
-    weight_config = DefaultWeightConfig(
-        normalize_by_energy=False, normalize_by_category=False,
-        comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
-        love_dist_weight=1.0, pnl_dist_weight=1.0,
-        rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+    #weight_config = DefaultWeightConfig(
+    #    normalize_by_energy=False, normalize_by_category=False,
+    #    comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
+    #    love_dist_weight=1.0, pnl_dist_weight=1.0,
+    #    rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+
+    weight_config = WeightConfig(
+        normalize_by_energy=True, normalize_by_category=False)
 
     config = Config(6, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
                     zero_trace=True, weight_data=True,
@@ -63,6 +66,8 @@ def weighting_two():
     srcinv = Cmt3D(cmtsource, dcon_two, config)
     srcinv.source_inversion()
     srcinv.plot_new_synt_seismograms("test")
+    srcinv.plot_stats_histogram(outputdir="test")
+    srcinv.plot_summary(outputdir="test", mode="regional")
 
 
 if __name__ == "__main__":

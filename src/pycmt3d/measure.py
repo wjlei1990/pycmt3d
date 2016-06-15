@@ -186,7 +186,7 @@ def get_f_df(npar, A, b, m, lam, mstart, fij, f0):
     fij[npar + 1, 0:NM] = dc2_dm
 
 
-def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper=None):
+def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper_type):
     """
     Calculate dsyn matrix based on perturbed seismograms. Only synt
     and perturbed synthetic are used here:
@@ -198,6 +198,7 @@ def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper=None):
     istart = win_idx[0]
     iend = win_idx[1]
     win_len = iend - istart
+    taper = construct_taper(win_len, taper_type=taper_type)
 
     dsyn = np.zeros((len(parlist), win_len))
     for itype, type_name in enumerate(parlist):
@@ -231,7 +232,7 @@ def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper=None):
     return dsyn
 
 
-def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper=None):
+def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper_type):
     """
     Calculate dsyn matrix based on perturbed seismograms. Only synt
     and perturbed synthetic are used here:
@@ -244,6 +245,7 @@ def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper=None):
     istart = win_idx[0]
     iend = win_idx[1]
     win_len = iend - istart
+    taper = construct_taper(win_len, taper_type=taper_type)
 
     denv = np.zeros((len(parlist), win_len))
     for itype, type_name in enumerate(parlist):
@@ -293,47 +295,68 @@ def compute_derivatives(datalist, win_time, parlist, dcmt_par,
     check_trace_consistent(obsd, synt)
     win_idx = get_window_idx(win_time, obsd.stats.delta)
 
-    win_len = win_idx[1] - win_idx[0]
-    taper = construct_taper(win_len, taper_type=taper_type)
+    denv = calculate_denv(datalist, win_idx, parlist, dcmt_par,
+                          taper_type)
+    Ae, be = compute_envelope_matrix(denv, obsd.data, synt.data, dt,
+                                     win_idx, taper_type)
 
     dsyn = calculate_dsyn(datalist, win_idx, parlist, dcmt_par,
-                          taper=taper)
-    denv = calculate_denv(datalist, win_idx, parlist, dcmt_par,
-                          taper=taper)
-
-    Ae1, be1 = compute_envelope_matrix(denv, obsd.data, synt.data, dt,
-                                       win_idx, taper)
-
-    Ae, be, _ = compute_envelope_derivatives(dsyn, obsd.data, synt.data, dt,
-                                             win_idx, taper)
-    print("Ae1")
-    print("%s" % ('\n'.join(map(_float_array_to_str, Ae1))))
-    print("Ae")
-    print("%s" % ('\n'.join(map(_float_array_to_str, Ae))))
-    Aw, bw = compute_waveform_derivatives(dsyn, obsd.data, synt.data, dt,
-                                          win_idx, taper)
-    return Aw, bw, Ae1, be1
+                          taper_type)
+    Aw, bw = compute_waveform_matrix(dsyn, obsd.data, synt.data, dt,
+                                     win_idx, taper_type)
+    # print("Ae")
+    # print("%s" % ('\n'.join(map(_float_array_to_str, Ae))))
+    return Aw, bw, Ae, be
 
 
-def compute_envelope_matrix(denv, obsd, synt, dt, win_idx, taper):
+def compute_envelope_matrix(denv, obsd, synt, dt, win_idx, taper_type):
     istart = win_idx[0]
     iend = win_idx[1]
 
     obs_array = obsd.copy()
     syn_array = synt.copy()
 
+    istart_d, iend_d, istart_s, iend_s, _, _ = \
+        correct_window_index(obs_array, syn_array, win_idx[0], win_idx[1])
+
+    taper = construct_taper(iend_s - istart_s, taper_type=taper_type)
+
     A1 = np.dot(denv, denv.transpose()) * dt
     b1 = np.sum(
-        (np.abs(hilbert(taper * obs_array[istart:iend])) -
-         np.abs(hilbert(taper * syn_array[istart:iend]))) *
+        (np.abs(hilbert(taper * obs_array[istart_d:iend_d])) -
+         np.abs(hilbert(taper * syn_array[istart_s:iend_s]))) *
         denv * dt, axis=1)
     return A1, b1
 
 
-def compute_envelope_derivatives(dsyn, obsd, synt, dt, win_idx, taper):
+def compute_waveform_matrix(dsyn, obsd, synt, dt, win_idx, taper_type):
     """
-    Compute envelope measurements matrix H and misfit vector G,
+    Compute waveform measurement matrix H and misfit vector G,
     as stated in Appendix in Qinya's paper
+    """
+    # station correction
+    obs_array = obsd.copy()
+    syn_array = synt.copy()
+
+    istart_d, iend_d, istart_s, iend_s, _, _ = \
+        correct_window_index(obs_array, syn_array, win_idx[0], win_idx[1])
+
+    taper = construct_taper(iend_s - istart_s, taper_type=taper_type)
+
+    A1 = np.dot(dsyn, dsyn.transpose()) * dt
+    b1 = np.sum(
+        taper * (obs_array[istart_d:iend_d] -
+                 syn_array[istart_s:iend_s]) *
+        dsyn * dt, axis=1)
+
+    return A1, b1
+
+
+def compute_envelope_matrix_theo(dsyn, obsd, synt, dt, win_idx, taper):
+    """
+    Compute envelope measurements matrix H and misfit vector G theoretically
+    as stated in Appendix in Qinya's paper.
+    Attension: not used!!! BUG inside!!!
     """
     istart = win_idx[0]
     iend = win_idx[1]
@@ -354,27 +377,6 @@ def compute_envelope_derivatives(dsyn, obsd, synt, dt, win_idx, taper):
         (np.abs(hilbert(taper * obs_array[istart:iend])) -
          np.abs(hilbert(taper * syn_array[istart:iend]))) *
         env_derivss * dt, axis=1)
-    return A1, b1, env_derivss
-
-
-def compute_waveform_derivatives(dsyn, obsd, synt, dt, win_idx, taper):
-    """
-    Compute waveform measurement matrix H and misfit vector G,
-    as stated in Appendix in Qinya's paper
-    """
-    # station correction
-    obs_array = obsd.copy()
-    syn_array = synt.copy()
-
-    istart_d, iend_d, istart_s, iend_s, _, _ = \
-        correct_window_index(obs_array, syn_array, win_idx[0], win_idx[1])
-
-    A1 = np.dot(dsyn, dsyn.transpose()) * dt
-    b1 = np.sum(
-        taper * (obs_array[istart_d:iend_d] -
-                 syn_array[istart_s:iend_s]) *
-        dsyn * dt, axis=1)
-
     return A1, b1
 
 
@@ -413,7 +415,7 @@ def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
         nshift, cc, dlnA, cc_amp_value = \
             measure_window(obsd, synt, istart, iend)
 
-        taper = construct_taper(iend - istart, taper_type=taper_type)
+        taper = construct_taper(iend_d - istart_d, taper_type=taper_type)
 
         v1_array[_win_idx] = dt * _diff_energy_(obsd.data[istart_d:iend_d],
                                                 synt.data[istart_s:iend_s],

@@ -10,7 +10,7 @@ import matplotlib.gridspec as gridspec
 from mpl_toolkits.basemap import Basemap
 from matplotlib.patches import Rectangle
 from obspy.geodetics import gps2dist_azimuth
-from obspy.imaging.beachball import Beach
+from obspy.imaging.beachball import beach
 
 from . import logger
 from .util import _get_cmt_par
@@ -299,7 +299,7 @@ class PlotInvSummary(object):
         # get moment tensor
         mt = [cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp, cmt.m_tp]
         # plot beach ball
-        b = Beach(mt, linewidth=1, xy=(0, 0.6), width=1, size=2,
+        b = beach(mt, linewidth=1, xy=(0, 0.6), width=1, size=2,
                   facecolor='r')
         ax.add_collection(b)
         # set axis
@@ -327,7 +327,7 @@ class PlotInvSummary(object):
         # get moment tensor
         mt = [cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp, cmt.m_tp]
         # plot beach ball
-        b = Beach(mt, linewidth=1, xy=(0, 0.6), width=1, size=2,
+        b = beach(mt, linewidth=1, xy=(0, 0.6), width=1, size=2,
                   facecolor='r')
         ax.add_collection(b)
         # set axis
@@ -484,7 +484,7 @@ class PlotInvSummary(object):
         cmt_lon = self.cmtsource.longitude
         focmecs = _get_cmt_par(self.cmtsource)[:6]
         ax = plt.gca()
-        bb = Beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1,
+        bb = beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1,
                    alpha=1.0)
         bb.set_zorder(10)
         ax.add_collection(bb)

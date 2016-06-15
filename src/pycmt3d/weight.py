@@ -6,7 +6,7 @@ import numpy as np
 from spaceweight import SphereAziBin, Point
 from . import logger
 from .util import distance, get_window_idx
-from .measure import _energy_
+from .measure import _energy_, _envelope
 from .data_container import MetaInfo
 
 
@@ -28,15 +28,30 @@ def calculate_energy_weighting(trwin, mode="window"):
     obsd = trwin.datalist["obsd"]
     dt = obsd.stats.delta
     win_idx = get_window_idx(trwin.windows, dt)
-    energy = np.zeros(trwin.nwindows)
+    wav_energy = np.zeros(trwin.nwindows)
+    env_energy = np.zeros(trwin.nwindows)
+
     if mode == "all":
         average_energy = _energy_(obsd.data) / obsd.stats.npts
-        energy = \
+        wav_energy = \
+            average_energy * (win_idx[:, 1] - win_idx[:, 0]) * dt
+        average_energy = _energy_(_envelope(obsd.data)) / obsd.stats.npts
+        env_energy = \
             average_energy * (win_idx[:, 1] - win_idx[:, 0]) * dt
     elif mode == "window":
         for idx, _win in enumerate(win_idx):
-            energy[idx] = _energy_(obsd.data[_win[0]:_win[1]]) * dt
-    return energy
+            wav_energy[idx] = \
+                _energy_(obsd.data[_win[0]:_win[1]]) * dt
+            env_energy[idx] = \
+                _energy_(_envelope(obsd.data[_win[0]:_win[1]])) * dt
+    return wav_energy, env_energy
+
+
+def setup_energy_weight(metas, data_container):
+    for meta, trwin in zip(metas, data_container):
+        we, ee = calculate_energy_weighting(trwin, mode="all")
+        meta.prov['wav_energy'] = we
+        meta.prov['env_energy'] = ee
 
 
 class Weight(object):
@@ -91,9 +106,6 @@ class Weight(object):
             # components(Z, R, T)
             self.setup_weight_for_component()
 
-        if self.config.normalize_by_energy:
-            self.normalize_weight_by_energy()
-
         self.normalize_weight()
 
         logger.debug("Detailed Weighting information")
@@ -111,12 +123,6 @@ class Weight(object):
         factor = self.data_container.nwindows / weight_sum
         for meta in self.metas:
             meta.weights *= factor
-
-    def normalize_weight_by_energy(self):
-        for meta, trwin in zip(self.metas, self.data_container):
-            energy = calculate_energy_weighting(trwin, mode="all")
-            meta.weights /= energy
-            meta.prov['energy_factor'] = energy
 
     def sort_into_category(self):
         """

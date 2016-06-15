@@ -10,13 +10,13 @@ from .util import _float_array_to_str
 from .constant import DEFAULT_SCALE_VECTOR, NM, NML, PARLIST
 
 
-class WeightConfig(object):
+class WeightConfigBase(object):
     """
     Base class of weight config. Shouldn't be used for most cases.
     Since we introduce complex weighting strategies here, so I think
     it might be worth to seperate WeightConfig from the Config.
     """
-    def __init__(self, mode="default", normalize_by_energy=False,
+    def __init__(self, mode, normalize_by_energy=False,
                  normalize_by_category=False):
         self.mode = mode.lower()
         self.normalize_by_energy = normalize_by_energy
@@ -33,7 +33,17 @@ class WeightConfig(object):
         return self.__repr__()
 
 
-class DefaultWeightConfig(WeightConfig):
+class WeightConfig(WeightConfigBase):
+    def __init__(self, normalize_by_energy=False,
+                 normalize_by_category=False,
+                 azi_bins=12, azi_exp_idx=0.5):
+        WeightConfigBase.__init__(
+            self, "classic", normalize_by_energy=normalize_by_energy,
+            normalize_by_category=normalize_by_category)
+        self.azi_bins = azi_bins
+        self.azi_exp_idx = azi_exp_idx
+
+class DefaultWeightConfig(WeightConfigBase):
     """
     Weight config in original CMT3D packages
     """
@@ -43,7 +53,7 @@ class DefaultWeightConfig(WeightConfig):
                  rayleigh_dist_weight=0.55,
                  azi_exp_idx=0.5, azi_bins=12,
                  ref_dist=1.0):
-        WeightConfig.__init__(self, mode="default",
+        WeightConfig.__init__(self, "default",
                               normalize_by_energy=normalize_by_energy,
                               normalize_by_category=normalize_by_category)
         self.comp_weight = comp_weight

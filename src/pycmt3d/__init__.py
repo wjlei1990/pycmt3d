@@ -15,5 +15,5 @@ logger.addHandler(ch)
 
 from .source import CMTSource  # NOQA
 from .data_container import DataContainer, MetaInfo  # NOQA
-from .config import DefaultWeightConfig, Config  # NOQA
+from .config import DefaultWeightConfig, WeightConfig, Config  # NOQA
 from .cmt3d import Cmt3D  # NOQA

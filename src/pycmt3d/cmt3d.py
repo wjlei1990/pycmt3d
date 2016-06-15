@@ -13,7 +13,7 @@ from .measure import compute_derivatives, calculate_variance_on_trace
 from .measure import compute_new_syn_on_trwin
 from .plot_util import plot_seismograms, PlotInvSummary, PlotStats
 from .data_container import MetaInfo
-from .weight import Weight
+from .weight import Weight, setup_energy_weight
 from .constant import NPARMAX
 from .solver import solver
 from .log_util import print_inversion_summary
@@ -122,6 +122,8 @@ class Cmt3D(object):
             meta.weights = weight_meta.weights
             meta.prov.update(weight_meta.prov)
 
+        setup_energy_weight(self.metas, self.data_container)
+
     def _init_metas(self):
         """
         Initialize the self.metas list. Keep the same order with the
@@ -174,6 +176,54 @@ class Cmt3D(object):
 
         return generate_newcmtsource(self.cmtsource, new_cmt_par)
 
+    def _ensemble_measurements(self):
+        """ ensemble measurements from each window """
+        npar = self.config.npar
+        Aw_all = np.zeros([npar, npar])
+        bw_all = np.zeros(npar)
+        Ae_all = np.zeros([npar, npar])
+        be_all = np.zeros(npar)
+        # ensemble matrix and measurement
+        total_wav_energy = 0
+        total_env_energy = 0
+        for _meta in self.metas:
+            if self.config.weight_config.normalize_by_energy:
+                wav_weight = _meta.weights / _meta.prov["wav_energy"]
+                env_weight = _meta.weights / _meta.prov["env_energy"]
+                Aw = sum_matrix(_meta.Aws, coef=wav_weight)
+                bw = sum_matrix(_meta.bws, coef=wav_weight)
+                Ae = sum_matrix(_meta.Aes, coef=env_weight)
+                be = sum_matrix(_meta.bes, coef=env_weight)
+            else:
+                Aw = sum_matrix(_meta.Aws, coef=_meta.weights)
+                bw = sum_matrix(_meta.bws, coef=_meta.weights)
+                Ae = sum_matrix(_meta.Aes, coef=_meta.weights)
+                be = sum_matrix(_meta.bes, coef=_meta.weights)
+            total_wav_energy += sum(_meta.prov["wav_energy"])
+            total_env_energy += sum(_meta.prov["env_energy"])
+
+            Aw_all += Aw
+            bw_all += bw
+            Ae_all += Ae
+            be_all += be
+
+        # ratio between waveform energy and envelope energy
+        cat_ratio = total_wav_energy / total_env_energy
+        logger.debug("total waveform and envelope energy, ratio: %e, %e, %f"
+                     % (total_wav_energy, total_env_energy, cat_ratio))
+
+        ecoef = self.config.envelope_coef
+        if self.config.weight_config.normalize_by_energy:
+            A_all = (1 - ecoef) * Aw_all + ecoef * Ae_all
+            b_all = (1 - ecoef) * bw_all + ecoef * be_all
+        else:
+            A_all = (1 - ecoef) * Aw_all + \
+                ecoef * Ae_all * cat_ratio
+            b_all = (1 - ecoef) * bw_all + \
+                ecoef * be_all * cat_ratio
+
+        return Aw_all, bw_all, Ae_all, be_all, A_all, b_all
+
     def invert_cmt(self):
         """
         ensemble all measurements together to form Matrix A and vector
@@ -186,43 +236,27 @@ class Cmt3D(object):
         logger.info("CMT Inversion")
         logger.info("*"*15)
 
-        npar = self.config.npar
-        Aw_all = np.zeros([npar, npar])
-        bw_all = np.zeros(npar)
-        Ae_all = np.zeros([npar, npar])
-        be_all = np.zeros(npar)
-        # ensemble A and b
-        for _meta in self.metas:
-            Aw = sum_matrix(_meta.Aws, coef=_meta.weights)
-            bw = sum_matrix(_meta.bws, coef=_meta.weights)
-            Ae = sum_matrix(_meta.Aes, coef=_meta.weights)
-            be = sum_matrix(_meta.bes, coef=_meta.weights)
-            Aw_all += Aw
-            bw_all += bw
-            Ae_all += Ae
-            be_all += be
+        Aw_all, bw_all, Ae_all, be_all, A_all, b_all = \
+            self._ensemble_measurements()
 
-        ecoef = self.config.envelope_coef
-        A_all = (1 - ecoef) * Aw_all + ecoef * Ae_all
-        b_all = (1 - ecoef) * bw_all + ecoef * be_all
-
-        logger.info("Inversion Matrix A(with scaled cmt perturbation) is "
-                    "as follows:")
-        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, A_all))))
         logger.info("Inversion Matrix Aw(with scaled cmt perturbation) is "
                     "as follows:")
         logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, Aw_all))))
+        logger.info("bw_all: [%s]" % (_float_array_to_str(bw_all)))
         logger.info("Inversion Matrix Ae(with scaled cmt perturbation) is "
                     "as follows:")
         logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, Ae_all))))
+        logger.info("be_all: [%s]" % (_float_array_to_str(be_all)))
+        logger.info("Inversion Matrix A(with scaled cmt perturbation) is "
+                    "as follows:")
+        logger.info("\n%s" % ('\n'.join(map(_float_array_to_str, A_all))))
+        logger.info("b_all: [%s]" % (_float_array_to_str(b_all)))
         logger.info("Condition number of A: %10.2f" % (np.linalg.cond(A_all)))
         logger.info("RHS vector b(with scaled cmt perturbation) is "
                     "as follows:")
 
-        logger.info("b_all")
-        logger.info(b_all)
-        logger.info("[%s]" % (_float_array_to_str(b_all)))
-
+        ecoef = self.config.envelope_coef
+        logger.info("waveform and envelope coef: %f, %f" % (1 - ecoef, ecoef))
         # source inversion
         logger.info("-" * 10 + " inversion " + "-" * 10)
         self.new_cmtsource = self.invert_solver(
@@ -438,7 +472,7 @@ class Cmt3D(object):
                 "no_normener"
         else:
             prefix = "%dp_%s.%s" % (
-                self.config.npar, constr_str, self.config.norm_mode)
+                self.config.npar, constr_str, "normener")
 
         if not self.config.weight_config.normalize_by_category:
             prefix += ".no_normcat"
