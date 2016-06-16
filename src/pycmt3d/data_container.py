@@ -350,7 +350,7 @@ class DataContainer(Sequence):
             raise TypeError("asdf_file_dict should be dictionary. Key from "
                             "parlist and value is the asdf file name")
 
-        necessary_keys = ["obsd", "synt"] + self.parlist
+        necessary_keys = ["obsd", "synt"] + list(self.parlist)
         for key in necessary_keys:
             if key not in asdf_file_dict.keys():
                 raise ValueError("key(%s) in parlist is not in "
@@ -443,6 +443,8 @@ class DataContainer(Sequence):
             for _sta, _channel in content.iteritems():
                 for _chan_win in _channel.itervalues():
                     num_wins = len(_chan_win)
+                    if num_wins <= 0:
+                        continue
                     obsd_id = _chan_win[0]["channel_id"]
                     synt_id = _chan_win[0]["channel_id_2"]
                     win_time = np.zeros([num_wins, 2])
@@ -454,10 +456,10 @@ class DataContainer(Sequence):
                             win_weight[_idx] = _win["initial_weighting"]
                         else:
                             win_weight[_idx] = initial_weight
-                    trace_obj = TraceWindow(win_time=win_time,
-                                            obsd_id=obsd_id,
-                                            synt_id=synt_id,
-                                            init_weight=win_weight)
+                    path_dict = {"obsd": obsd_id, "synt": synt_id}
+                    trace_obj = TraceWindow(windows=win_time,
+                                            init_weight=win_weight,
+                                            path_dict=path_dict)
                     trwins.append(trace_obj)
         return trwins
 
@@ -541,23 +543,25 @@ class DataContainer(Sequence):
         trace_obj.datalist = dict()
         trace_obj.tags = dict()
 
+        obsd_id = trace_obj.path_dict["obsd"]
+        synt_id = trace_obj.path_dict["synt"]
         trace_obj.datalist['obsd'], trace_obj.tags['obsd'] = \
-            self._get_trace_from_asdf(trace_obj.obsd_id, asdf_ds['obsd'],
+            self._get_trace_from_asdf(obsd_id, asdf_ds['obsd'],
                                       obsd_tag)
         trace_obj.datalist['synt'], trace_obj.tags['synt'] = \
-            self._get_trace_from_asdf(trace_obj.synt_id, asdf_ds['synt'],
+            self._get_trace_from_asdf(synt_id, asdf_ds['synt'],
                                       synt_tag)
 
         for deriv_par in self.parlist:
             trace_obj.datalist[deriv_par], trace_obj.tags[deriv_par] = \
-                self._get_trace_from_asdf(trace_obj.synt_id,
+                self._get_trace_from_asdf(synt_id,
                                           asdf_ds[deriv_par],
                                           synt_tag)
 
         # load station information
         if station_dict is None:
             trace_obj.latitude, trace_obj.longitude = \
-                self._get_station_loc_from_asdf(trace_obj.obsd_id,
+                self._get_station_loc_from_asdf(obsd_id,
                                                 asdf_ds['synt'])
         else:
             key = "_".join([trace_obj.network, trace_obj.station])
