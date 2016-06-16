@@ -18,6 +18,9 @@ import numpy as np
 import obspy
 import pytest
 from pycmt3d.data_container import MetaInfo, TraceWindow, DataContainer
+from pycmt3d.data_container import load_winfile_json, load_winfile_txt
+from pycmt3d.data_container import load_station_from_text
+from pycmt3d.data_container import _calibrate_window_time_for_sac
 import numpy.testing as npt
 
 
@@ -82,6 +85,20 @@ def test_DataContainer_simple():
 
 
 def test_load_winfile_txt():
+    WINDOW_FILE = os.path.join(DATA_DIR,
+                               "flexwin_T006_T030.output.two_stations")
+    trwins = load_winfile_txt(WINDOW_FILE)
+    assert len(trwins) == 2
+
+
+def test_load_winfile_json():
+    WINDOW_FILE = os.path.join(DATA_DIR,
+                               "windows.example.json")
+    trwins = load_winfile_json(WINDOW_FILE)
+    assert len(trwins) == 1
+
+
+def test_load_winfile_txt_to_dcon():
     WINDOW_FILE = os.path.join(DATA_DIR, "flexwin_T006_T030.output.weight")
     dcon = DataContainer()
 
@@ -95,3 +112,32 @@ def test_load_winfile_txt():
     npt.assert_allclose(traces[1].init_weight, [0.60, 2.00])
 
     assert dcon._get_counts(traces) == (2, 3)
+
+
+def test_load_station_from_text():
+    stationfile = os.path.join(DATA_DIR, "STATIONS")
+
+    stations = load_station_from_text(stationfile)
+    assert len(stations) == 2
+
+
+def test_calibrate_window_time_for_sac():
+
+    obsd = obspy.read(os.path.join(OBSD_DIR, "GSC.CI.BHZ.sac.d"))[0]
+    synt = obspy.read(os.path.join(SYNT_DIR, "GSC.CI.BHZ"))[0]
+    datalist = {"obsd": obsd, "synt": synt}
+    tags = {"obsd": "T006_T030", "synt": "T006_T030"}
+
+    win_time = np.array([[7.545, 46.1450], [50.0, 60.0]])
+    weight = np.ones(win_time.shape[0])
+    trwin = TraceWindow(datalist=datalist, windows=win_time,
+                        init_weight=weight,
+                        latitude=0.0, longitude=10.0,
+                        tags=tags, source="SAC")
+
+    npt.assert_allclose(trwin.windows[0], [7.545, 46.1450])
+    npt.assert_allclose(trwin.windows[1], [50.0, 60.0])
+
+    _calibrate_window_time_for_sac(trwin)
+    npt.assert_allclose(trwin.windows[0], [32.550, 71.150])
+    npt.assert_allclose(trwin.windows[1], [75.005, 85.005])

@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Class for source inversion
 
+:copyright:
+    Wenjie Lei (lei@princeton.edu), 2016
+:license:
+    GNU Lesser General Public License, version 3 (LGPLv3)
+    (http://www.gnu.org/licenses/lgpl-3.0.en.html)
+"""
 from __future__ import (print_function, division, absolute_import)
 import os
 import numpy as np
@@ -81,6 +89,10 @@ class Cmt3D(object):
         self.std_over_mean = np.zeros(self.par_mean.shape)
 
         self.print_cmtsource_summary()
+
+        self.new_cmtsource = None
+        self.new_cmtsource_waveform = None
+        self.new_cmtsource_envelope = None
 
     @property
     def cmt_par(self):
@@ -276,14 +288,16 @@ class Cmt3D(object):
 
         :return:
         """
+        ntrwins = len(self.data_container)
         A_bootstrap = []
         b_bootstrap = []
-        n_subset = int(self.config.bootstrap_subset_ratio * self.nwins)
+        n_subset = \
+            int(self.config.bootstrap_subset_ratio * ntrwins)
         for i in range(self.config.bootstrap_repeat):
             random_array = random_select(
-                self.nwins, sample_number=n_subset)
-            A = sum_matrix(random_array * self.weight_array, self.A1_all)
-            b = sum_matrix(random_array * self.weight_array, self.b1_all)
+                ntrwins, nselected=n_subset)
+            A = sum_matrix(random_array * self.weight_array, self.A_all)
+            b = sum_matrix(random_array * self.weight_array, self.b_all)
             A_bootstrap.append(A)
             b_bootstrap.append(b)
 
@@ -333,9 +347,6 @@ class Cmt3D(object):
         var_all = 0.0
         var_all_new = 0.0
 
-        self.stats_before = {}
-        self.stats_after = {}
-
         self.compute_new_syn()
 
         # calculate metrics for each trwin
@@ -370,19 +381,6 @@ class Cmt3D(object):
         self.var_all = var_all
         self.var_all_new = var_all_new
         self.var_reduction = (var_all - var_all_new) / var_all
-
-    def calculate_kai_total_value(self):
-        """
-        Calculate the sum of kai value
-
-        :return:
-        """
-        kai_before = {}
-        kai_after = {}
-        for tag in self.stats_before.keys():
-            kai_before[tag] = np.sum(self.stats_before[tag][:, -1])
-            kai_after[tag] = np.sum(self.stats_after[tag][:, -1])
-        return kai_before, kai_after
 
     def compute_new_syn(self):
         """
@@ -509,7 +507,7 @@ class Cmt3D(object):
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 
-        if 'new_synt' not in self.data_container.traces[0].datalist.keys():
+        if 'new_synt' not in self.data_container.trwins[0].datalist.keys():
             raise ValueError("new synt not computed yet")
 
         eventname = self.cmtsource.eventname
@@ -521,6 +519,8 @@ class Cmt3D(object):
             constr_str = "no_constr"
         suffix = "%dp_%s" % (self.config.npar, constr_str)
 
-        self.data_container.write_new_syn_file(
-            file_format=file_format, outputdir=outputdir, eventname=eventname,
-            suffix=suffix)
+        if file_format == "sac":
+            self.data_container.write_new_synt_sac(outputdir=outputdir)
+        elif file_format == "asdf":
+            fn = os.path.join(outputdir, "%s.%s.h5" % (eventname, suffix))
+            self.data_container.write_new_synt_asdf(filename=fn)

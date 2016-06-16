@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
-Weight and inversion Configuration for pycmt3d
+Config classes for weighting and inversion
+
+:copyright:
+    Wenjie Lei (lei@princeton.edu), 2016
+:license:
+    GNU Lesser General Public License, version 3 (LGPLv3)
+    (http://www.gnu.org/licenses/lgpl-3.0.en.html)
 """
 from __future__ import print_function, division, absolute_import
 import numpy as np
@@ -43,13 +48,22 @@ class WeightConfig(WeightConfigBase):
         self.azi_bins = azi_bins
         self.azi_exp_idx = azi_exp_idx
 
+    def __repr__(self):
+        string = "Weight Strategy:\n"
+        string += "mode: %s\n" % self.mode
+        string += "normalize_by_energy: %s\n" % self.normalize_by_energy
+        string += "normalize_by_category: %s\n" % self.normalize_by_category
+        string += "Azimuth bins and exp index: %d, %f" % (self.azi_bins,
+                                                          self.azi_exp_idx)
+        return string
+
 
 class DefaultWeightConfig(WeightConfigBase):
     """
     Weight config in original CMT3D packages
     """
     def __init__(self, normalize_by_energy=False, normalize_by_category=False,
-                 comp_weight={"Z": 2.0, "R": 1.0, "T": 2.0},
+                 comp_weight=None,
                  love_dist_weight=0.78, pnl_dist_weight=1.15,
                  rayleigh_dist_weight=0.55,
                  azi_exp_idx=0.5, azi_bins=12,
@@ -57,13 +71,16 @@ class DefaultWeightConfig(WeightConfigBase):
         WeightConfigBase.__init__(self, "default",
                                   normalize_by_energy=normalize_by_energy,
                                   normalize_by_category=normalize_by_category)
-        self.comp_weight = comp_weight
+        if comp_weight is None:
+            self.comp_weight = {"Z": 2.0, "R": 1.0, "T": 2.0}
+        else:
+            self.comp_weight = comp_weight
+
         self.love_dist_weight = love_dist_weight
         self.pnl_dist_weight = pnl_dist_weight
         self.rayleigh_dist_weight = rayleigh_dist_weight
         self.azi_exp_idx = azi_exp_idx
         self.azi_bins = azi_bins
-
         self.ref_dist = ref_dist
 
     def __repr__(self):
@@ -72,7 +89,7 @@ class DefaultWeightConfig(WeightConfigBase):
         string += "normalize_by_energy: %s\n" % self.normalize_by_energy
         string += "normalize_by_category: %s\n" % self.normalize_by_category
         string += "component weight: %s\n" % self.comp_weight
-        string += "pnl, rayleigh and love distance weights: %s\n" % (
+        string += "pnl, rayleigh and love distance weights: %f, %f, %f\n" % (
             self.pnl_dist_weight, self.rayleigh_dist_weight,
             self.love_dist_weight)
         string += "number of azimuth bins: %d\n" % self.azi_bins
@@ -84,34 +101,42 @@ class Config(object):
     """
     Configuration for source inversion
 
-    :param npar: number of parameters to be inverted
-    :param dlocation: location perturbation when calculated perturbed
-        synthetic data
-    :param ddepth: depth perturbation
-    :param dmoment: moment perturbation
-    :param weight_data: bool value of weighting data
-    :param weight_function: weighting function
-    :param normalize_window: add window energy into the weighting term
-    :param norm_mode: two modes: 1) "data_and_synt" 2) "data_only"
-    :param station_correction: bool value of whether applies station correction
-    :param zero_trace: bool value of whether applies zero-trace constraint
-    :param double_couple: bool value of whether applied double-couple
-        constraint
-    :param damping: damping coefficient
-    :param bootstrap: bool value of whether applied bootstrap method
-    :param bootstrap_repeat: bootstrap iterations
+
     """
 
     def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 scale_vector=None, zero_trace=True,
-                 envelope_coef=0.5,
-                 double_couple=False, max_nl_iter=60,
-                 damping=0.0,
-                 station_correction=True,
+                 scale_vector=None, zero_trace=True, double_couple=False,
+                 envelope_coef=0.5,  max_nl_iter=60,
+                 damping=0.0, station_correction=True,
                  weight_data=True, weight_config=None,
                  bootstrap=True, bootstrap_repeat=300,
                  bootstrap_subset_ratio=0.4,
                  taper_type="tukey"):
+        """
+        :param npar: number of parameters to be inverted
+        :param dlocation: location perturbation when calculated perturbed
+            synthetic data, unit is degree
+        :param ddepth: depth perturbation, unit is meter
+        :param dmoment: moment perturbation, unit is dyne * cm
+        :param scale_vector: the scaling vector for d***. If none, then
+            it will use the default
+        :param zero_trace: bool value of whether applies zero-trace constraint
+        :param double_couple: bool value of whether applied double-couple
+            constraint
+        :param envelope_coef: the coefficient of envelope misfit function,
+            should be within [0, 1]
+        :param max_nl_iter: max number of non-linear iterations
+        :param damping: damping coefficient
+        :param station_correction: bool value of whether applies station
+            correction
+        :param weight_data: bool value of weighting data
+        :param weight_config: the weighting configuration
+        :param bootstrap: bool value of whether applied bootstrap method
+        :param bootstrap_repeat: bootstrap iterations
+        :param bootstrap_subset_ratio: the subset ratio for bootstrap runs
+        :param taper_type: the taper type used for taper the seismograms
+            in the windows
+        """
 
         _options = [6, 7, 9, 10, 11]
         if npar not in _options:

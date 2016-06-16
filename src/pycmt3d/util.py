@@ -2,6 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 General util functions
+
+:copyright:
+    Wenjie Lei (lei@princeton.edu), 2016
+:license:
+    GNU Lesser General Public License, version 3 (LGPLv3)
+    (http://www.gnu.org/licenses/lgpl-3.0.en.html)
 """
 from __future__ import print_function, division, absolute_import
 import json
@@ -41,9 +47,9 @@ def get_window_idx(win_time, dt):
     """
     Get window index from window time and dt
     """
-    def _get_win_idx(win, dt):
-        istart = int(win[0] / dt)
-        iend = int(win[1] / dt)
+    def _get_win_idx(win, delta):
+        istart = int(win[0] / delta)
+        iend = int(win[1] / delta)
         if istart < 0:
             raise ValueError("Start index(%d) smaller than 0")
         if istart >= iend:

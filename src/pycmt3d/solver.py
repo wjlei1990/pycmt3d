@@ -1,5 +1,13 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-Linear and non-linear solver for source inversion
+Solver functions
+
+:copyright:
+    Wenjie Lei (lei@Princeton.EDU), 2015
+:license:
+    GNU Lesser General Public License, Version 3
+    (http://www.gnu.org/copyleft/lgpl.html)
 """
 from __future__ import print_function, division, absolute_import
 import numpy as np

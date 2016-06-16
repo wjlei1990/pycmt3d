@@ -12,17 +12,18 @@ Methods that contains utils for adjoint sources
 from __future__ import (print_function, division, absolute_import)
 import time
 import os
+from collections import defaultdict
 import json
 import numpy as np
 from obspy import read
 from . import logger
 from collections import Sequence
 
+from .constant import PARLIST
 try:
     from pyasdf import ASDFDataSet
 except ImportError:
     print("Can not import pyasdf. ASDF not supported then")
-from .constant import PARLIST
 
 
 class MetaInfo(object):
@@ -32,8 +33,21 @@ class MetaInfo(object):
     raw traces and window information. All measurments will be kept
     in MetaInfo
     """
+
     def __init__(self, obsd_id=None, synt_id=None, weights=None,
                  Aws=None, bws=None, Aes=None, bes=None, prov=None):
+        """
+        :param obsd_id: observed trace id
+        :param synt_id: synthetic trace id
+        :param weights: window weights information
+        :param Aws: matrix A of each window based on waveform misfit
+        :param bws: vector b of each window based on waveform misfit
+        :param Aes: matrix A of each window based on envelope misfit
+        :param bes: vector b of each window based on envelope misfit
+        :param prov: provenance(and other information) associated with
+            traces and windows
+        :return:
+        """
         self.obsd_id = obsd_id
         self.synt_id = synt_id
         self.weights = weights
@@ -71,6 +85,18 @@ class TraceWindow(object):
                  tags=None, source=None,
                  path_dict=None):
         """
+        :param datalist: the datalist keeping all the traces
+        :type datalist: dict
+        :param windows: window time information
+        :param init_weight: initial weight
+        :param longitude: longitude of the stations
+        :param latitude: latitude of the stations
+        :param tags: tags assigned, could be used to label the category
+        :param source: the original source of trace data, could be from
+            "sac" or "asdf"
+        :param path_dict: path dict to keep the path information of sac file
+            or trace.id in asdf
+        :return:
         """
         if datalist is None:
             self.datalist = {}
@@ -81,11 +107,11 @@ class TraceWindow(object):
                             "{'obsd': obspy.Trace, 'synt': obspy.Trace, ...}")
 
         if windows is None:
-            self.windows = np.array([])    # window time
+            self.windows = np.array([])  # window time
         else:
             self.windows = np.array(windows)
 
-        self.init_weight = init_weight        # window initial weight
+        self.init_weight = init_weight  # window initial weight
 
         # station location
         self.latitude = latitude
@@ -115,12 +141,12 @@ class TraceWindow(object):
 
     def __repr__(self):
         string = "TraceWindow(id: %s -- tag:%s -- source:%s):\n" \
-            % (self.obsd_id, self.tags['obsd'], self.source)
+                 % (self.obsd_id, self.tags['obsd'], self.source)
         string += "\tTraces from %s\n" % self.datalist.keys()
         string += "\tNumber of Windows:%d\n" % len(self.windows)
         string += "\tWindow time: %s\n" % self.windows
         string += "\tStation latitude and longitude: [%s, %s]\n" \
-            % (self.latitude, self.longitude)
+                  % (self.latitude, self.longitude)
         return string
 
     @property
@@ -182,21 +208,137 @@ class TraceWindow(object):
         obsd = self.datalist['obsd']
         dt = obsd.stats.delta
         for _idx in range(self.nwindows):
-            istart = int(self.windows[_idx, 0]/dt)
-            iend = int(self.windows[_idx, 1]/dt)
+            istart = int(self.windows[_idx, 0] / dt)
+            iend = int(self.windows[_idx, 1] / dt)
             if iend - istart <= 1:
                 raise ValueError("Window length < 1, incorrect!")
-            energy[_idx] = np.sum(obsd.data[istart:iend]**2*dt)
+            energy[_idx] = np.sum(obsd.data[istart:iend] ** 2 * dt)
         return energy
+
+
+def load_winfile_txt(flexwin_file, initial_weight=1.0):
+    """
+    Read the txt format of  window file(see the documentation
+    online).
+
+    :param flexwin_file:
+    :param initial_weight:
+    :return:
+    """
+    trwins = []
+    with open(flexwin_file, "r") as f:
+        try:
+            ntrwins = int(f.readline().strip())
+        except Exception as err:
+            raise ValueError("Error load in flexwin_file(%s) due to: %s"
+                             % (flexwin_file, err))
+        if ntrwins == 0:
+            logger.warning("Nothing in flexwinfile: %s" % flexwin_file)
+            return []
+
+        for idx in range(ntrwins):
+            # keep the old format of cmt3d input
+            obsd_path = f.readline().strip()
+            synt_path = f.readline().strip()
+            path_dict = {"obsd": obsd_path, "synt": synt_path}
+            nwindows = int(f.readline().strip())
+            win_time = np.zeros((nwindows, 2))
+            win_weight = np.zeros(nwindows)
+            for iwin in range(nwindows):
+                content = f.readline().strip().split()
+                win_time[iwin, 0] = float(content[0])
+                win_time[iwin, 1] = float(content[1])
+                if len(content) == 3:
+                    win_weight[iwin] = float(content[2])
+                else:
+                    win_weight[iwin] = initial_weight
+            trace_obj = TraceWindow(windows=win_time,
+                                    init_weight=win_weight,
+                                    path_dict=path_dict)
+            trwins.append(trace_obj)
+    return trwins
+
+
+def load_winfile_json(flexwin_file, initial_weight=1.0):
+    """
+    Read the json format of window file
+
+    :param flexwin_file:
+    :param initial_weight:
+    :return:
+    """
+    trwins = []
+    with open(flexwin_file, 'r') as fh:
+        content = json.load(fh)
+        for _sta, _channel in content.iteritems():
+            for _chan_win in _channel.itervalues():
+                num_wins = len(_chan_win)
+                if num_wins <= 0:
+                    continue
+                obsd_id = _chan_win[0]["channel_id"]
+                synt_id = _chan_win[0]["channel_id_2"]
+                win_time = np.zeros([num_wins, 2])
+                win_weight = np.zeros(num_wins)
+                for _idx, _win in enumerate(_chan_win):
+                    win_time[_idx, 0] = _win["relative_starttime"]
+                    win_time[_idx, 1] = _win["relative_endtime"]
+                    if "initial_weighting" in _win.keys():
+                        win_weight[_idx] = _win["initial_weighting"]
+                    else:
+                        win_weight[_idx] = initial_weight
+                path_dict = {"obsd": obsd_id, "synt": synt_id}
+                trace_obj = TraceWindow(windows=win_time,
+                                        init_weight=win_weight,
+                                        path_dict=path_dict)
+                trwins.append(trace_obj)
+    return trwins
+
+
+def _calibrate_window_time_for_sac(trace_obj):
+    """
+    In the old FLEXWIN, it uses relative time(compared to CMT time).
+    Here, we count window time from the first point. So window time
+    should be calibrated using the "b" header value in sac header
+    """
+    b_tshift = trace_obj.datalist["obsd"].stats.sac['b']
+    for _ii in range(trace_obj.nwindows):
+        for _jj in range(2):
+            trace_obj.windows[_ii, _jj] -= b_tshift
+            # WJL: not a good way
+            # trace_obj.win_time[_ii, _jj] = \
+            #    max(trace_obj.win_time[_ii, _jj], 0.0)
+            if trace_obj.windows[_ii, _jj] < 0:
+                raise ValueError("Window time(%s) of trace is "
+                                 "smaller than zero: %s"
+                                 % (trace_obj.obsd_id,
+                                    trace_obj.windows))
+
+
+def load_station_from_text(stationfile):
+    """
+        Load station information from specfem-like STATIONS file
+        """
+    station_dict = {}
+    with open(stationfile, 'r') as f:
+        content = f.readlines()
+        content = [line.rstrip('\n') for line in content]
+        for line in content:
+            info = line.split()
+            key = "_".join([info[1], info[0]])
+            station_dict[key] = \
+                [float(info[2]), float(info[3]), float(info[4])]
+    return station_dict
 
 
 class DataContainer(Sequence):
     """
     Class that contains methods that load data and window information
     """
+
     def __init__(self, parlist=None):
         """
-        :param parlist: derivative parameter name list
+        :param parlist: derivative parameter name list, the full list
+            is in constant.PARLIST
         """
         if parlist is None:
             parlist = []
@@ -206,11 +348,11 @@ class DataContainer(Sequence):
 
         self.parlist = parlist
         self.trwins = []
+
+        # stores the load information
         self._load_info = {}
         # store asdf dataset if asdf mode
         self._asdf_file_dict = None
-
-        self.__index = 0
 
     @staticmethod
     def _check_parlist(parlist):
@@ -221,6 +363,7 @@ class DataContainer(Sequence):
 
     @property
     def npar(self):
+        """ number of parameters """
         return len(self.parlist)
 
     def __len__(self):
@@ -228,6 +371,12 @@ class DataContainer(Sequence):
 
     def __getitem__(self, index):
         return self.trwins[index]
+
+    def __repr__(self):
+        string = "DataContainer(npar=%d, ntrace_pair=%d, nwindows=%d)" \
+                 % (self.npar, self.__len__(), self.nwindows)
+        string += "\nparlist: %s" % self.parlist
+        string += "\nLoad info: %s" % self._load_info
 
     @property
     def nwindows(self):
@@ -253,10 +402,28 @@ class DataContainer(Sequence):
                                   window_time_mode="relative_time",
                                   file_format="txt"):
         """
-        Add measurments(window and data) from the given flexwinfile
+        Add measurments(window and seismograms) from the given flexwinfile
         and the data format should be sac
 
-        :param flexwinfile:
+        :param flexwinfile: input flexwin file
+        :param tag: the tag given to the windows in the flexwinfile, usually
+            one flexwin is associated to one period band. So you can set the
+            tag as the period band, like "27_60s". The tag is used to sort
+            the windows into different categories.
+        :param initial_weight: the initial weight you assigned to the windows
+            in the flexwinfile.
+        :param external_stationfile: the external station file that provides
+            the coordinate of stations, if they are not in the sac header.
+            The stationfile should be in SPECFEM3D_globe fashion, with
+            columns "Station Network Latitude Longitude Elevation"
+        :param window_time_mode: this is legacy for older flexwin window
+            output:
+            1) "relative time": window time uses event time as reference(
+                event time as 0, which is old flexwin way(legacy).
+            2) "absolute_time": window time uses the first point in
+                seismograms as starting point, which is the better way
+                adopted in pyflex.
+        :param file_format: the file format of window file, "txt" or "json".
         :return:
         """
         t1 = time.time()
@@ -274,7 +441,7 @@ class DataContainer(Sequence):
 
         if external_stationfile is not None:
             station_info = \
-                self.load_station_from_text(external_stationfile)
+                load_station_from_text(external_stationfile)
         else:
             station_info = None
 
@@ -288,7 +455,7 @@ class DataContainer(Sequence):
         t2 = time.time()
         self._load_info[flexwinfile] = {"ntrwins": ntrwins, "nwindows": nwins,
                                         "elapsed_time": t2 - t1}
-        logger.info("="*10 + " Measurements Loading " + "="*10)
+        logger.info("=" * 10 + " Measurements Loading " + "=" * 10)
         logger.info("Data loaded in sac format: %s" % flexwinfile)
         logger.info("Elapsed time: %5.2f s" % (t2 - t1))
         logger.info("Number of trwins and windows added: [%d, %d]"
@@ -296,8 +463,8 @@ class DataContainer(Sequence):
 
     def add_measurements_from_asdf(self, flexwinfile, asdf_file_dict,
                                    obsd_tag=None, synt_tag=None,
-                                   external_stationfile=None,
                                    initial_weight=1.0,
+                                   external_stationfile=None,
                                    file_format="json"):
         """
         Add measurments(window and data) from the given flexwinfile and
@@ -305,8 +472,27 @@ class DataContainer(Sequence):
         obsd_tag=None and synt_tag=None unless if you have multiple tags in
         asdf file.
 
-        :param flexwinfile:
-        :param asdf_file_dict:
+        :param flexwinfile: input flexwin file. If load from asdf file,
+            the window time is assumed to start from the beginning of
+            the seismograms(time 0 means the first point).
+            There is no legacy mode here.
+        :param asdf_file_dict: the dictionary which provides the path
+            information of asdf file, for example:
+            {"obsd":"/path/obsd/asdf", "synt":"/path/synt/asdf",
+             "Mrr": "/path/Mrr/synt/asdf", ...}
+        :param obsd_tag: the obsd tag to retrieve the obsd trace from asdf
+            file. The tag is like "ds.waveforms.II_AAK.$tag". However, you
+            could leave this it to None if you only have one tagged
+            seismograms in an asdf file.
+        :param synt_tag: same as obsd_tag, used to retrieve the synthetic
+            seismograms.
+        :param initial_weight: the initial weight you assigned to the windows
+            in the flexwinfile.
+        :param external_stationfile: the external station file that provides
+            the coordinate of stations, if they are not in the sac header.
+            The stationfile should be in SPECFEM3D_globe fashion, with
+            columns "Station Network Latitude Longitude Elevation"
+        :param file_format: the file format of window file, "txt" or "json".
         :return:
         """
         t1 = time.time()
@@ -322,7 +508,7 @@ class DataContainer(Sequence):
         self._asdf_file_dict = asdf_file_dict
         if external_stationfile is not None:
             station_info = \
-                self.load_station_from_text(external_stationfile)
+                load_station_from_text(external_stationfile)
         else:
             station_info = None
 
@@ -338,7 +524,7 @@ class DataContainer(Sequence):
         self._load_info[flexwinfile] = {"ntrwins": ntrwins, "nwindows": nwins,
                                         "elapsed_time": t2 - t1}
 
-        logger.info("="*10 + " Measurements Loading " + "="*10)
+        logger.info("=" * 10 + " Measurements Loading " + "=" * 10)
         logger.info("Data loaded in asdf format: %s" % flexwinfile)
         logger.info("Elapsed time: %5.2f s" % (t2 - t1))
         logger.info("Number of trwins and windows added: [%d, %d]"
@@ -375,115 +561,15 @@ class DataContainer(Sequence):
                              % (file_format, _options))
 
         if file_format == "txt":
-            win_list = self.load_winfile_txt(flexwin_file,
-                                             initial_weight=initial_weight)
+            win_list = load_winfile_txt(flexwin_file,
+                                        initial_weight=initial_weight)
         elif file_format == "json":
-            win_list = self.load_winfile_json(flexwin_file,
-                                              initial_weight=initial_weight)
+            win_list = load_winfile_json(flexwin_file,
+                                         initial_weight=initial_weight)
         else:
             raise NotImplementedError("Window file format not support:"
                                       "%s" % file_format)
         return win_list
-
-    @staticmethod
-    def load_winfile_txt(flexwin_file, initial_weight=1.0):
-        """
-        Read the txt format of  window file(see the documentation
-        online).
-
-        :param flexwin_file:
-        :param initial_weight:
-        :return:
-        """
-        trwins = []
-        with open(flexwin_file, "r") as f:
-            try:
-                ntrwins = int(f.readline().strip())
-            except Exception as err:
-                raise ValueError("Error load in flexwin_file(%s) due to: %s"
-                                 % (flexwin_file, err))
-            if ntrwins == 0:
-                logger.warning("Nothing in flexwinfile: %s" % flexwin_file)
-                return []
-
-            for idx in range(ntrwins):
-                # keep the old format of cmt3d input
-                obsd_path = f.readline().strip()
-                synt_path = f.readline().strip()
-                path_dict = {"obsd": obsd_path, "synt": synt_path}
-                nwindows = int(f.readline().strip())
-                win_time = np.zeros((nwindows, 2))
-                win_weight = np.zeros(nwindows)
-                for iwin in range(nwindows):
-                    content = f.readline().strip().split()
-                    win_time[iwin, 0] = float(content[0])
-                    win_time[iwin, 1] = float(content[1])
-                    if len(content) == 3:
-                        win_weight[iwin] = float(content[2])
-                    else:
-                        win_weight[iwin] = initial_weight
-                trace_obj = TraceWindow(windows=win_time,
-                                        init_weight=win_weight,
-                                        path_dict=path_dict)
-                trwins.append(trace_obj)
-        return trwins
-
-    @staticmethod
-    def load_winfile_json(flexwin_file, initial_weight=1.0):
-        """
-        Read the json format of window file
-
-        :param flexwin_file:
-        :param initial_weight:
-        :return:
-        """
-        trwins = []
-        with open(flexwin_file, 'r') as fh:
-            content = json.load(fh)
-            for _sta, _channel in content.iteritems():
-                for _chan_win in _channel.itervalues():
-                    num_wins = len(_chan_win)
-                    if num_wins <= 0:
-                        continue
-                    obsd_id = _chan_win[0]["channel_id"]
-                    synt_id = _chan_win[0]["channel_id_2"]
-                    win_time = np.zeros([num_wins, 2])
-                    win_weight = np.zeros(num_wins)
-                    for _idx, _win in enumerate(_chan_win):
-                        win_time[_idx, 0] = _win["relative_starttime"]
-                        win_time[_idx, 1] = _win["relative_endtime"]
-                        if "initial_weighting" in _win.keys():
-                            win_weight[_idx] = _win["initial_weighting"]
-                        else:
-                            win_weight[_idx] = initial_weight
-                    path_dict = {"obsd": obsd_id, "synt": synt_id}
-                    trace_obj = TraceWindow(windows=win_time,
-                                            init_weight=win_weight,
-                                            path_dict=path_dict)
-                    trwins.append(trace_obj)
-        return trwins
-
-    @staticmethod
-    def __calibrate_window_time_for_sac(trace_obj):
-        """
-        In the old FLEXWIN, it uses relative time(compared to CMT time).
-        Here, we count window time from the first point. So window time
-        should be calibrated using the "b" header value in sac header
-        """
-        b_tshift = trace_obj.datalist["obsd"].stats.sac['b']
-        for _ii in range(trace_obj.nwindows):
-            for _jj in range(2):
-                trace_obj.windows[_ii, _jj] -= b_tshift
-                # WJL: not a good way
-                # trace_obj.win_time[_ii, _jj] = \
-                #    max(trace_obj.win_time[_ii, _jj], 0.0)
-        if trace_obj.windows[_ii, _jj] < 0:
-            for _jj in range(2):
-                if trace_obj.windows[_ii, _jj] < 0:
-                    raise ValueError("Window time(%s) of trace is "
-                                     "smaller than zero: %s"
-                                     % (trace_obj.obsd_id,
-                                        trace_obj.windows))
 
     def load_data_from_sac(self, trace_obj, tag=None, mode=None,
                            station_dict=None):
@@ -504,7 +590,7 @@ class DataContainer(Sequence):
 
         # calibrate window time if needed
         if mode == "relative_time":
-            self.__calibrate_window_time_for_sac(trace_obj)
+            _calibrate_window_time_for_sac(trace_obj)
 
         # synt
         trace_obj.datalist['synt'] = read(synt_path)[0]
@@ -554,8 +640,7 @@ class DataContainer(Sequence):
 
         for deriv_par in self.parlist:
             trace_obj.datalist[deriv_par], trace_obj.tags[deriv_par] = \
-                self._get_trace_from_asdf(synt_id,
-                                          asdf_ds[deriv_par],
+                self._get_trace_from_asdf(synt_id, asdf_ds[deriv_par],
                                           synt_tag)
 
         # load station information
@@ -646,22 +731,6 @@ class DataContainer(Sequence):
                            channel=channel)[0]
         return tr.copy(), tag
 
-    @staticmethod
-    def load_station_from_text(stationfile):
-        """
-        Load station information from specfem-like STATIONS file
-        """
-        station_dict = {}
-        with open(stationfile, 'r') as f:
-            content = f.readlines()
-            content = [line.rstrip('\n') for line in content]
-            for line in content:
-                info = line.split()
-                key = "_".join([info[1], info[0]])
-                station_dict[key] = \
-                    [float(info[2]), float(info[3]), float(info[4])]
-        return station_dict
-
     def write_new_synt_sac(self, outputdir):
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
@@ -710,12 +779,11 @@ class DataContainer(Sequence):
         """
         sort the new synthetic data to to solve reduante output
         """
-        new_synt_dict = {}
+        new_synt_dict = defaultdict(list)
         for trwin in self.trwins:
             tag = trwin.tags['synt']
-            if tag not in new_synt_dict.keys():
-                new_synt_dict[tag] = []
             new_synt_dict[tag].append(trwin)
+        return new_synt_dict
 
     @staticmethod
     def __add_staxml_from_other_asdf(ds, ds_sta):
@@ -737,7 +805,7 @@ class DataContainer(Sequence):
         nwins_r = 0
         nwins_t = 0
         nwins_z = 0
-        for window in self.stations:
+        for window in self.trwins:
             if window.component[2:3] == "R":
                 nfiles_r += 1
                 nwins_r += window.num_wins
@@ -752,13 +820,12 @@ class DataContainer(Sequence):
                     "Unrecognized compoent in windows: %s.%s.%s"
                     % (window.station, window.network, window.component))
 
-        logger.info("="*10 + "  Data Summary  " + "="*10)
+        logger.info("=" * 10 + "  Data Summary  " + "=" * 10)
         logger.info("Number of Deriv synt: %d" % len(self.parlist))
         logger.info("   Par: [%s]" % (', '.join(self.parlist)))
-        logger.info("Number of data pairs: %d" % self.nfiles)
+        logger.info("Number of data pairs: %d" % self.__len__())
         logger.info("   [Z, R, T] = [%d, %d, %d]"
                     % (nfiles_z, nfiles_r, nfiles_t))
-        logger.info("Number of windows: %d" % self.nwins)
+        logger.info("Number of windows: %d" % self.nwindows)
         logger.info("   [Z, R, T] = [%d, %d, %d]"
                     % (nwins_z, nwins_r, nwins_t))
-        logger.info("Loading takes %6.2f seconds" % self.elapse_time)

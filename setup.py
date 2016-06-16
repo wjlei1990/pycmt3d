@@ -5,7 +5,6 @@ pycmt3d - a Python package for 3-dimenional centroid moment inversion
 
 :copyright:
     Wenjie Lei (lei@Princeton.EDU), 2015
-    Xin Song (songxin@physics.utoronto.ca), 2015
 :license:
     GNU Lesser General Public License, Version 3
     (http://www.gnu.org/copyleft/lgpl.html)
@@ -80,7 +79,8 @@ setup(
     keywords=['seismology', 'cmt3d', 'moment tensor',
               'centroid moment inversion'],
     install_requires=[
-        "obspy>=1.0.0", "numpy", "future>=0.14.1", "flake8", "geographiclib"
+        "obspy>=1.0.0", "numpy", "future>=0.14.1", "flake8", "geographiclib",
+        "scipy"
     ],
     extras_require={
         "docs": ["sphinx"]

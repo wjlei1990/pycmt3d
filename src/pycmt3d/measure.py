@@ -2,6 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Measurement util functions
+
+:copyright:
+    Wenjie Lei (lei@princeton.edu), 2016
+:license:
+    GNU Lesser General Public License, version 3 (LGPLv3)
+    (http://www.gnu.org/licenses/lgpl-3.0.en.html)
 """
 from __future__ import print_function, division, absolute_import
 import numpy as np
@@ -366,8 +372,8 @@ def compute_envelope_matrix_theo(dsyn, obsd, synt, dt, win_idx, taper):
     syn_env = np.abs(syn_analytic)
     dsyn_hilbert = np.imag(hilbert(dsyn))
     env_derivss = \
-        ((syn_env) ** (-0.5)) * (syn_array[istart:iend] * dsyn +
-                                 syn_hilbert * dsyn_hilbert)
+        syn_env ** (-0.5) * (syn_array[istart:iend] * dsyn +
+                             syn_hilbert * dsyn_hilbert)
 
     A1 = np.dot(env_derivss, env_derivss.transpose()) * dt
     b1 = np.sum(
