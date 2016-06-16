@@ -16,7 +16,7 @@ import inspect
 import os
 from pycmt3d import CMTSource
 from pycmt3d import DataContainer
-from pycmt3d import DefaultWeightConfig, Config, WeightConfig
+from pycmt3d import Config, WeightConfig
 from pycmt3d.constant import PARLIST
 from pycmt3d import Cmt3D
 
@@ -48,18 +48,18 @@ def construct_dcon_two():
 def weighting_two():
     dcon_two = construct_dcon_two()
 
-    #weight_config = DefaultWeightConfig(
+    # weight_config = DefaultWeightConfig(
     #    normalize_by_energy=False, normalize_by_category=False,
     #    comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
     #    love_dist_weight=1.0, pnl_dist_weight=1.0,
     #    rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
     weight_config = WeightConfig(
-        normalize_by_energy=True, normalize_by_category=False)
+        normalize_by_energy=True, normalize_by_category=True)
 
     config = Config(6, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
                     zero_trace=True, weight_data=True,
-                    envelope_coef=0.5,
+                    envelope_coef=0.1,
                     station_correction=True,
                     weight_config=weight_config)
 

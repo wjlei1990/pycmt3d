@@ -14,6 +14,6 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 from .source import CMTSource  # NOQA
-from .data_container import DataContainer, MetaInfo  # NOQA
-from .config import DefaultWeightConfig, WeightConfig, Config  # NOQA
+from .data_container import DataContainer  # NOQA
+from .config import WeightConfig, DefaultWeightConfig, Config  # NOQA
 from .cmt3d import Cmt3D  # NOQA

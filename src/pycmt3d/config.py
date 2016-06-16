@@ -43,6 +43,7 @@ class WeightConfig(WeightConfigBase):
         self.azi_bins = azi_bins
         self.azi_exp_idx = azi_exp_idx
 
+
 class DefaultWeightConfig(WeightConfigBase):
     """
     Weight config in original CMT3D packages
@@ -53,9 +54,9 @@ class DefaultWeightConfig(WeightConfigBase):
                  rayleigh_dist_weight=0.55,
                  azi_exp_idx=0.5, azi_bins=12,
                  ref_dist=1.0):
-        WeightConfig.__init__(self, "default",
-                              normalize_by_energy=normalize_by_energy,
-                              normalize_by_category=normalize_by_category)
+        WeightConfigBase.__init__(self, "default",
+                                  normalize_by_energy=normalize_by_energy,
+                                  normalize_by_category=normalize_by_category)
         self.comp_weight = comp_weight
         self.love_dist_weight = love_dist_weight
         self.pnl_dist_weight = pnl_dist_weight

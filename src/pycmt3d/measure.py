@@ -9,7 +9,6 @@ from scipy.signal import hilbert
 
 from .util import construct_taper, check_trace_consistent, get_window_idx
 from . import constant
-from .util import _float_array_to_str
 
 
 def _envelope(array):
@@ -186,7 +185,7 @@ def get_f_df(npar, A, b, m, lam, mstart, fij, f0):
     fij[npar + 1, 0:NM] = dc2_dm
 
 
-def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper_type):
+def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper_type="tukey"):
     """
     Calculate dsyn matrix based on perturbed seismograms. Only synt
     and perturbed synthetic are used here:
@@ -310,8 +309,6 @@ def compute_derivatives(datalist, win_time, parlist, dcmt_par,
 
 
 def compute_envelope_matrix(denv, obsd, synt, dt, win_idx, taper_type):
-    istart = win_idx[0]
-    iend = win_idx[1]
 
     obs_array = obsd.copy()
     syn_array = synt.copy()

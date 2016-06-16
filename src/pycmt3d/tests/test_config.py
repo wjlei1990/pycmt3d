@@ -26,8 +26,8 @@ SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 
 
 def test_weightconfig():
-    config = conf.WeightConfig(mode="default", normalize_by_energy=True,
-                               normalize_by_category=True)
+    config = conf.WeightConfigBase(mode="default", normalize_by_energy=True,
+                                   normalize_by_category=True)
     assert config.mode == "default"
     assert config.normalize_by_energy
     assert config.normalize_by_category
