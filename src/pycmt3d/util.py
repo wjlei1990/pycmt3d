@@ -96,7 +96,7 @@ def check_trace_consistent(tr1, tr2, mode="part"):
 def sum_matrix(data, coef=None):
     """
     Sum a list of matrix with same dimension(sum over first index)
-    :return: \sum coef[i] * data[i]
+    :return: sum = coef[i] * data[i]
     """
     if coef is None:
         coef = np.ones(len(data))
@@ -153,6 +153,7 @@ def _float_array_to_str(array):
 
 def tukey_window(window_length, alpha=0.2):
     """
+    !!! OBSOLETE !!!
     The Tukey window, also known as the tapered cosine window,
     can be regarded as a cosine lobe of width \alpha * N / 2
     that is convolved with a rectangle window of width (1 - \alpha / 2).
@@ -191,6 +192,14 @@ def tukey_window(window_length, alpha=0.2):
 
 
 def construct_taper(npts, taper_type="tukey", alpha=0.2):
+    """
+    Construct taper based on npts
+
+    :param npts: the number of points
+    :param taper_type:
+    :param alpha: taper width
+    :return:
+    """
     taper_type = taper_type.lower()
     _options = ['hann', 'boxcar', 'tukey']
     if taper_type not in _options:

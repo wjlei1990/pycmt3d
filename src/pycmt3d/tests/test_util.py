@@ -90,7 +90,7 @@ def test_sum_matrix():
     npt.assert_allclose(util.sum_matrix(data, coef=coef), 10 * mat)
 
 
-def test_gen_random_array():
+def test_random_select():
     subset_array = util.random_select(100, 30)
     assert np.sum(subset_array) == 30
 
