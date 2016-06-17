@@ -9,5 +9,3 @@ src/pycmt3d.egg-info/*
 log.txt
 *.png
 *.log
-
-src/pycmt3d/tests/data
