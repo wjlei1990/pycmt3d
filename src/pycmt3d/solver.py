@@ -41,7 +41,7 @@ def linear_solver(old_par, A, b, npar, zero_trace=True):
     except Exception as err:
         raise ValueError("Can not solve the linear equation due to:%s"
                          % err)
-
+    logger.info("Residual norm: %f" % (np.linalg.norm(bb - AA * dm)))
     new_par = old_par[0:npar] + dm[0:npar]
     return new_par
 
@@ -67,15 +67,18 @@ def nonlinear_solver(old_par, A, b, npar, max_iter=60):
         get_f_df(npar, A, b, m1, lam, mstart, AA, bb)
         bb = - bb
         xout = np.linalg.solve(AA, bb)
+        if np.isclose(np.linalg.norm(xout), 0):
+            break
         m1 = m1 + xout[0:npar]
         lam = lam + xout[npar:na]
         error[iter_idx, :] = np.dot(AA, xout) - bb
-    # dm = m1 - mstart
+    logger.info("Nonlinear iteration: %d" % iter_idx)
+    logger.info("Residual norm: %f" % (np.linalg.norm(bb - AA * xout)))
     return m1
 
 
 def solver(npar, A, b, cmt_par, zero_trace, double_couple,
-           envelope_flag, damping, max_nl_iter):
+           damping, max_nl_iter):
     """
     Solver part. Hession matrix A and misfit vector b will be
     reconstructed here based on different constraints.
@@ -108,11 +111,12 @@ def solver(npar, A, b, cmt_par, zero_trace, double_couple,
                     % np.linalg.cond(A))
 
     # setup inversion schema
-    if double_couple or envelope_flag:
+    if double_couple:
         # non-linear inversion
         logger.info("Nonlinear Inversion...")
         new_par = nonlinear_solver(
-            cmt_par, A, b, npar, max_iter=max_nl_iter)
+            cmt_par, A, b, npar,
+            max_iter=max_nl_iter)
     else:
         # linear_inversion
         logger.info("Linear Inversion...")

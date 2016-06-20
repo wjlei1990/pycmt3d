@@ -174,19 +174,22 @@ class Cmt3D(object):
                 meta.Aes.append(Ae)
                 meta.bes.append(be)
 
-    def invert_solver(self, A, b, envelope_flag=False):
+    def invert_solver(self, A, b):
         npar = self.config.npar
         cmt_par_scaled = self.cmt_par[:npar] / self.config.scale_vector
         new_cmt_par_scaled = \
             solver(npar, A, b, cmt_par_scaled, self.config.zero_trace,
-                   self.config.double_couple, envelope_flag,
+                   self.config.double_couple,
                    self.config.damping, self.config.max_nl_iter)
 
         new_cmt_par = self.cmt_par.copy()
         new_cmt_par[:npar] = \
             new_cmt_par_scaled * self.config.scale_vector[:npar]
 
-        return generate_newcmtsource(self.cmtsource, new_cmt_par)
+        new_cmt = generate_newcmtsource(self.cmtsource, new_cmt_par)
+        ec = (new_cmt.M0 - self.cmtsource.M0) / self.cmtsource.M0
+        logger.info("scalar moment change: %f%%" % (ec * 100))
+        return new_cmt
 
     def _ensemble_measurements(self):
         """ ensemble measurements from each window """
@@ -272,13 +275,15 @@ class Cmt3D(object):
         # source inversion
         logger.info("-" * 10 + " inversion " + "-" * 10)
         self.new_cmtsource = self.invert_solver(
-            A_all, b_all, envelope_flag=(not np.isclose(ecoef, 0)))
+            A_all, b_all)
+
         logger.info("-" * 10 + " waveform inversion " + "-" * 10)
         self.new_cmtsource_waveform = self.invert_solver(
-            Aw_all, bw_all, envelope_flag=False)
+            Aw_all, bw_all)
+
         logger.info("-" * 10 + " envelope inversion " + "-" * 10)
         self.new_cmtsource_envelope = self.invert_solver(
-            Ae_all, be_all, envelope_flag=True)
+            Ae_all, be_all)
         logger.info("-" * 20)
 
     def invert_bootstrap(self):

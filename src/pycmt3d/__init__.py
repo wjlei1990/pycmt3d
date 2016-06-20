@@ -3,7 +3,7 @@ import logging
 
 # setup the logger
 logger = logging.getLogger("pycmt3d")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.propagate = 0
 
 ch = logging.StreamHandler()
