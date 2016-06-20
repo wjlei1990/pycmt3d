@@ -98,6 +98,44 @@ def test_weighting_two(tmpdir, cmtsource):
     srcinv.plot_new_synt_seismograms(str(tmpdir))
 
 
+def test_weighting_two_7par(tmpdir, cmtsource):
+    dcon_two = construct_dcon_two()
+
+    weight_config = DefaultWeightConfig(
+        normalize_by_energy=False, normalize_by_category=False,
+        comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
+        love_dist_weight=1.0, pnl_dist_weight=1.0,
+        rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+
+    config = Config(7, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
+                    zero_trace=True, weight_data=True,
+                    station_correction=True,
+                    weight_config=weight_config)
+
+    srcinv = Cmt3D(cmtsource, dcon_two, config)
+    srcinv.source_inversion()
+    srcinv.plot_new_synt_seismograms(str(tmpdir))
+
+
+def test_weighting_two_9par(tmpdir, cmtsource):
+    dcon_two = construct_dcon_two()
+
+    weight_config = DefaultWeightConfig(
+        normalize_by_energy=False, normalize_by_category=False,
+        comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
+        love_dist_weight=1.0, pnl_dist_weight=1.0,
+        rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+
+    config = Config(9, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
+                    zero_trace=True, weight_data=True,
+                    station_correction=True,
+                    weight_config=weight_config)
+
+    srcinv = Cmt3D(cmtsource, dcon_two, config)
+    srcinv.source_inversion()
+    srcinv.plot_new_synt_seismograms(str(tmpdir))
+
+
 def setup_inversion(cmt):
     dcon_two = construct_dcon_two()
 
