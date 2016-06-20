@@ -257,7 +257,9 @@ def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper_type):
         if itype < constant.NM:
             # moment tensor, linear term
             denv[itype, :] = \
-                _envelope(taper * datalist[type_name].data[istart:iend]) / \
+                (_envelope(taper * (datalist['synt'].data[istart:iend] +
+                                    datalist[type_name].data[istart:iend])) -
+                 _envelope(taper * (datalist['synt'].data[istart:iend]))) / \
                 dcmt_par[itype]
         elif itype < constant.NML:
             # location, finite difference to get denv
