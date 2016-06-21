@@ -16,6 +16,7 @@ pycmt3d - a Python package for 3-dimenional centroid moment inversion
 
 import os
 import glob
+import sys
 from setuptools import setup
 from setuptools import find_packages
 from setuptools.command.test import test as TestCommand
@@ -62,6 +63,8 @@ setup(
     url='https://github.com/wjlei1990/pycmt3d',
     packages=find_packages("src"),
     package_dir={"": "src"},
+    tests_require=['pytest'],
+    cmdclass={'test': PyTest},
     include_package_data=True,
     zip_safe=False,
     classifiers=[
