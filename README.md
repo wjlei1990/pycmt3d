@@ -1,4 +1,6 @@
 [![Build Status](https://travis-ci.org/wjlei1990/pycmt3d.svg?branch=master)](https://travis-ci.org/wjlei1990/pycmt3d/branches)
+[![DOI](https://zenodo.org/badge/22621/wjlei1990/pycmt3d.svg)](https://zenodo.org/badge/latestdoi/22621/wjlei1990/pycmt3d)
+
 
 # pycmt3d
 
