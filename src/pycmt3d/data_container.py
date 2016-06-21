@@ -731,7 +731,7 @@ class DataContainer(Sequence):
                            channel=channel)[0]
         return tr.copy(), tag
 
-    def write_new_synt_sac(self, outputdir):
+    def write_new_synt_sac(self, outputdir, suffix=None):
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 
@@ -743,18 +743,21 @@ class DataContainer(Sequence):
                 component = window.component
                 location = window.location
                 filename = "%s.%s.%s.%s.%s.sac" \
-                           % (sta, nw, location, component, tag)
+                           % (sta, nw, location, component, suffix, tag)
                 outputfn = os.path.join(outputdir, filename)
                 new_synt = window.datalist['new_synt']
                 new_synt.write(outputfn, format='SAC')
 
-    def write_new_synt_asdf(self, filename):
+    def write_new_synt_asdf(self, file_prefix):
         new_synt_dict = self._sort_new_synt()
 
         for tag, win_array in new_synt_dict.iteritems():
+            filename = "%s.%s.h5" % (file_prefix, tag)
             if os.path.exists(filename):
-                print("Output file exists, removed:%s" % filename)
                 os.remove(filename)
+                logger.info("Output file exists, removed: %s" % filename)
+            else:
+                logger.info("Output new synt asdf: %s" % filename)
 
             ds = ASDFDataSet(filename, mode='w')
             added_list = []
@@ -783,6 +786,9 @@ class DataContainer(Sequence):
         for trwin in self.trwins:
             tag = trwin.tags['synt']
             new_synt_dict[tag].append(trwin)
+            if "new_synt" not in trwin.datalist:
+                raise ValueError("new synt is not in trwin(%s) datalist: %s"
+                                 % (trwin, trwin.datalist.keys()))
         return new_synt_dict
 
     @staticmethod

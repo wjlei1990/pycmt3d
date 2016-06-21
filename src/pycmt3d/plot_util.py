@@ -213,7 +213,6 @@ class PlotStats(object):
 
         plt.figure(figsize=(4*ncols, 4*nrows))
         G = gridspec.GridSpec(nrows, ncols)
-        irow = 0
 
         cat_names = sorted(self.metas_sort.keys())
         for irow, cat in enumerate(cat_names):

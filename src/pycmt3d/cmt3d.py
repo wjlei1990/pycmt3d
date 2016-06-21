@@ -508,6 +508,7 @@ class Cmt3D(object):
         """
         Write out the new synthetic waveform
         """
+        file_format = file_format.lower()
         logger.info("New synt output dir: %s" % outputdir)
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
@@ -525,7 +526,12 @@ class Cmt3D(object):
         suffix = "%dp_%s" % (self.config.npar, constr_str)
 
         if file_format == "sac":
-            self.data_container.write_new_synt_sac(outputdir=outputdir)
+            self.data_container.write_new_synt_sac(outputdir=outputdir,
+                                                   suffix=suffix)
         elif file_format == "asdf":
-            fn = os.path.join(outputdir, "%s.%s.h5" % (eventname, suffix))
-            self.data_container.write_new_synt_asdf(filename=fn)
+            file_prefix = \
+                os.path.join(outputdir, "%s.%s" % (eventname, suffix))
+            self.data_container.write_new_synt_asdf(file_prefix=file_prefix)
+        else:
+            raise NotImplementedError("file_format(%s) not recognised!"
+                                      % file_format)
