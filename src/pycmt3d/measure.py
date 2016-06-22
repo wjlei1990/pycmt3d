@@ -448,7 +448,8 @@ def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
 
     var = {"v": v1_array, "d": d1_array, "tshift": tshift_array,
            "cc": cc_array, "power_l1": power_l1_array,
-           "power_l2": power_l2_array, "cc_amp": cc_amp_array}
+           "power_l2": power_l2_array, "cc_amp": cc_amp_array,
+           "chi": v1_array/d1_array}
     return var
 
 

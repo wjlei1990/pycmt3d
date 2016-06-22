@@ -245,7 +245,7 @@ class Grid3d(object):
             power_l1s.extend(measures["power_l1"])
             power_l2s.extend(measures["power_l2"])
             cc_amps.extend(measures["cc_amp"])
-            chis.extend(measures["v"]/measures["d"])
+            chis.extend(measures["chi"])
 
         measures = {"power_l1": np.array(power_l1s),
                     "power_l2": np.array(power_l2s),
