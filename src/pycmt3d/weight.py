@@ -101,7 +101,7 @@ class Weight(object):
 
         logger.debug("Detailed Weighting information")
         for meta in self.metas:
-            logger.debug("%s" % meta)
+            logger.debug("meta: %s" % meta)
 
     def normalize_weight(self):
         """

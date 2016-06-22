@@ -26,7 +26,7 @@ class Grid3dConfig(object):
     def __init__(self, origin_time_inv=True, time_start=-5.0, time_end=5.0,
                  dt_over_delta=1, energy_inv=True,
                  energy_start=0.8, energy_end=1.2, denergy=0.1,
-                 energy_misfit_coef=None,
+                 energy_keys=None, energy_misfit_coef=None,
                  weight_data=False, weight_config=None,
                  taper_type="tukey"):
 
@@ -40,19 +40,28 @@ class Grid3dConfig(object):
         self.energy_end = energy_end
         self.denergy = denergy
 
-        if energy_misfit_coef is None:
-            self.energy_coef = [0.25, 0.25, 0.25, 0.25]
-        elif len(energy_misfit_coef) != 4:
-            raise ValueError("energy_misfit_coef(%s) should be length of 4"
-                             % (energy_misfit_coef))
+        # energy_keys could contain ["power_l1", "power_l2", "cc_amp", "chi"]
+        if energy_keys is None:
+            energy_keys = ["power_l1", "power_l2", "cc_amp"]
+            if energy_misfit_coef is None:
+                energy_misfit_coef = [0.75, 0.25, 1.0]
+        else:
+            if energy_misfit_coef is None:
+                raise ValueError("energy_misfit_coef must be provided"
+                                 "according to energy_keys")
+
+        if len(energy_misfit_coef) != len(energy_keys):
+            raise ValueError("Length of energy keys and coef must be"
+                             " the same: %s, %s" %
+                             (energy_keys, energy_misfit_coef))
+
+        self.energy_keys = energy_keys
         self.energy_misfit_coef = np.array(energy_misfit_coef)
 
         self.weight_data = weight_data
         self.weight_config = weight_config
 
         self.taper_type = taper_type
-
-        self.energy_keys = ["power_l1", "power_l2", "cc_amp", "chi"]
 
 
 class Grid3d(object):
@@ -195,7 +204,6 @@ class Grid3d(object):
             weights.extend(meta.weights)
         tshifts = np.array(tshifts)
 
-        print(dir(self.config))
         if self.config.weight_data:
             weights = np.array(weights)
         else:
@@ -227,6 +235,7 @@ class Grid3d(object):
         power_l2s = []
         cc_amps = []
         chis = []
+
         for trwin in self.data_container:
             obsd = trwin.datalist["obsd"]
             synt = trwin.datalist["synt"].copy()
@@ -237,10 +246,11 @@ class Grid3d(object):
             power_l2s.extend(measures["power_l2"])
             cc_amps.extend(measures["cc_amp"])
             chis.extend(measures["v"]/measures["d"])
-        measures = {"power_l1": np.array(power_l1s) ** 2,
-                    "power_l2": np.array(power_l2s) ** 2,
-                    "cc_amp": np.array(cc_amps) ** 2,
-                    "chi": np.array(chis) ** 2}
+
+        measures = {"power_l1": np.array(power_l1s),
+                    "power_l2": np.array(power_l2s),
+                    "cc_amp": np.array(cc_amps),
+                    "chi": np.array(chis)}
         return measures
 
     def grid_search_energy(self):
@@ -272,10 +282,11 @@ class Grid3d(object):
 
         for i in range(nm00):
             m00 = m00_array[i]
+            logger.info("Looping on m00: %f" % m00)
             measures = \
                 self.calculate_misfit_for_m00(m00)
             for key_idx, key in enumerate(self.config.energy_keys):
-                cat_val = np.sum(measures[key] * weights)
+                cat_val = np.sum(measures[key]**2 * weights)
                 cat_misfits[key][i] = cat_val
                 final_misfits[i] += \
                     self.config.energy_misfit_coef[key_idx] * cat_val

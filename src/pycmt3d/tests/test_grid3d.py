@@ -58,9 +58,11 @@ def construct_dcon_two():
 def test_grid3d(cmtsource, weight_config, tmpdir):
     dcon_two = construct_dcon_two()
 
+    energy_keys = ["power_l1", "power_l2", "cc_amp", "chi"]
     config = Grid3dConfig(origin_time_inv=True, time_start=-5.0, time_end=5.0,
                           dt_over_delta=1, energy_inv=True,
                           energy_start=0.8, energy_end=1.2, denergy=0.1,
+                          energy_keys=energy_keys,
                           energy_misfit_coef=[0.25, 0.25, 0.25, 0.25],
                           weight_data=True, weight_config=weight_config)
 
@@ -74,7 +76,6 @@ def test_plot_stats_histogram(cmtsource, weight_config, tmpdir):
     config = Grid3dConfig(origin_time_inv=True, time_start=-5.0, time_end=5.0,
                           dt_over_delta=1, energy_inv=True,
                           energy_start=0.8, energy_end=1.2, denergy=0.1,
-                          energy_misfit_coef=[0.25, 0.25, 0.25, 0.25],
                           weight_data=True, weight_config=weight_config)
 
     srcinv = Grid3d(cmtsource, dcon_two, config)
@@ -89,7 +90,6 @@ def test_plot_misfit_summary(cmtsource, weight_config, tmpdir):
     config = Grid3dConfig(origin_time_inv=True, time_start=-5.0, time_end=5.0,
                           dt_over_delta=1, energy_inv=True,
                           energy_start=0.8, energy_end=1.2, denergy=0.1,
-                          energy_misfit_coef=[0.25, 0.25, 0.25, 0.25],
                           weight_data=True, weight_config=weight_config)
 
     srcinv = Grid3d(cmtsource, dcon_two, config)

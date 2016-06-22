@@ -179,13 +179,11 @@ class PlotStats(object):
 
         return data_old, data_new
 
-    def plot_stats_histogram_one_category(self, G, irow, cat_name):
-        num_bins = [15, 15, 15, 15, 15]
-        vtype_list = ['time shift', 'cc', 'power_ratio(dB)',
-                      'CC amplitude ratio(dB)', 'chi']
-
+    def plot_stats_histogram_one_category(self, G, irow, cat_name, vtype_list):
+        num_bins = [15, 15, 15, 15, 15, 15]
         vtype_dict = {'time shift': "tshift", 'cc': "cc",
-                      "power_ratio(dB)": "power_l2",
+                      "power_l1_ratio(dB)": "power_l1",
+                      "power_l2_ratio(dB)": "power_l2",
                       "CC amplitude ratio(dB)": "cc_amp",
                       "chi": "v"}
 
@@ -206,9 +204,13 @@ class PlotStats(object):
 
         :return:
         """
+        vtype_list = ['time shift', 'cc',
+                      'power_l1_ratio(dB)', 'power_l2_ratio(dB)',
+                      'CC amplitude ratio(dB)', 'chi']
+
         self.sort_metas()
         nrows = len(self.metas_sort.keys())
-        ncols = 5
+        ncols = len(vtype_list)
 
         plt.figure(figsize=(4*ncols, 4*nrows))
         G = gridspec.GridSpec(nrows, ncols)
@@ -216,7 +218,7 @@ class PlotStats(object):
         cat_names = sorted(self.metas_sort.keys())
         for irow, cat in enumerate(cat_names):
             self.plot_stats_histogram_one_category(
-                G, irow, cat)
+                G, irow, cat, vtype_list)
         plt.tight_layout()
         plt.savefig(self.outputfn)
 
