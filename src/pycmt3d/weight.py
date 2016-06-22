@@ -5,18 +5,9 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 from spaceweight import SphereAziBin, SpherePoint
 from . import logger
-from .util import distance, get_window_idx
+from .util import distance, get_window_idx, get_trwin_tag
 from .measure import _energy_, _envelope
 from .data_container import MetaInfo
-
-
-def _get_trwin_tag(trwin):
-    """
-    trwin.tag is usually the period band, so
-    category would be like "27_60.BHZ", "27_60.BHR", "27_60.BHT",
-    and "60_120.BHZ", "60_120.BHR", "60_120.BHT".
-    """
-    return "%s.%s" % (trwin.tags['obsd'], trwin.channel)
 
 
 def calculate_energy_weighting(trwin, mode="window"):
@@ -134,7 +125,7 @@ class Weight(object):
         pbins = {}
         for idx, trwin in enumerate(self.data_container):
             if self.config.normalize_by_category:
-                cat = _get_trwin_tag(trwin)
+                cat = get_trwin_tag(trwin)
             else:
                 cat = "all"
             if cat not in pbins:

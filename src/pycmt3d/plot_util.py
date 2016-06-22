@@ -22,7 +22,7 @@ from obspy.geodetics import gps2dist_azimuth
 from obspy.imaging.beachball import beach
 
 from . import logger
-from .util import _get_cmt_par
+from .util import get_cmt_par, get_trwin_tag
 from .measure import _envelope
 
 # earth half circle
@@ -135,9 +135,8 @@ class PlotStats(object):
         key_map = defaultdict(set)
         """ sort metas into different categories for future plotting """
         for trwin, meta in zip(self.data_container, self.metas):
-            tag = trwin.tags["obsd"]
             comp = trwin.channel
-            cat_name = "%s.%s" % (tag, comp)
+            cat_name = get_trwin_tag(trwin)
             key_map[comp].add(cat_name)
             metas_sort[cat_name].append(meta)
 
@@ -186,7 +185,7 @@ class PlotStats(object):
                       'CC amplitude ratio(dB)', 'chi']
 
         vtype_dict = {'time shift': "tshift", 'cc': "cc",
-                      "power_ratio(dB)": "dlnA",
+                      "power_ratio(dB)": "power_l2",
                       "CC amplitude ratio(dB)": "cc_amp",
                       "chi": "v"}
 
@@ -201,7 +200,7 @@ class PlotStats(object):
 
     def plot_stats_histogram(self):
         """
-        Plot histogram of tshift, cc, dlnA, cc_amplitude_ratio,
+        Plot histogram of tshift, cc, power, cc_amplitude_ratio,
         waveform misfit values before and after inversion inside
         windows.
 
@@ -490,7 +489,7 @@ class PlotInvSummary(object):
 
         cmt_lat = self.cmtsource.latitude
         cmt_lon = self.cmtsource.longitude
-        focmecs = _get_cmt_par(self.cmtsource)[:6]
+        focmecs = get_cmt_par(self.cmtsource)[:6]
         ax = plt.gca()
         bb = beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1,
                    alpha=1.0)

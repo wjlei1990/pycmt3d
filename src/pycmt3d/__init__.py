@@ -17,3 +17,4 @@ from .source import CMTSource  # NOQA
 from .data_container import DataContainer  # NOQA
 from .config import WeightConfig, DefaultWeightConfig, Config  # NOQA
 from .cmt3d import Cmt3D  # NOQA
+from .grid3d import Grid3dConfig, Grid3d  # NOQA

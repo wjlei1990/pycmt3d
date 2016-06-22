@@ -16,7 +16,7 @@ from copy import deepcopy
 
 from . import logger
 from .util import random_select, sum_matrix, _float_array_to_str
-from .util import _get_cmt_par, dump_json
+from .util import get_cmt_par, dump_json
 from .measure import compute_derivatives, calculate_variance_on_trace
 from .measure import compute_new_syn_on_trwin
 from .plot_util import plot_seismograms, PlotInvSummary, PlotStats
@@ -64,13 +64,11 @@ class Cmt3D(object):
     :type config: :class:`pycmt3d.Config`
     """
 
-    def __init__(self, cmtsource, data_container, config,
-                 logfile="log.txt"):
+    def __init__(self, cmtsource, data_container, config):
 
         self.cmtsource = cmtsource
         self.data_container = data_container
         self.config = config
-        self._logfile = logfile
 
         self.metas = []
 
@@ -100,14 +98,14 @@ class Cmt3D(object):
         cmt array: [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, depth, lon, lat,
                     time_shift, half_duration]
         """
-        return _get_cmt_par(self.cmtsource)
+        return get_cmt_par(self.cmtsource)
 
     @property
     def new_cmt_par(self):
         """
         New cmt param array
         """
-        return _get_cmt_par(self.new_cmtsource)
+        return get_cmt_par(self.new_cmtsource)
 
     def setup_window_weight(self):
         """
@@ -360,24 +358,19 @@ class Cmt3D(object):
             synt = trwin.datalist['synt']
 
             # calculate old variance metrics
-            [v1, d1, tshift1, cc1, dlnA1, cc_amp1] = \
+            meta.prov["synt"] = \
                 calculate_variance_on_trace(obsd, synt, trwin.windows,
                                             self.config.taper_type)
-            meta.prov["synt"] = {"v": v1, "d": d1, "tshift": tshift1,
-                                 "cc": cc1, "dlnA": dlnA1,
-                                 "cc_amp": cc_amp1}
 
             new_synt = trwin.datalist['new_synt']
             # calculate new variance metrics
-            [v2, d2, tshift2, cc2, dlnA2, cc_amp2] = \
+            meta.prov["new_synt"] = \
                 calculate_variance_on_trace(obsd, new_synt, trwin.windows,
                                             self.config.taper_type)
-            meta.prov["new_synt"] = {"v": v2, "d": d2, "tshift": tshift2,
-                                     "cc": cc2, "dlnA": dlnA2,
-                                     "cc_amp": cc_amp2}
 
-            var_all += np.sum(0.5 * v1 * meta.weights)
-            var_all_new += np.sum(0.5 * v2 * meta.weights)
+            var_all += np.sum(0.5 * meta.prov["synt"]["v"] * meta.weights)
+            var_all_new += np.sum(0.5 * meta.prov["new_synt"]["v"] *
+                                  meta.weights)
 
         logger.info(
             "Total Variance Reduced from %e to %e ===== %f %%"
@@ -458,7 +451,8 @@ class Cmt3D(object):
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
         """
         Plot inversion histogram, including histograms of tshift, cc,
-        dlnA, cc_amp, chi values before and after the inversion.
+        power_l1, power_l2, cc_amp, chi values before and after the
+        inversion.
 
         :param outputdir:
         :return:
@@ -481,8 +475,8 @@ class Cmt3D(object):
             prefix += ".no_normcat"
         else:
             prefix += ".normcat"
-        figname = "%s.%s.dlnA.%s" % (self.cmtsource.eventname, prefix,
-                                     figure_format)
+        figname = "%s.%s.stats.%s" % (self.cmtsource.eventname, prefix,
+                                      figure_format)
         figname = os.path.join(outputdir, figname)
 
         plot_util = PlotStats(self.data_container, self.metas, figname)

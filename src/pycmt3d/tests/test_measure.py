@@ -39,12 +39,12 @@ def test_xcorr_win_():
 def test_dlnA_win_():
     arr1 = np.array([0., 0, 0, 1, 2, 1, 0, 0, 0, 0])
     arr2 = np.array([0., 0, 0, 0, 1, 2, 1, 0, 0, 0])
-    dlnA = meas._dlnA_win_(arr1, arr2)
+    dlnA = meas._power_l2_win_(arr1, arr2)
     assert dlnA == 0.0
 
     arr1 = np.array([0., 0, 0, 1, 2, 1, 0, 0, 0, 0])
     arr2 = np.array([0., 0, 0, 0, 0.5, 1, 0.5, 0, 0, 0])
-    dlnA = meas._dlnA_win_(arr1, arr2)
+    dlnA = meas._power_l2_win_(arr1, arr2)
     assert dlnA == 10 * np.log10(4)
 
 
@@ -80,16 +80,18 @@ def test_measure_window():
     arr1 = np.array([0., 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0])
     arr2 = np.array([0., 0, 0, 0, 0, 0, 0.5, 1, 0.5, 0, 0, 0, 0, 0])
 
-    nshift, max_cc, dlnA, cc_amp = \
+    nshift, max_cc, power_l1, power_l2, cc_amp = \
         meas.measure_window(arr1, arr2, 2, 10, station_correction=False)
     assert nshift == -1 and max_cc == 1.0
-    assert dlnA == 10 * np.log10(4)
+    assert power_l2 == 10 * np.log10(4)
+    assert power_l1 == 10 * np.log10(2)
     assert cc_amp == 10 * np.log10(4/3)
 
-    nshift, max_cc, dlnA, cc_amp = \
+    nshift, max_cc, power_l1, power_l2, cc_amp = \
         meas.measure_window(arr1, arr2, 2, 10, station_correction=True)
     assert nshift == -1 and max_cc == 1.0
-    assert dlnA == 10 * np.log10(4)
+    assert power_l2 == 10 * np.log10(4)
+    assert power_l1 == 10 * np.log10(2)
     assert cc_amp == 10 * np.log10(2)
 
 
@@ -157,12 +159,16 @@ def test_calculate_variance_on_trace():
 
     win_time = [[20, 30], [50, 65]]
 
-    v1, d1, tshift, cc, dlnA, cc_amp = \
+    measure = \
         meas.calculate_variance_on_trace(obsd, synt, win_time)
 
-    npt.assert_allclose(v1, [1.5, 11.25])
-    npt.assert_allclose(d1, [6.0, 45])
-    npt.assert_allclose(tshift, [-2, 4])
-    npt.assert_allclose(cc, [1.0, 1.0])
-    npt.assert_allclose(dlnA, [20*np.log10(2), 20*np.log10(2/3.0)])
-    npt.assert_allclose(cc_amp, [10*np.log10(2), 10*np.log10(2/3.0)])
+    npt.assert_allclose(measure["v"], [1.5, 11.25])
+    npt.assert_allclose(measure["d"], [6.0, 45])
+    npt.assert_allclose(measure["tshift"], [-2, 4])
+    npt.assert_allclose(measure["cc"], [1.0, 1.0])
+    npt.assert_allclose(measure["power_l2"],
+                        [20*np.log10(2), 20*np.log10(2/3.0)])
+    npt.assert_allclose(measure["power_l1"],
+                        [10*np.log10(2), 10*np.log10(2/3.0)])
+    npt.assert_allclose(measure["cc_amp"],
+                        [10*np.log10(2), 10*np.log10(2/3.0)])

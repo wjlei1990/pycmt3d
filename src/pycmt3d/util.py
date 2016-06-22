@@ -21,7 +21,16 @@ def dump_json(content, filename):
         json.dump(content, fh, indent=2, sort_keys=2)
 
 
-def _get_cmt_par(cmt):
+def get_trwin_tag(trwin):
+    """
+    trwin.tag is usually the period band, so
+    category would be like "27_60.BHZ", "27_60.BHR", "27_60.BHT",
+    and "60_120.BHZ", "60_120.BHR", "60_120.BHT".
+    """
+    return "%s.%s" % (trwin.tags['obsd'], trwin.channel)
+
+
+def get_cmt_par(cmt):
     """
     Get cmt information as array
     """
@@ -59,7 +68,9 @@ def get_window_idx(win_time, dt):
 
     win_time = np.array(win_time)
     win_idx = np.zeros(win_time.shape)
-    if len(win_time.shape) == 1:
+    if len(win_time.shape) < 1:
+        raise ValueError("lenght of window is %d" % (len(win_time)))
+    elif len(win_time.shape) == 1:
         win_idx = _get_win_idx(win_time, dt)
     else:
         for _i, _win in enumerate(win_time):

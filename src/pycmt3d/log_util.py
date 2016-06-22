@@ -13,7 +13,7 @@ log util
 from __future__ import (print_function, division, absolute_import)
 import numpy as np
 from . import logger
-from .util import _get_cmt_par
+from .util import get_cmt_par
 
 
 def inversion_result_table(npar, cmtsource, new_cmtsource,
@@ -82,8 +82,8 @@ def print_inversion_summary(npar, cmtsource, new_cmtsource):
     logger.info("*" * 20)
     logger.info("Invert cmt parameters(%d par)" % npar)
 
-    cmt_par = _get_cmt_par(cmtsource)[:npar]
-    new_cmt_par = _get_cmt_par(new_cmtsource)[:npar]
+    cmt_par = get_cmt_par(cmtsource)[:npar]
+    new_cmt_par = get_cmt_par(new_cmtsource)[:npar]
     logger.info("Old CMT par: [%s]" % (
         ', '.join(map(str, cmt_par))))
     logger.info("dm: [%s]" % (

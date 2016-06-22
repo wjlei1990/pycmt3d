@@ -37,14 +37,24 @@ def _xcorr_win_(arr1, arr2):
     return max_cc_value, nshift
 
 
-def _dlnA_win_(arr1, arr2):
+def _power_l2_win_(arr1, arr2):
     """
-    Power ration of arr1 over arr2, unit in dB.
+    Power(L2 norm, square) ratio of arr1 over arr2, unit in dB.
     """
     if len(arr1) != len(arr2):
         raise ValueError("Length of arr1(%d) and arr2(%d) not the same"
                          % (len(arr1), len(arr2)))
     return 10 * np.log10(np.sum(arr1 ** 2) / np.sum(arr2 ** 2))
+
+
+def _power_l1_win_(arr1, arr2):
+    """
+    Power(L1 norm, abs) ratio of arr1 over arr2, unit in dB
+    """
+    if len(arr1) != len(arr2):
+        raise ValueError("Length of arr1(%d) and arr2(%d) not the same"
+                         % (len(arr1), len(arr2)))
+    return 10 * np.log10(np.sum(np.abs(arr1)) / np.sum(np.abs(arr2)))
 
 
 def _cc_amp_(arr1, arr2):
@@ -119,9 +129,10 @@ def measure_window(obsd_array, synt_array, istart, iend,
     # make measurements
     _obs = obsd_array[istart_d: iend_d]
     _syn = synt_array[istart_s: iend_s]
-    dlnA = _dlnA_win_(_obs, _syn)
+    power_l1 = _power_l1_win_(_obs, _syn)
+    power_l2 = _power_l2_win_(_obs, _syn)
     cc_amp_ratio = _cc_amp_(_obs, _syn)
-    return nshift, max_cc, dlnA, cc_amp_ratio
+    return nshift, max_cc, power_l1, power_l2, cc_amp_ratio
 
 
 def get_f_df(npar, A, b, m, lam, mstart, fij, f0):
@@ -408,7 +419,8 @@ def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
     d1_array = np.zeros(num_wins)
     tshift_array = np.zeros(num_wins)
     cc_array = np.zeros(num_wins)
-    dlnA_array = np.zeros(num_wins)
+    power_l1_array = np.zeros(num_wins)
+    power_l2_array = np.zeros(num_wins)
     cc_amp_array = np.zeros(num_wins)
 
     for _win_idx in range(win_time.shape[0]):
@@ -417,7 +429,7 @@ def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
         istart_d, iend_d, istart_s, iend_s, _, _ = \
             correct_window_index(obsd.data, synt.data, istart, iend)
 
-        nshift, cc, dlnA, cc_amp_value = \
+        nshift, cc, power_l1, power_l2, cc_amp_value = \
             measure_window(obsd, synt, istart, iend)
 
         taper = construct_taper(iend_d - istart_d, taper_type=taper_type)
@@ -430,11 +442,14 @@ def calculate_variance_on_trace(obsd, synt, win_time, taper_type="tukey"):
 
         tshift_array[_win_idx] = nshift * dt
         cc_array[_win_idx] = cc
-        dlnA_array[_win_idx] = dlnA
+        power_l1_array[_win_idx] = power_l1
+        power_l2_array[_win_idx] = power_l2
         cc_amp_array[_win_idx] = cc_amp_value
 
-    return v1_array, d1_array, tshift_array, cc_array, dlnA_array, \
-        cc_amp_array
+    var = {"v": v1_array, "d": d1_array, "tshift": tshift_array,
+           "cc": cc_array, "power_l1": power_l1_array,
+           "power_l2": power_l2_array, "cc_amp": cc_amp_array}
+    return var
 
 
 def compute_new_syn_on_trwin(datalist, parlist, dcmt_par, dm):
