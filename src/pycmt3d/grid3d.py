@@ -315,7 +315,6 @@ class Grid3d(object):
         logger.info("New cmtsource file: %s" % fn)
         self.new_cmtsource.write_CMTSOLUTION_file(fn)
 
-
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
         """
         Plot the histogram of meansurements inside windows for
