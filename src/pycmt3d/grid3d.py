@@ -304,6 +304,18 @@ class Grid3d(object):
         self.m00_misfit = final_misfits
         self.m00_cat_misfit = cat_misfits
 
+    def write_new_cmtfile(self, outputdir="."):
+        suffix = "grid"
+        if self.config.origin_time_inv:
+            suffix += ".time"
+        if self.config.energy_inv:
+            suffix += ".energy"
+        fn = os.path.join(outputdir, "%s.%s.inv" % (self.cmtsource.eventname,
+                                                    suffix))
+        logger.info("New cmtsource file: %s" % fn)
+        self.new_cmtsource.write_CMTSOLUTION_file(fn)
+
+
     def plot_stats_histogram(self, outputdir=".", figure_format="png"):
         """
         Plot the histogram of meansurements inside windows for

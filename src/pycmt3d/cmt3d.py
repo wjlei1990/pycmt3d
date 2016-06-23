@@ -368,8 +368,8 @@ class Cmt3D(object):
                 calculate_variance_on_trace(obsd, new_synt, trwin.windows,
                                             self.config.taper_type)
 
-            var_all += np.sum(0.5 * meta.prov["synt"]["v"] * meta.weights)
-            var_all_new += np.sum(0.5 * meta.prov["new_synt"]["v"] *
+            var_all += np.sum(0.5 * meta.prov["synt"]["chi"] * meta.weights)
+            var_all_new += np.sum(0.5 * meta.prov["new_synt"]["chi"] *
                                   meta.weights)
 
         logger.info(
