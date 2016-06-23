@@ -349,19 +349,20 @@ class Grid3d(object):
         :param outputdir:
         :return:
         """
-        plt.figure(figsize=(20, 5))
+        keys = self.config.energy_keys
+        nkeys = len(keys)
+        ncols = nkeys + 1
+        plt.figure(figsize=(5*ncols, 5))
 
         min_idx = np.where(self.m00_array == self.m00_best)[0]
 
-        keys = self.config.energy_keys
-        nkeys = len(keys)
         for idx, key in enumerate(self.config.energy_keys):
             plt.subplot(1, nkeys+1, idx+1)
             plt.plot(self.m00_array, self.m00_cat_misfit[key], label="misfit")
             plt.plot(self.m00_best, self.m00_cat_misfit[key][min_idx], "r*",
                      markersize=10, label="min misfit")
-            plt.xlabel(key)
-            plt.ylabel("misift")
+            plt.xlabel("scalar moment")
+            plt.ylabel("%s misift" % key)
             plt.legend(numpoints=1)
             plt.grid()
 
