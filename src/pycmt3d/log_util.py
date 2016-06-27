@@ -73,7 +73,9 @@ def inversion_result_table(npar, cmtsource, new_cmtsource,
                 bootstrap_std_over_mean[idx + 6]))
 
 
-def print_inversion_summary(npar, cmtsource, new_cmtsource):
+def print_inversion_summary(npar, cmtsource, new_cmtsource,
+                            bootstrap=False, bmean=None, bstd=None,
+                            bstd_over_mean=None):
     """
     Print out the inversion summary
 
@@ -96,4 +98,7 @@ def print_inversion_summary(npar, cmtsource, new_cmtsource):
         (new_cmtsource.M0 - cmtsource.M0) /
         cmtsource.M0 * 100.0))
 
-    inversion_result_table(npar, cmtsource, new_cmtsource)
+    inversion_result_table(
+        npar, cmtsource, new_cmtsource, bootstrap_flag=bootstrap,
+        bootstrap_mean=bmean, bootstrap_std=bstd,
+        bootstrap_std_over_mean=bstd_over_mean)

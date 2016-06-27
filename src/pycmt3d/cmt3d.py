@@ -172,13 +172,14 @@ class Cmt3D(object):
                 meta.Aes.append(Ae)
                 meta.bes.append(be)
 
-    def invert_solver(self, A, b):
+    def invert_solver(self, A, b, verbose=True):
         npar = self.config.npar
         cmt_par_scaled = self.cmt_par[:npar] / self.config.scale_vector
         new_cmt_par_scaled = \
             solver(npar, A, b, cmt_par_scaled, self.config.zero_trace,
                    self.config.double_couple,
-                   self.config.damping, self.config.max_nl_iter)
+                   self.config.damping, self.config.max_nl_iter,
+                   verbose=verbose)
 
         new_cmt_par = self.cmt_par.copy()
         new_cmt_par[:npar] = \
@@ -186,39 +187,51 @@ class Cmt3D(object):
 
         new_cmt = generate_newcmtsource(self.cmtsource, new_cmt_par)
         ec = (new_cmt.M0 - self.cmtsource.M0) / self.cmtsource.M0
-        logger.info("scalar moment change: %f%%" % (ec * 100))
+        if verbose:
+            logger.info("scalar moment change: %f%%" % (ec * 100))
         return new_cmt
 
-    def _ensemble_measurements(self):
-        """ ensemble measurements from each window """
-        npar = self.config.npar
-        Aw_all = np.zeros([npar, npar])
-        bw_all = np.zeros(npar)
-        Ae_all = np.zeros([npar, npar])
-        be_all = np.zeros(npar)
-        # ensemble matrix and measurement
-        total_wav_energy = 0
-        total_env_energy = 0
-        for _meta in self.metas:
+    def _ensemble_measurements_in_trwin(self):
+        """
+        Ensemble the measurements for each trwin(trace pair)
+        """
+        Aws = []
+        bws = []
+        Aes = []
+        bes = []
+
+        for idx, _meta in enumerate(self.metas):
             if self.config.weight_config.normalize_by_energy:
                 wav_weight = _meta.weights / _meta.prov["wav_energy"]
                 env_weight = _meta.weights / _meta.prov["env_energy"]
-                Aw = sum_matrix(_meta.Aws, coef=wav_weight)
-                bw = sum_matrix(_meta.bws, coef=wav_weight)
-                Ae = sum_matrix(_meta.Aes, coef=env_weight)
-                be = sum_matrix(_meta.bes, coef=env_weight)
+                Aws.append(sum_matrix(_meta.Aws, coef=wav_weight))
+                bws.append(sum_matrix(_meta.bws, coef=wav_weight))
+                Aes.append(sum_matrix(_meta.Aes, coef=env_weight))
+                bes.append(sum_matrix(_meta.bes, coef=env_weight))
             else:
-                Aw = sum_matrix(_meta.Aws, coef=_meta.weights)
-                bw = sum_matrix(_meta.bws, coef=_meta.weights)
-                Ae = sum_matrix(_meta.Aes, coef=_meta.weights)
-                be = sum_matrix(_meta.bes, coef=_meta.weights)
-            total_wav_energy += sum(_meta.prov["wav_energy"])
-            total_env_energy += sum(_meta.prov["env_energy"])
+                Aws.append(sum_matrix(_meta.Aws, coef=_meta.weights))
+                bws.append(sum_matrix(_meta.bws, coef=_meta.weights))
+                Aes.append(sum_matrix(_meta.Aes, coef=_meta.weights))
+                bes.append(sum_matrix(_meta.bes, coef=_meta.weights))
 
-            Aw_all += Aw
-            bw_all += bw
-            Ae_all += Ae
-            be_all += be
+        return Aws, bws, Aes, bes
+
+    def _ensemble_measurements(self, Aws, bws, Aes, bes, choices=None):
+        """ ensemble measurements from each window """
+        if choices is None:
+            choices = np.ones(len(self.data_container))
+
+        Aw_all = sum_matrix(Aws, choices)
+        bw_all = sum_matrix(bws, choices)
+        Ae_all = sum_matrix(Aes, choices)
+        be_all = sum_matrix(bes, choices)
+
+        wav_energies = [sum(_meta.prov["wav_energy"])
+                        for _meta in self.metas]
+        env_energies = [sum(_meta.prov["env_energy"])
+                        for _meta in self.metas]
+        total_wav_energy = sum_matrix(wav_energies, choices)
+        total_env_energy = sum_matrix(env_energies, choices)
 
         # ratio between waveform energy and envelope energy
         cat_ratio = total_wav_energy / total_env_energy
@@ -249,8 +262,10 @@ class Cmt3D(object):
         logger.info("CMT Inversion")
         logger.info("*"*15)
 
+        Aws, bws, Aes, bes = \
+            self._ensemble_measurements_in_trwin()
         Aw_all, bw_all, Ae_all, be_all, A_all, b_all = \
-            self._ensemble_measurements()
+            self._ensemble_measurements(Aws, bws, Aes, bes)
 
         logger.info("Inversion Matrix Aw(with scaled cmt perturbation) is "
                     "as follows:")
@@ -291,24 +306,32 @@ class Cmt3D(object):
 
         :return:
         """
+        logger.info("Bootstrap Inversion")
         ntrwins = len(self.data_container)
+        Aws, bws, Aes, bes = \
+            self._ensemble_measurements_in_trwin()
         A_bootstrap = []
         b_bootstrap = []
         n_subset = \
-            int(self.config.bootstrap_subset_ratio * ntrwins)
+            max(int(self.config.bootstrap_subset_ratio * ntrwins), 1)
+        logger.info("Bootstrap repeat: %d  subset_ratio: %f nsub_set: %d"
+                    % (self.config.bootstrap_repeat,
+                       self.config.bootstrap_subset_ratio, n_subset))
         for i in range(self.config.bootstrap_repeat):
             random_array = random_select(
                 ntrwins, nselected=n_subset)
-            A = sum_matrix(random_array * self.weight_array, self.A_all)
-            b = sum_matrix(random_array * self.weight_array, self.b_all)
+            _, _, _, _, A, b = \
+                self._ensemble_measurements(Aws, bws, Aes, bes,
+                                            choices=random_array)
             A_bootstrap.append(A)
             b_bootstrap.append(b)
 
         # inversion of each subset
         new_par_array = np.zeros((self.config.bootstrap_repeat, NPARMAX))
         for i in range(self.config.bootstrap_repeat):
-            new_par = self.invert_solver(A_bootstrap[i], b_bootstrap[i])
-            new_par_array[i, :] = new_par
+            new_cmt = self.invert_solver(A_bootstrap[i], b_bootstrap[i],
+                                         verbose=False)
+            new_par_array[i, :] = get_cmt_par(new_cmt)
 
         # statistical analysis
         self.par_mean = np.mean(new_par_array, axis=0)
@@ -321,6 +344,7 @@ class Cmt3D(object):
                         np.abs(self.par_std[_ii] / self.par_mean[_ii])
             else:
                 self.std_over_mean[_ii] = 0.
+        logger.info("-" * 20)
 
     def source_inversion(self):
         """
@@ -336,10 +360,13 @@ class Cmt3D(object):
 
         self.calculate_variance()
 
-        # if self.config.bootstrap:
-        #    self.invert_bootstrap()
-        print_inversion_summary(self.config.npar, self.cmtsource,
-                                self.new_cmtsource)
+        if self.config.bootstrap:
+            self.invert_bootstrap()
+
+        print_inversion_summary(
+            self.config.npar, self.cmtsource, self.new_cmtsource,
+            bootstrap=self.config.bootstrap, bmean=self.par_mean,
+            bstd=self.par_std, bstd_over_mean=self.std_over_mean)
 
     def calculate_variance(self):
         """
@@ -375,6 +402,7 @@ class Cmt3D(object):
         logger.info(
             "Total Variance Reduced from %e to %e ===== %f %%"
             % (var_all, var_all_new, (var_all - var_all_new) / var_all * 100))
+        logger.info("*" * 20)
 
         self.var_all = var_all
         self.var_all_new = var_all_new

@@ -179,15 +179,8 @@ class PlotStats(object):
 
         return data_old, data_new
 
-    def plot_stats_histogram_one_category(self, G, irow, cat_name, vtype_list):
-        num_bins = [15, 15, 15, 15, 15, 15]
-        vtype_dict = {'time shift': "tshift", 'cc': "cc",
-                      "power_l1_ratio(dB)": "power_l1",
-                      "power_l2_ratio(dB)": "power_l2",
-                      "CC amplitude ratio(dB)": "cc_amp",
-                      "chi": "v"}
-
-        # plot order
+    def plot_stats_histogram_one_category(
+            self, G, irow, cat_name, vtype_list, num_bins, vtype_dict):
         for var_idx, varname in enumerate(vtype_list):
             meta_varname = vtype_dict[varname]
             data_before, data_after = \
@@ -207,6 +200,12 @@ class PlotStats(object):
         vtype_list = ['time shift', 'cc',
                       'power_l1_ratio(dB)', 'power_l2_ratio(dB)',
                       'CC amplitude ratio(dB)', 'chi']
+        num_bins = [15, 15, 15, 15, 15, 15]
+        vtype_dict = {'time shift': "tshift", 'cc': "cc",
+                      "power_l1_ratio(dB)": "power_l1",
+                      "power_l2_ratio(dB)": "power_l2",
+                      "CC amplitude ratio(dB)": "cc_amp",
+                      "chi": "chi"}
 
         self.sort_metas()
         nrows = len(self.metas_sort.keys())
@@ -218,7 +217,7 @@ class PlotStats(object):
         cat_names = sorted(self.metas_sort.keys())
         for irow, cat in enumerate(cat_names):
             self.plot_stats_histogram_one_category(
-                G, irow, cat, vtype_list)
+                G, irow, cat, vtype_list, num_bins, vtype_dict)
         plt.tight_layout()
         plt.savefig(self.outputfn)
 
@@ -375,9 +374,11 @@ class PlotInvSummary(object):
         pos = 1.00
         format1 = "%15.4e  %15.4e  %15.4e  %15.4e   %10.2f%%"
         format2 = "%16.3f  %16.3f  %20.3f  %20.3f   %15.2f%%"
+        format3 = "%15.3f  %15.3f  %18.3f  %18.3f   %18.2f%%"
 
         text = "Number of stations: %d          Number of widnows: %d" \
-               % (len(self.sta_lat), self.data_container.nwindows)
+               % (len(self.sta_lat), self.data_container.nwindows) + \
+               "Envelope coef: %5.2f"
         plt.text(0, pos, text, fontsize=fontsize)
 
         pos -= incre
@@ -443,9 +444,9 @@ class PlotInvSummary(object):
                     par_mean[5], par_std[5], std_over_mean[5] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
-        text = "DEP:  " + format2 % (
-               self.cmtsource.depth_in_m / 1000.0,
-               self.new_cmtsource.depth_in_m / 1000.0,
+        text = "DEP:  " + format3 % (
+               self.cmtsource.depth_in_m,
+               self.new_cmtsource.depth_in_m,
                par_mean[6], par_std[6], std_over_mean[6] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)

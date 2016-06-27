@@ -155,6 +155,27 @@ def setup_inversion(cmt):
     return srcinv
 
 
+def test_cmt_bootstrap(cmtsource, tmpdir):
+    dcon_two = construct_dcon_two()
+
+    weight_config = DefaultWeightConfig(
+        normalize_by_energy=False, normalize_by_category=False,
+        comp_weight={"Z": 1.0, "R": 1.0, "T": 1.0},
+        love_dist_weight=1.0, pnl_dist_weight=1.0,
+        rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
+
+    config = Config(9, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
+                    zero_trace=True, weight_data=True,
+                    station_correction=True,
+                    weight_config=weight_config,
+                    bootstrap=True, bootstrap_repeat=20,
+                    bootstrap_subset_ratio=0.4)
+
+    srcinv = Cmt3D(cmtsource, dcon_two, config)
+    srcinv.source_inversion()
+    srcinv.plot_summary(str(tmpdir))
+
+
 class TestIO(object):
     """ test class for IO method """
 
