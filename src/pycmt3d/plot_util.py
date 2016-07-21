@@ -494,7 +494,20 @@ class PlotInvSummary(object):
         cmt_lon = self.cmtsource.longitude
         focmecs = get_cmt_par(self.cmtsource)[:6]
         ax = plt.gca()
-        bb = beach(focmecs, xy=(cmt_lon, cmt_lat), width=20, linewidth=1,
+        if self.mode=='regional':
+            minlon=min(self.sta_lon)
+            maxlon=max(self.sta_lon)
+            minlat=min(self.sta_lat)
+            maxlat=max(self.sta_lat)
+            padding=5.
+            m.drawparallels(np.arange(-90., 120., padding))
+            m.drawmeridians(np.arange(0., 420., padding))
+            ax.set_xlim(minlon-padding,maxlon+padding)
+            ax.set_ylim(minlat-padding,maxlat+padding)
+            width_beach=min((maxlon+2*padding-minlon)/(4*padding),(maxlat+2*padding-minlat)/(4*padding))
+        else:
+            width_beach=20
+        bb = beach(focmecs, xy=(cmt_lon, cmt_lat), width=width_beach, linewidth=1,
                    alpha=1.0)
         bb.set_zorder(10)
         ax.add_collection(bb)
