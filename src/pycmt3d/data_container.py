@@ -740,9 +740,9 @@ class DataContainer(Sequence):
             for window in win_array:
                 sta = window.station
                 nw = window.network
-                component = window.component
+                component = window.channel
                 location = window.location
-                filename = "%s.%s.%s.%s.%s.sac" \
+                filename = "%s.%s.%s.%s.%s.%s.sac" \
                            % (sta, nw, location, component, suffix, tag)
                 outputfn = os.path.join(outputdir, filename)
                 new_synt = window.datalist['new_synt']
