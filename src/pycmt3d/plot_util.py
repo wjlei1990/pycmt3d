@@ -505,11 +505,11 @@ class PlotInvSummary(object):
             ax.set_xlim(minlon-padding, maxlon+padding)
             ax.set_ylim(minlat-padding, maxlat+padding)
             width_beach = min((maxlon+2*padding-minlon)/(4*padding),
-                            (maxlat+2*padding-minlat)/(4*padding))
+                              (maxlat+2*padding-minlat)/(4*padding))
         else:
             width_beach = 20
         bb = beach(focmecs, xy=(cmt_lon, cmt_lat), 
-                   width=width_beach, linewidth=1,alpha=1.0)
+                   width=width_beach, linewidth=1, alpha=1.0)
         bb.set_zorder(10)
         ax.add_collection(bb)
 
