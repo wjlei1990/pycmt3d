@@ -508,7 +508,7 @@ class PlotInvSummary(object):
                               (maxlat+2*padding-minlat)/(4*padding))
         else:
             width_beach = 20
-        bb = beach(focmecs, xy=(cmt_lon, cmt_lat), 
+        bb = beach(focmecs, xy=(cmt_lon, cmt_lat),
                    width=width_beach, linewidth=1, alpha=1.0)
         bb.set_zorder(10)
         ax.add_collection(bb)
