@@ -161,42 +161,42 @@ class TraceWindow(object):
     def obsd_id(self):
         try:
             return self.datalist["obsd"].id
-        except:
+        except KeyError:
             return None
 
     @property
     def synt_id(self):
         try:
             return self.datalist["synt"].id
-        except:
+        except KeyError:
             return None
 
     @property
     def station(self):
         try:
             return self.datalist["obsd"].stats.station
-        except:
+        except KeyError:
             return None
 
     @property
     def network(self):
         try:
             return self.datalist["obsd"].stats.network
-        except:
+        except KeyError:
             return None
 
     @property
     def location(self):
         try:
             return self.datalist["obsd"].stats.location
-        except:
+        except KeyError:
             return None
 
     @property
     def channel(self):
         try:
             return self.datalist["obsd"].stats.channel
-        except:
+        except KeyError:
             return None
 
     @property

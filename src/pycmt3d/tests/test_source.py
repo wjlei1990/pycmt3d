@@ -21,7 +21,7 @@ import pytest
 
 # Most generic way to get the data folder path.
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(
-        inspect.getfile(inspect.currentframe()))), "data")
+    inspect.getfile(inspect.currentframe()))), "data")
 CMTFILE = os.path.join(DATA_DIR, "CMTSOLUTION")
 
 

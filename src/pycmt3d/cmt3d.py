@@ -341,7 +341,7 @@ class Cmt3D(object):
             if self.par_mean[_ii] != 0:
                 # in case of 0 value
                 self.std_over_mean[_ii] = \
-                        np.abs(self.par_std[_ii] / self.par_mean[_ii])
+                    np.abs(self.par_std[_ii] / self.par_mean[_ii])
             else:
                 self.std_over_mean[_ii] = 0.
         logger.info("-" * 20)

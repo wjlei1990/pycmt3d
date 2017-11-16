@@ -10,9 +10,7 @@ and some other sanity checks as well.
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
 """
-import flake8
-import flake8.engine
-import flake8.main
+from flake8.api import legacy as flake8
 import inspect
 import os
 
@@ -44,12 +42,7 @@ def test_flake8():
             files.append(full_path)
 
     # Get the style checker with the default style.
-    flake8_style = flake8.engine.get_style_guide(
-        parse_argv=False, config_file=flake8.main.DEFAULT_CONFIG)
-
-    report = flake8_style.check_files(files)
-
-    # Make sure at least 10 files are tested.
-    assert report.counters["files"] > 10
-    # And no errors occured.
-    assert report.get_count() == 0
+    style_guide = flake8.get_style_guide(ignore=['E24', 'W503', 'E226'])
+    report = style_guide.check_files(files)
+    assert report.get_statistics('E') == [], 'Flake8 found violations'
+    assert report.total_errors == 0

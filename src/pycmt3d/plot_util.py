@@ -68,9 +68,9 @@ def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
              (location, channel), fontsize=fontsize)
 
     for win in trwin.windows:
-        l = win[0] + offset
-        r = win[1] + offset
-        re = Rectangle((l, plt.ylim()[0]), r - l,
+        left = win[0] + offset
+        right = win[1] + offset
+        re = Rectangle((left, plt.ylim()[0]), right - left,
                        plt.ylim()[1] - plt.ylim()[0], color="blue",
                        alpha=0.25)
         plt.gca().add_patch(re)
@@ -86,9 +86,9 @@ def _plot_new_seismogram_sub(trwin, outputdir, cmtsource, figure_format):
     plt.xlim(times[0], times[-1])
 
     for win in trwin.windows:
-        l = win[0] + offset
-        r = win[1] + offset
-        re = Rectangle((l, plt.ylim()[0]), r - l,
+        left = win[0] + offset
+        right = win[1] + offset
+        re = Rectangle((left, plt.ylim()[0]), right - left,
                        plt.ylim()[1] - plt.ylim()[0], color="blue",
                        alpha=0.25)
         plt.gca().add_patch(re)
@@ -416,32 +416,32 @@ class PlotInvSummary(object):
 
         pos -= incre
         text = "Mrr:" + format1 % (
-                    self.cmtsource.m_rr, self.new_cmtsource.m_rr,
-                    par_mean[0], par_std[0], std_over_mean[0] * 100)
+            self.cmtsource.m_rr, self.new_cmtsource.m_rr,
+            par_mean[0], par_std[0], std_over_mean[0] * 100)
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mtt:" + format1 % (
-                    self.cmtsource.m_tt, self.new_cmtsource.m_tt,
-                    par_mean[1], par_std[1], std_over_mean[1] * 100)
+            self.cmtsource.m_tt, self.new_cmtsource.m_tt,
+            par_mean[1], par_std[1], std_over_mean[1] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mpp:" + format1 % (
-                    self.cmtsource.m_pp, self.new_cmtsource.m_pp,
-                    par_mean[2], par_std[2], std_over_mean[2] * 100)
+            self.cmtsource.m_pp, self.new_cmtsource.m_pp,
+            par_mean[2], par_std[2], std_over_mean[2] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mrt:" + format1 % (
-                    self.cmtsource.m_rt, self.new_cmtsource.m_rt,
-                    par_mean[3], par_std[3], std_over_mean[3] * 100)
+            self.cmtsource.m_rt, self.new_cmtsource.m_rt,
+            par_mean[3], par_std[3], std_over_mean[3] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mrp:" + format1 % (
-                    self.cmtsource.m_rp, self.new_cmtsource.m_rp,
-                    par_mean[4], par_std[4], std_over_mean[4] * 100)
+            self.cmtsource.m_rp, self.new_cmtsource.m_rp,
+            par_mean[4], par_std[4], std_over_mean[4] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "Mtp:" + format1 % (
-                    self.cmtsource.m_tp, self.new_cmtsource.m_tp,
-                    par_mean[5], par_std[5], std_over_mean[5] * 100)
+            self.cmtsource.m_tp, self.new_cmtsource.m_tp,
+            par_mean[5], par_std[5], std_over_mean[5] * 100)
         pos -= incre
         plt.text(0, pos, text, fontsize=fontsize)
         text = "DEP:  " + format3 % (
