@@ -78,7 +78,7 @@ def nonlinear_solver(old_par, A, b, npar, max_iter=60):
 
 
 def solver(npar, A, b, cmt_par, zero_trace, double_couple,
-           damping, max_nl_iter, verbose=True):
+           damping, max_nl_iter, ):
     """
     Solver part. Hession matrix A and misfit vector b will be
     reconstructed here based on different constraints.
@@ -100,30 +100,30 @@ def solver(npar, A, b, cmt_par, zero_trace, double_couple,
         b[i] /= max_row[i]
 
     # add damping
-    if verbose:
-        logger.info("Condition number of A: %10.2f"
-                    % np.linalg.cond(A))
+    logger.info("Condition number of A: %10.2f" % np.linalg.cond(A))
+    logger.info("damping value: {}".format(damping))
     if damping > 0:
         trace = np.matrix.trace(A)
         damp_matrix = np.zeros([npar, npar])
         np.fill_diagonal(damp_matrix, trace * damping)
         A = A + damp_matrix
-        if verbose:
-            logger.info("Condition number of A after damping: %10.2f"
-                        % np.linalg.cond(A))
+        logger.info("Condition number of A after damping: %10.2f"
+                    % np.linalg.cond(A))
+    elif damping < 0:
+        raise ValueError("damping value must be positive: {}".format(damping))
+    else:
+        logger.info("No damping applied on maxtrix A")
 
     # setup inversion schema
     if double_couple:
         # non-linear inversion
-        if verbose:
-            logger.info("Nonlinear Inversion...")
+        logger.info("Nonlinear Inversion")
         new_par = nonlinear_solver(
             cmt_par, A, b, npar,
             max_iter=max_nl_iter)
     else:
         # linear_inversion
-        if verbose:
-            logger.info("Linear Inversion...")
+        logger.info("Linear Inversion")
         new_par = linear_solver(
             cmt_par, A, b, npar, zero_trace=zero_trace)
 

@@ -245,21 +245,23 @@ class CMTSource(object):
                          self.m_tp])
 
     def __str__(self):
-        return_str = 'CMTS Source -- %s\n' % self.eventname
-        return_str += 'origin time(pde): %s\n' % self.origin_time
-        return_str += 'pde location(lat, lon): %f, %f deg\n' \
+        return_str = 'CMTSource -- %s\n' % self.eventname
+        return_str += '--- PDE'
+        return_str += '\ttime: %s\n' % self.origin_time
+        return_str += '\tlocation(lat, lon): %.2f, %.2f deg\n' \
             % (self.pde_latitude, self.pde_longitude)
-        return_str += 'pde depth: %f\n' % self.pde_depth_in_m
-        return_str += 'CMT time: %s\n' % self.cmt_time
-        return_str += 'CMT location(lat, lon): %f, %f deg\n' \
+        return_str += '\tdepth: %.2f km\n' % (self.pde_depth_in_m / 1e3)
+        return_str += '--- CMT'
+        return_str += '\ttime: %s\n' % self.cmt_time
+        return_str += '\tlocation(lat, lon): %.2f, %.2f deg\n' \
             % (self.latitude, self.longitude)
-        return_str += 'CMT depth: %6.1e km\n' \
+        return_str += '\tdepth: %6.2f km\n' \
                       % (self.depth_in_m / 1e3,)
-        return_str += 'half duration: %f\n' % self.half_duration
-        return_str += 'moment tensor(Mrr, Mtt, Mpp, Mrt, Mrp, Mtp)\n'
-        return_str += 'moment tensor: %s\n' \
+        return_str += '\thdur: %.2f sec\n' % self.half_duration
+        return_str += '\tmoment tensor: [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp]\n'
+        return_str += '\tmoment tensor: %s\n' \
             % self.tensor
-        return_str += 'Magnitude: %4.2f(mw), %4.2f(mb), %4.2f(ms)\n' \
+        return_str += '\tmagnitude: %4.2f(mw), %4.2f(mb), %4.2f(ms)\n' \
                       % (self.moment_magnitude, self.mb, self.ms)
         return_str += 'region tag: %s' % self.region_tag
 

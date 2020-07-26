@@ -250,14 +250,13 @@ def calculate_dsyn(datalist, win_idx, parlist, dcmt_par, taper_type="tukey"):
 
 def calculate_denv(datalist, win_idx, parlist, dcmt_par, taper_type):
     """
-    Calculate dsyn matrix based on perturbed seismograms. Only synt
+    Calculate denvelope matrix based on perturbed seismograms. Only synt
     and perturbed synthetic are used here:
     dsyn = synt_perturbation / perturbation.
 
     :param datalist:
     :return:
     """
-
     istart = win_idx[0]
     iend = win_idx[1]
     win_len = iend - istart

@@ -20,10 +20,6 @@ from . import logger
 from collections import Sequence
 
 from .constant import PARLIST
-try:
-    from pyasdf import ASDFDataSet
-except ImportError:
-    print("Can not import pyasdf. ASDF not supported then")
 
 
 class MetaInfo(object):
@@ -267,11 +263,12 @@ def load_winfile_json(flexwin_file, initial_weight=1.0):
     :param initial_weight:
     :return:
     """
+    logger.info("Loading windows from json file: {}".format(flexwin_file))
     trwins = []
     with open(flexwin_file, 'r') as fh:
         content = json.load(fh)
-        for _sta, _channel in content.iteritems():
-            for _chan_win in _channel.itervalues():
+        for _sta, _channel in content.items():
+            for _chan_win in _channel.values():
                 num_wins = len(_chan_win)
                 if num_wins <= 0:
                     continue
@@ -524,13 +521,14 @@ class DataContainer(Sequence):
         self._load_info[flexwinfile] = {"ntrwins": ntrwins, "nwindows": nwins,
                                         "elapsed_time": t2 - t1}
 
-        logger.info("=" * 10 + " Measurements Loading " + "=" * 10)
+        logger.info("=" * 10 + " Data and Measurements Loading " + "=" * 10)
         logger.info("Data loaded in asdf format: %s" % flexwinfile)
         logger.info("Elapsed time: %5.2f s" % (t2 - t1))
         logger.info("Number of trwins and windows added: [%d, %d]"
                     % (ntrwins, nwins))
 
     def check_and_load_asdf_file(self, asdf_file_dict):
+        from pyasdf import ASDFDataSet
 
         if not isinstance(asdf_file_dict, dict):
             raise TypeError("asdf_file_dict should be dictionary. Key from "
@@ -543,9 +541,12 @@ class DataContainer(Sequence):
                                  "asdf_file_dict(%s)"
                                  % (key, asdf_file_dict.keys()))
 
+        logger.debug("ASDF file path: {}".format(asdf_file_dict))
+
         dataset = dict()
         for key in necessary_keys:
-            dataset[key] = ASDFDataSet(asdf_file_dict[key])
+            dataset[key] = ASDFDataSet(asdf_file_dict[key], mode='r',
+                                       mpi=False)
         return dataset
 
     def load_winfile(self, flexwin_file, initial_weight=1.0,
@@ -736,7 +737,7 @@ class DataContainer(Sequence):
             os.makedirs(outputdir)
 
         new_synt_dict = self._sort_new_synt()
-        for tag, win_array in new_synt_dict.iteritems():
+        for tag, win_array in new_synt_dict.items():
             for window in win_array:
                 sta = window.station
                 nw = window.network
@@ -749,9 +750,10 @@ class DataContainer(Sequence):
                 new_synt.write(outputfn, format='SAC')
 
     def write_new_synt_asdf(self, file_prefix):
+        from pyasdf import ASDFDataSet
         new_synt_dict = self._sort_new_synt()
 
-        for tag, win_array in new_synt_dict.iteritems():
+        for tag, win_array in new_synt_dict.items():
             filename = "%s.%s.h5" % (file_prefix, tag)
             if os.path.exists(filename):
                 os.remove(filename)

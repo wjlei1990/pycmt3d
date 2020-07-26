@@ -26,8 +26,10 @@ SCALE_MOMENT = 1.0e+22   # dyns*cm
 SCALE_CTIME = 1.0        # seconds, please don't change
 SCALE_HDUR = 1.0         # seconds, please don't change
 
-# DEFAULT_SCALE_VECTOR in [Mrr, Mtt, Mpp, Mrt, Mrp, Mtp, Depth, Latitude,
-#   Longitude, Time shift, Half Duration]
+# DEFAULT_SCALE_VECTOR in order of:
+# [Mrr(dyns*cm), Mtt, Mpp, Mrt, Mrp, Mtp,
+#  Depth(meter), Latitude(degree), Longitude(degree),
+#  time_shift, half_duration]
 DEFAULT_SCALE_VECTOR = np.array(
     [SCALE_MOMENT, SCALE_MOMENT, SCALE_MOMENT, SCALE_MOMENT,
      SCALE_MOMENT, SCALE_MOMENT, SCALE_DEPTH, SCALE_LONGITUDE,

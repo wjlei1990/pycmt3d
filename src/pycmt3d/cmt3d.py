@@ -24,7 +24,7 @@ from .data_container import MetaInfo
 from .weight import Weight, setup_energy_weight
 from .constant import NPARMAX
 from .solver import solver
-from .log_util import print_inversion_summary
+from .log_util import print_inversion_summary, fmt_cmt_par
 
 
 def generate_newcmtsource(oldcmt, new_cmt_par):
@@ -69,7 +69,11 @@ class Cmt3D(object):
         self.cmtsource = cmtsource
         self.data_container = data_container
         self.config = config
+        if config.envelope_coef != 0:
+            raise NotImplementedError("config.envelope_coef > 0 has not"
+                                      "been implemented")
 
+        # meta data for window and traces
         self.metas = []
 
         # new cmt par from the inversion
@@ -113,6 +117,8 @@ class Cmt3D(object):
 
         :returns:
         """
+        setup_energy_weight(self.metas, self.data_container)
+
         if not self.config.weight_data:
             # only use the initial weight information provided by
             # the user in the window function. No extra weighting
@@ -131,8 +137,6 @@ class Cmt3D(object):
                                  "on meta: %s %s" % (meta.id, weight_meta.id))
             meta.weights = weight_meta.weights
             meta.prov.update(weight_meta.prov)
-
-        setup_energy_weight(self.metas, self.data_container)
 
     def _init_metas(self):
         """
@@ -172,14 +176,14 @@ class Cmt3D(object):
                 meta.Aes.append(Ae)
                 meta.bes.append(be)
 
-    def invert_solver(self, A, b, verbose=True):
+    def invert_solver(self, A, b):
         npar = self.config.npar
         cmt_par_scaled = self.cmt_par[:npar] / self.config.scale_vector
+
         new_cmt_par_scaled = \
             solver(npar, A, b, cmt_par_scaled, self.config.zero_trace,
                    self.config.double_couple,
-                   self.config.damping, self.config.max_nl_iter,
-                   verbose=verbose)
+                   self.config.damping, self.config.max_nl_iter)
 
         new_cmt_par = self.cmt_par.copy()
         new_cmt_par[:npar] = \
@@ -187,8 +191,8 @@ class Cmt3D(object):
 
         new_cmt = generate_newcmtsource(self.cmtsource, new_cmt_par)
         ec = (new_cmt.M0 - self.cmtsource.M0) / self.cmtsource.M0
-        if verbose:
-            logger.info("scalar moment change: %f%%" % (ec * 100))
+
+        logger.info("Scalar Moment change: %f%%" % (ec * 100))
         return new_cmt
 
     def _ensemble_measurements_in_trwin(self):
@@ -283,20 +287,26 @@ class Cmt3D(object):
         logger.info("RHS vector b(with scaled cmt perturbation) is "
                     "as follows:")
 
+        npar = self.config.npar
         ecoef = self.config.envelope_coef
-        logger.info("waveform and envelope coef: %f, %f" % (1 - ecoef, ecoef))
-        # source inversion
+        logger.info("waveform and envelope coef: %.2f, %.2f"
+                    % (1 - ecoef, ecoef))
+
         logger.info("-" * 10 + " inversion " + "-" * 10)
-        self.new_cmtsource = self.invert_solver(
-            A_all, b_all)
+        self.new_cmtsource = self.invert_solver(A_all, b_all)
+        logger.debug("New CMT: {}".format(fmt_cmt_par(
+            get_cmt_par(self.new_cmtsource)[:npar])))
 
-        logger.info("-" * 10 + " waveform inversion " + "-" * 10)
-        self.new_cmtsource_waveform = self.invert_solver(
-            Aw_all, bw_all)
+        logger.info("-" * 10 + " Waveform inversion " + "-" * 10)
+        self.new_cmtsource_waveform = self.invert_solver(Aw_all, bw_all)
+        logger.debug("New CMT: {}".format(fmt_cmt_par(
+            get_cmt_par(self.new_cmtsource_waveform)[:npar])))
 
-        logger.info("-" * 10 + " envelope inversion " + "-" * 10)
-        self.new_cmtsource_envelope = self.invert_solver(
-            Ae_all, be_all)
+        logger.info("-" * 10 + " Envelope inversion(Experimental)" + "-" * 10)
+        self.new_cmtsource_envelope = self.invert_solver(Ae_all, be_all)
+        logger.debug("New CMT: {}".format(fmt_cmt_par(
+            get_cmt_par(self.new_cmtsource_envelope)[:npar])))
+
         logger.info("-" * 20)
 
     def invert_bootstrap(self):
@@ -312,14 +322,10 @@ class Cmt3D(object):
             self._ensemble_measurements_in_trwin()
         A_bootstrap = []
         b_bootstrap = []
-        n_subset = \
-            max(int(self.config.bootstrap_subset_ratio * ntrwins), 1)
-        logger.info("Bootstrap repeat: %d  subset_ratio: %f nsub_set: %d"
-                    % (self.config.bootstrap_repeat,
-                       self.config.bootstrap_subset_ratio, n_subset))
+        logger.info("Bootstrap repeat: %d" % (self.config.bootstrap_repeat))
+
         for i in range(self.config.bootstrap_repeat):
-            random_array = random_select(
-                ntrwins, nselected=n_subset)
+            random_array = random_select(ntrwins, nselected=ntrwins)
             _, _, _, _, A, b = \
                 self._ensemble_measurements(Aws, bws, Aes, bes,
                                             choices=random_array)
@@ -355,6 +361,7 @@ class Cmt3D(object):
         # for meta in self.metas:
         #    print("A1:", meta.A1s[0])
         #    print("b1:", meta.b1s[0])
+        print("setup_window_weight")
         self.setup_window_weight()
         self.invert_cmt()
 

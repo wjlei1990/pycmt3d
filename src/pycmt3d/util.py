@@ -33,6 +33,9 @@ def get_trwin_tag(trwin):
 def get_cmt_par(cmt):
     """
     Get cmt information as array
+    Moment tensor as unit of dyns*cm
+    depth as unit of meters
+    Latitude and longitude as unit of degree
     """
     return np.array([cmt.m_rr, cmt.m_tt, cmt.m_pp, cmt.m_rt, cmt.m_rp,
                      cmt.m_tp, cmt.depth_in_m, cmt.longitude,
@@ -69,7 +72,7 @@ def get_window_idx(win_time, dt):
     win_time = np.array(win_time)
     win_idx = np.zeros(win_time.shape)
     if len(win_time.shape) < 1:
-        raise ValueError("lenght of window is %d" % (len(win_time)))
+        raise ValueError("length of window is %d" % (len(win_time)))
     elif len(win_time.shape) == 1:
         win_idx = _get_win_idx(win_time, dt)
     else:

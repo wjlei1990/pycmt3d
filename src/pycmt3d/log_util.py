@@ -73,6 +73,21 @@ def inversion_result_table(npar, cmtsource, new_cmtsource,
                 bootstrap_std_over_mean[idx + 6]))
 
 
+def fmt_cmt_par(data):
+    if len(data) == 9:
+        return "MomentTensor=({:.4e}, {:.4e}, {:.4e}, {:.4e}, " \
+            "{:.4e}, {:.4e}), Depth={:.2f} m, Longitude={:.2f}, "\
+            "Latitude={:.2f}]".format(*data)
+    elif len(data) == 7:
+        return "MomentTensor=({:.4e}, {:.4e}, {:.4e}, {:.4e}, " \
+            "{:.4e}, {:.4e}), Depth={:.2f} m".format(*data)
+    elif len(data) == 6:
+        return "MomentTensor=({:.4e}, {:.4e}, {:.4e}, {:.4e}, " \
+            "{:.4e}, {:.4e})".format(*data)
+    else:
+        raise ValueError("Uknown cmt par length: {}".format(len(data)))
+
+
 def print_inversion_summary(npar, cmtsource, new_cmtsource,
                             bootstrap=False, bmean=None, bstd=None,
                             bstd_over_mean=None):
@@ -82,19 +97,22 @@ def print_inversion_summary(npar, cmtsource, new_cmtsource,
     :return:
     """
     logger.info("*" * 20)
-    logger.info("Invert cmt parameters(%d par)" % npar)
+    logger.info("Invert cmt parameters Summary (%d par)" % npar)
+
+    def _fmt_(v):
+        return "%.4e" % v
 
     cmt_par = get_cmt_par(cmtsource)[:npar]
     new_cmt_par = get_cmt_par(new_cmtsource)[:npar]
-    logger.info("Old CMT par: [%s]" % (
-        ', '.join(map(str, cmt_par))))
-    logger.info("dm: [%s]" % (
-        ', '.join(map(str, new_cmt_par - cmt_par))))
-    logger.info("New CMT par: [%s]" % (
-        ', '.join(map(str, new_cmt_par))))
 
-    logger.info("Trace: %e" % (np.sum(new_cmt_par[0:3])))
-    logger.info("Energy change(scalar moment): %5.2f%%" % (
+    logger.info("Old CMT: {}".format(fmt_cmt_par(cmt_par)))
+    logger.info("dm: [%s]" % (
+        ', '.join(map(_fmt_, new_cmt_par - cmt_par))))
+
+    logger.info("New CMT: {}".format(fmt_cmt_par(new_cmt_par)))
+
+    logger.info("Trace of Moment Tensor: %e" % (np.sum(new_cmt_par[0:3])))
+    logger.info("Energy (Scalar Moment) Change: %5.2f%%" % (
         (new_cmtsource.M0 - cmtsource.M0) /
         cmtsource.M0 * 100.0))
 

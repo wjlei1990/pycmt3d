@@ -318,7 +318,7 @@ class PlotInvSummary(object):
         text = "Mw=%4.3f" % cmt.moment_magnitude
         plt.text(-0.9, -0.3, text, fontsize=7)
         # lat and lon
-        text = "lat=%6.3f$^\circ$; lon=%6.3f$^\circ$" \
+        text = r"lat=%6.3f$^\circ$; lon=%6.3f$^\circ$" \
                % (cmt.latitude, cmt.longitude)
         plt.text(-0.9, -0.5, text, fontsize=7)
         # depth

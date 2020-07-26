@@ -15,109 +15,33 @@ from .util import _float_array_to_str
 from .constant import DEFAULT_SCALE_VECTOR, NM, NML, PARLIST
 
 
-class WeightConfigBase(object):
-    """
-    Base class of weight config. Shouldn't be used for most cases.
-    Since we introduce complex weighting strategies here, so I think
-    it might be worth to seperate WeightConfig from the Config.
-    """
-    def __init__(self, mode, normalize_by_energy=False,
-                 normalize_by_category=False):
-        self.mode = mode.lower()
-        self.normalize_by_energy = normalize_by_energy
-        self.normalize_by_category = normalize_by_category
-
-    def __repr__(self):
-        string = "Weight Strategy:\n"
-        string += "mode: %s\n" % self.mode
-        string += "normalize_by_energy: %s\n" % self.normalize_by_energy
-        string += "normalize_by_category: %s\n" % self.normalize_by_category
-        return string
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class WeightConfig(WeightConfigBase):
-    def __init__(self, normalize_by_energy=False,
-                 normalize_by_category=False,
-                 azi_bins=12, azi_exp_idx=0.5):
-        WeightConfigBase.__init__(
-            self, "classic", normalize_by_energy=normalize_by_energy,
-            normalize_by_category=normalize_by_category)
-        self.azi_bins = azi_bins
-        self.azi_exp_idx = azi_exp_idx
-
-    def __repr__(self):
-        string = "Weight Strategy:\n"
-        string += "mode: %s\n" % self.mode
-        string += "normalize_by_energy: %s\n" % self.normalize_by_energy
-        string += "normalize_by_category: %s\n" % self.normalize_by_category
-        string += "Azimuth bins and exp index: %d, %f" % (self.azi_bins,
-                                                          self.azi_exp_idx)
-        return string
-
-
-class DefaultWeightConfig(WeightConfigBase):
-    """
-    Weight config in original CMT3D packages
-    """
-    def __init__(self, normalize_by_energy=False, normalize_by_category=False,
-                 comp_weight=None,
-                 love_dist_weight=0.78, pnl_dist_weight=1.15,
-                 rayleigh_dist_weight=0.55,
-                 azi_exp_idx=0.5, azi_bins=12,
-                 ref_dist=1.0):
-        WeightConfigBase.__init__(self, "default",
-                                  normalize_by_energy=normalize_by_energy,
-                                  normalize_by_category=normalize_by_category)
-        if comp_weight is None:
-            self.comp_weight = {"Z": 2.0, "R": 1.0, "T": 2.0}
-        else:
-            self.comp_weight = comp_weight
-
-        self.love_dist_weight = love_dist_weight
-        self.pnl_dist_weight = pnl_dist_weight
-        self.rayleigh_dist_weight = rayleigh_dist_weight
-        self.azi_exp_idx = azi_exp_idx
-        self.azi_bins = azi_bins
-        self.ref_dist = ref_dist
-
-    def __repr__(self):
-        string = "Weight Strategy:\n"
-        string += "mode: %s\n" % self.mode
-        string += "normalize_by_energy: %s\n" % self.normalize_by_energy
-        string += "normalize_by_category: %s\n" % self.normalize_by_category
-        string += "component weight: %s\n" % self.comp_weight
-        string += "pnl, rayleigh and love distance weights: %f, %f, %f\n" % (
-            self.pnl_dist_weight, self.rayleigh_dist_weight,
-            self.love_dist_weight)
-        string += "number of azimuth bins: %d\n" % self.azi_bins
-        string += "azimuth exponential index: %f\n" % self.azi_exp_idx
-        return string
-
-
 class Config(object):
     """
     Configuration for source inversion
 
-
     """
-
-    def __init__(self, npar, dlocation=0.0, ddepth=0.0, dmoment=0.0,
-                 scale_vector=None, zero_trace=True, double_couple=False,
+    def __init__(self, npar,
+                 dlatitude_in_deg=None,
+                 dlongitude_in_deg=None,
+                 ddepth_in_m=None,
+                 dmoment_tensor=None,
+                 scale_vector=None,
+                 zero_trace=True, double_couple=False,
                  envelope_coef=0.5,  max_nl_iter=60,
                  damping=0.0, station_correction=True,
                  weight_data=True, weight_config=None,
                  bootstrap=True, bootstrap_repeat=300,
-                 bootstrap_subset_ratio=0.4,
                  taper_type="tukey"):
         """
         :param npar: number of parameters to be inverted
-        :param dlocation: location perturbation when calculated perturbed
-            synthetic data, unit is degree
-        :param ddepth: depth perturbation, unit is meter
-        :param dmoment: moment perturbation, unit is dyne * cm
+        :param dlatitude_in_deg: latitude perturbation when calculated
+            perturbed synthetic data, unit is degree
+        :param dlongtidue_in_deg: latitude perturbation when calculated
+            perturbed synthetic data, unit is degree
+        :param ddepth_in_m: depth perturbation, unit is meter.
+        :param dmoment_tensor: perturbation of each component of
+            the moment tensor, unit is dyne * cm. Here we assume for each
+            component, the perturbation is the same.
         :param scale_vector: the scaling vector for d***. If none, then
             it will use the default
         :param zero_trace: bool value of whether applies zero-trace constraint
@@ -133,7 +57,6 @@ class Config(object):
         :param weight_config: the weighting configuration
         :param bootstrap: bool value of whether applied bootstrap method
         :param bootstrap_repeat: bootstrap iterations
-        :param bootstrap_subset_ratio: the subset ratio for bootstrap runs
         :param taper_type: the taper type used for taper the seismograms
             in the windows
         """
@@ -159,9 +82,10 @@ class Config(object):
         self.npar = npar
         self.parlist = PARLIST[:npar]
 
-        self.dlocation = dlocation
-        self.ddepth = ddepth
-        self.dmoment = dmoment
+        self.dlatitude = dlatitude_in_deg
+        self.dlongitude = dlongitude_in_deg
+        self.ddepth_in_m = ddepth_in_m
+        self.dmoment = dmoment_tensor
         self._check_perturbation_sanity()
 
         self.weight_data = weight_data
@@ -193,14 +117,13 @@ class Config(object):
         # original cmt perturbation
         self.dcmt_par = np.array(
             [self.dmoment, self.dmoment, self.dmoment, self.dmoment,
-             self.dmoment, self.dmoment, self.ddepth, self.dlocation,
-             self.dlocation, 1.0, 1.0])[:npar]
+             self.dmoment, self.dmoment, self.ddepth_in_m, self.dlongitude,
+             self.dlatitude, 1.0, 1.0])[:npar]
         # scaled cmt perturbation
         self.dcmt_par_scaled = self.dcmt_par / self.scale_vector
 
         self.bootstrap = bootstrap
         self.bootstrap_repeat = bootstrap_repeat
-        self.bootstrap_subset_ratio = bootstrap_subset_ratio
 
         self.taper_type = taper_type
 
@@ -209,18 +132,19 @@ class Config(object):
         Check cmt perturbation is set according to npar
         """
         if self.npar >= NM:
-            if not self.dmoment:
-                raise ValueError("npar(%d) requires dmoment(%s) > 0" %
-                                 (self.npar, self.dmoment))
+            if self.dmoment is None:
+                raise ValueError("npar(%d) requires dmoment_tensor(%s) "
+                                 "to be set" % (self.npar, self.dmoment))
         if self.npar >= (NM + 1):
-            if not self.ddepth:
-                raise ValueError("npar(%d) requires ddepth(%s) > 0" %
-                                 (self.npar, self.ddepth))
+            if self.ddepth_in_m is None:
+                raise ValueError("npar(%d) requires ddepth_in_m(%s) "
+                                 "to be set" % (self.npar, self.ddepth_in_m))
 
         if self.npar >= NML:
-            if not self.dlocation:
-                raise ValueError("npar(%d) requires dlocation(%s) > 0" %
-                                 (self.npar, self.ddepth))
+            if self.dlatitude is None or self.dlongitude is None:
+                raise ValueError("npar(%d) requires dlongitude_in_deg and"
+                                 "dlongitude in deg to be set" %
+                                 (self.npar, self.dlatitude, self.dlongitude))
 
     def __repr__(self):
         npar = self.npar
