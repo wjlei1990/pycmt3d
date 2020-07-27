@@ -16,7 +16,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from mpl_toolkits.basemap import Basemap
 from matplotlib.patches import Rectangle
 from obspy.geodetics import gps2dist_azimuth
 from obspy.imaging.beachball import beach
@@ -476,6 +475,7 @@ class PlotInvSummary(object):
         """
         Plot global map of event and stations
         """
+        from mpl_toolkits.basemap import Basemap
         # ax = plt.subplot(211)
         plt.title(self.cmtsource.eventname)
         m = Basemap(projection='cyl', lon_0=0.0, lat_0=0.0,
