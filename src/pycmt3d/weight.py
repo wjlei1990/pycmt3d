@@ -152,14 +152,21 @@ class Weight(object):
         """
         weight_dict = {}
         idx_dict = {}
+
         for cat, points in self.point_bins.items():
+
             weight = SphereAziBin(
-                points, center=self.center, bin_order=self.config.azi_exp_idx,
-                nbins=self.config.azi_bins, remove_duplicate=False,
+                points,
+                center=self.center,
+                bin_order=self.config.azi_exp_idx,
+                nbins=self.config.azi_bins,
+                remove_duplicate=False,
                 normalize_mode="average")
+
             weight.calculate_weight()
             weight_dict[cat] = weight.points_weights
             idx_dict[cat] = weight.points_tags
+
         return weight_dict, idx_dict
 
     def setup_weight_for_epicenter_distance(self):
