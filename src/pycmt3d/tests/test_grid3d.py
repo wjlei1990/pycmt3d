@@ -16,7 +16,7 @@ import inspect
 import os
 import pytest
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')  # NOQA
+plt.switch_backend('agg')     # noqa
 from pycmt3d import CMTSource
 from pycmt3d import DataContainer
 from pycmt3d import WeightConfig

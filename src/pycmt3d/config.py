@@ -143,8 +143,7 @@ class Config(object):
         if self.npar >= NML:
             if self.dlatitude is None or self.dlongitude is None:
                 raise ValueError("npar(%d) requires dlongitude_in_deg and"
-                                 "dlongitude in deg to be set" %
-                                 (self.npar, self.dlatitude, self.dlongitude))
+                                 "dlongitude in deg to be set" % (self.npar))
 
     def __repr__(self):
         npar = self.npar
