@@ -88,8 +88,10 @@ def test_weighting_two(tmpdir, cmtsource):
         love_dist_weight=1.0, pnl_dist_weight=1.0,
         rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
-    config = Config(6, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
-                    zero_trace=True, weight_data=True,
+    config = Config(6,
+                    dmoment_tensor=1.0e22,
+                    zero_trace=True,
+                    weight_data=True,
                     station_correction=True,
                     weight_config=weight_config)
 
@@ -107,8 +109,11 @@ def test_weighting_two_7par(tmpdir, cmtsource):
         love_dist_weight=1.0, pnl_dist_weight=1.0,
         rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
-    config = Config(7, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
-                    zero_trace=True, weight_data=True,
+    config = Config(7,
+                    ddepth_in_m=0.5,
+                    dmoment_tensor=1.0e22,
+                    zero_trace=True,
+                    weight_data=True,
                     station_correction=True,
                     weight_config=weight_config)
 
@@ -126,8 +131,13 @@ def test_weighting_two_9par(tmpdir, cmtsource):
         love_dist_weight=1.0, pnl_dist_weight=1.0,
         rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
-    config = Config(9, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
-                    zero_trace=True, weight_data=True,
+    config = Config(9,
+                    dlongitude_in_deg=0.5,
+                    dlatitude_in_deg=0.5,
+                    ddepth_in_m=0.5,
+                    dmoment_tensor=1.0e22,
+                    zero_trace=True,
+                    weight_data=True,
                     station_correction=True,
                     weight_config=weight_config)
 
@@ -145,8 +155,10 @@ def setup_inversion(cmt):
         love_dist_weight=1.0, pnl_dist_weight=1.0,
         rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
-    config = Config(6, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
-                    zero_trace=True, weight_data=True,
+    config = Config(6,
+                    dmoment_tensor=1.0e22,
+                    zero_trace=True,
+                    weight_data=True,
                     station_correction=True,
                     weight_config=weight_config)
 
@@ -164,12 +176,17 @@ def test_cmt_bootstrap(cmtsource, tmpdir):
         love_dist_weight=1.0, pnl_dist_weight=1.0,
         rayleigh_dist_weight=1.0, azi_exp_idx=0.5)
 
-    config = Config(9, dlocation=0.5, ddepth=0.5, dmoment=1.0e22,
-                    zero_trace=True, weight_data=True,
+    config = Config(9,
+                    dlongitude_in_deg=0.5,
+                    dlatitude_in_deg=0.5,
+                    ddepth_in_m=0.5,
+                    dmoment_tensor=1.0e22,
+                    zero_trace=True,
+                    weight_data=True,
                     station_correction=True,
                     weight_config=weight_config,
-                    bootstrap=True, bootstrap_repeat=20,
-                    bootstrap_subset_ratio=0.4)
+                    bootstrap=True,
+                    bootstrap_repeat=20)
 
     srcinv = Cmt3D(cmtsource, dcon_two, config)
     srcinv.source_inversion()

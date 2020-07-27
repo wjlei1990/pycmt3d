@@ -27,7 +27,7 @@ class Config(object):
                  dmoment_tensor=None,
                  scale_vector=None,
                  zero_trace=True, double_couple=False,
-                 envelope_coef=0.5,  max_nl_iter=60,
+                 envelope_coef=0.0,  max_nl_iter=60,
                  damping=0.0, station_correction=True,
                  weight_data=True, weight_config=None,
                  bootstrap=True, bootstrap_repeat=300,

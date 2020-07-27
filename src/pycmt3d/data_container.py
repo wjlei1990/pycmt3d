@@ -17,7 +17,7 @@ import json
 import numpy as np
 from obspy import read
 from . import logger
-from collections import Sequence
+from collections.abc import Sequence
 
 from .constant import PARLIST
 

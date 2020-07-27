@@ -42,7 +42,8 @@ def test_flake8():
             files.append(full_path)
 
     # Get the style checker with the default style.
-    style_guide = flake8.get_style_guide(ignore=['E24', 'W503', 'E226'])
+    style_guide = flake8.get_style_guide(
+        ignore=['E24', 'W503', 'E226', 'W504'])
     report = style_guide.check_files(files)
     assert report.get_statistics('E') == [], 'Flake8 found violations'
     assert report.total_errors == 0

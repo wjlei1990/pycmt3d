@@ -19,7 +19,7 @@ import numpy.testing as npt
 import pytest
 from pycmt3d.source import CMTSource
 from pycmt3d.data_container import DataContainer
-from pycmt3d.config import DefaultWeightConfig
+from pycmt3d.weight_config import DefaultWeightConfig
 from pycmt3d.constant import PARLIST
 from pycmt3d.weight import Weight
 

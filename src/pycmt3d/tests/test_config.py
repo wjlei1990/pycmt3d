@@ -14,7 +14,8 @@ Run with pytest.
 from __future__ import print_function, division
 import inspect
 import os
-import pycmt3d.config as conf
+from pycmt3d.config import Config
+from pycmt3d.weight_config import WeightConfigBase, DefaultWeightConfig
 import numpy.testing as npt
 
 
@@ -26,16 +27,16 @@ SYNT_DIR = os.path.join(DATA_DIR, "syn_T006_T030")
 
 
 def test_weightconfig():
-    config = conf.WeightConfigBase(mode="default", normalize_by_energy=True,
-                                   normalize_by_category=True)
+    config = WeightConfigBase(mode="default", normalize_by_energy=True,
+                              normalize_by_category=True)
     assert config.mode == "default"
     assert config.normalize_by_energy
     assert config.normalize_by_category
 
 
 def test_defaultweightconfig():
-    config = conf.DefaultWeightConfig(
-        normalize_by_energy=True, normalize_by_category=True)
+    config = DefaultWeightConfig(normalize_by_energy=True,
+                                 normalize_by_category=True)
 
     assert config.mode == "default"
     assert config.normalize_by_energy
@@ -48,19 +49,29 @@ def test_defaultweightconfig():
 
 
 def test_config():
-    weight_config = conf.DefaultWeightConfig(
-        normalize_by_energy=True, normalize_by_category=True)
+    weight_config = DefaultWeightConfig(normalize_by_energy=True,
+                                        normalize_by_category=True)
 
-    config = conf.Config(9, dlocation=0.03, ddepth=3.0, dmoment=2.0e23,
-                         zero_trace=True, double_couple=False,
-                         damping=0.01, station_correction=True,
-                         weight_data=True, weight_config=weight_config,
-                         bootstrap=True, bootstrap_repeat=500)
+    config = Config(9,
+                    dlongitude_in_deg=0.03,
+                    dlatitude_in_deg=0.03,
+                    ddepth_in_m=3.0,
+                    dmoment_tensor=2.0e23,
+                    zero_trace=True,
+                    double_couple=False,
+                    damping=0.01,
+                    station_correction=True,
+                    weight_data=True,
+                    weight_config=weight_config,
+                    bootstrap=True,
+                    bootstrap_repeat=500)
+
     assert config.npar == 9
     assert config.parlist == ("Mrr", "Mtt", "Mpp", "Mrt", "Mrp", "Mtp",
                               "dep", "lon", "lat")
-    assert config.dlocation == 0.03
-    assert config.ddepth == 3.0
+    assert config.dlatitude == 0.03
+    assert config.dlongitude == 0.03
+    assert config.ddepth_in_m == 3.0
     assert config.dmoment == 2.0e23
     assert config.zero_trace
     assert not config.double_couple

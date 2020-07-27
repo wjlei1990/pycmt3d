@@ -138,7 +138,7 @@ class Weight(object):
         self.point_bins = pbins
 
     def setup_weight_for_component(self):
-        for cat, points in self.point_bins.iteritems():
+        for cat, points in self.point_bins.items():
             for point in points:
                 comp = self.data_container.trwins[point.tag].channel[-1]
                 comp_weight = self.config.comp_weight[comp]
@@ -152,7 +152,7 @@ class Weight(object):
         """
         weight_dict = {}
         idx_dict = {}
-        for cat, points in self.point_bins.iteritems():
+        for cat, points in self.point_bins.items():
             weight = SphereAziBin(
                 points, center=self.center, bin_order=self.config.azi_exp_idx,
                 nbins=self.config.azi_bins, remove_duplicate=False,
@@ -168,7 +168,7 @@ class Weight(object):
         distance weighting
         """
         ref_dist = self.config.ref_dist
-        for cat, points in self.point_bins.iteritems():
+        for cat, points in self.point_bins.items():
             for point in points:
                 trwin = self.data_container.trwins[point.tag]
                 comp = trwin.channel[-1]

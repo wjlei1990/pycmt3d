@@ -335,8 +335,7 @@ class Cmt3D(object):
         # inversion of each subset
         new_par_array = np.zeros((self.config.bootstrap_repeat, NPARMAX))
         for i in range(self.config.bootstrap_repeat):
-            new_cmt = self.invert_solver(A_bootstrap[i], b_bootstrap[i],
-                                         verbose=False)
+            new_cmt = self.invert_solver(A_bootstrap[i], b_bootstrap[i])
             new_par_array[i, :] = get_cmt_par(new_cmt)
 
         # statistical analysis
