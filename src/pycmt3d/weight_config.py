@@ -14,7 +14,7 @@ from __future__ import print_function, division, absolute_import
 
 class WeightConfigBase(object):
     """
-    Base class of weight config. Shouldn't be used for most cases.
+    Base class of weight config. Shouldn't be used.
     Since we introduce complex weighting strategies here, so I think
     it might be worth to seperate WeightConfig from the Config.
     """
@@ -59,12 +59,16 @@ class DefaultWeightConfig(WeightConfigBase):
     """
     Weight config in original CMT3D packages
     """
-    def __init__(self, normalize_by_energy=False, normalize_by_category=False,
+    def __init__(self,
+                 normalize_by_energy=False,
+                 normalize_by_category=False,
                  comp_weight=None,
-                 love_dist_weight=0.78, pnl_dist_weight=1.15,
+                 love_dist_weight=0.78,
+                 pnl_dist_weight=1.15,
                  rayleigh_dist_weight=0.55,
                  azi_exp_idx=0.5, azi_bins=12,
                  ref_dist=1.0):
+
         WeightConfigBase.__init__(self, "default",
                                   normalize_by_energy=normalize_by_energy,
                                   normalize_by_category=normalize_by_category)
